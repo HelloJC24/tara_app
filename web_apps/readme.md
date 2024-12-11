@@ -1,0 +1,1 @@
+This is web app with mix services. It can be landing pages, secret web pages, executable scripts or API. Each service should have folders.

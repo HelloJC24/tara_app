@@ -1,0 +1,1 @@
+Any python app should have separated folder, will point domains in each directory. Each python app must be an API.

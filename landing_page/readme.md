@@ -1,0 +1,1 @@
+Create a folder or index file here for landing pages. Will only point the domain in this directory.
