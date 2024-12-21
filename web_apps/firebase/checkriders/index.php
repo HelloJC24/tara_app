@@ -11,7 +11,7 @@
 header('Content-Type: application/json');
 
 
-include '../master.php';
+include '../../master.php';
 const PATH_MOTOR = '/TARAMOTOR/online';
 const PATH_CAR = '/TARACAR/online';
 const PATH_VAN = '/TARAVAN/online';

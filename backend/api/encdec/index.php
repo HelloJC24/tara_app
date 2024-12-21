@@ -3,8 +3,8 @@
 
 header('Content-Type: application/json');
 
-include "../../service-checker.php";
-include "../encdec.php";
+
+include "../../encdec.php";
 
 //USAGE: <https:api.example.com/encdec/?encrypt=Hello World
 
@@ -26,13 +26,13 @@ if(isset($_GET['decrypt'])){
 
 
 if(isset($_GET['encrypt'])){
-$simple_string = rawurldecode($_GET['decrypt']);
+$simple_string = rawurldecode($_GET['encrypt']);
 $finalToken = openssl_encrypt($simple_string, $ciphering, $EDkey, $options, $cryption_iv); 
 $finalToken =  base64_encode($finalToken); 
 $response = array (
     "status" => "ok",
     "type" => "Encryption",
-    "value" => $finalToken
+    "value" => str_replace("=","",$finalToken)
 ); 
 }
 
