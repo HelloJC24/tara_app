@@ -124,95 +124,126 @@ const MainAuthScreen = ({ setStage }) => {
 const CreateAccountScreen = (props) => {
   const [activeBottomSheet, setActiveBottomSheet] = useState(false);
   const [activeScanner, setActiveScanner] = useState(false);
+  const [stage, setStage] = useState(0);
+
+  const handleBackPress = () => {
+    if (stage > 0) {
+      setStage(stage - 1);
+      return true;
+    }
+  };
+  useEffect(() => {
+    BackHandler.addEventListener("hardwareBackPress", handleBackPress);
+    return () => {
+      BackHandler.removeEventListener("hardwareBackPress", handleBackPress);
+    };
+  }, [stage]);
+
+  switch (stage) {
+    case 1:
+      return (
+        <SetUsernameScreen
+          back={() => setStage(0)}
+          nextPage={() => setStage(2)}
+        />
+      );
+    case 2:
+      return <TermsAndConditionScreen back={() => setStage(1)} />;
+    default:
+      return (
+        <View className="w-full h-full bg-white relative">
+          <StatusBar style="dark" />
+          <View className="h-full flex justify-between items-center px-8 py-10">
+            <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
+              <Pressable onPress={props.back}>
+                <Svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width={30}
+                  height={30}
+                  viewBox="0 0 24 24"
+                  fill="#374957"
+                >
+                  <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
+                </Svg>
+              </Pressable>
+              <View className="p-1 bg-slate-200 rounded-lg">
+                <Svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width={20}
+                  height={20}
+                  viewBox="0 0 24 24"
+                  fill="#374957"
+                >
+                  <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm0 22a10 10 0 1 1 10-10 10.011 10.011 0 0 1-10 10Z" />
+                  <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
+                  <Rect width={2} height={2} x={11} y={17} rx={1} />
+                </Svg>
+              </View>
+            </View>
+
+            <View className="mt-10 flex items-center">
+              <Image source={AppLogo} className="w-24 h-24" />
+              <ParagraphText fontSize="lg" padding="p-2" align="center">
+                The way how you{" "}
+                <Text className="text-blue-500 font-semibold">
+                  create an account
+                </Text>{" "}
+                for us, is just provide an ID, and you’re good to go!
+              </ParagraphText>
+            </View>
+            <Image source={AppLogo} className="w-56 h-56" />
+
+            <View className="w-full flex gap-y-4 p-2">
+              <Button hasIcon={true} onPress={() => setActiveBottomSheet(true)}>
+                <View className="flex flex-row gap-x-3 items-center">
+                  <Svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width={20}
+                    height={20}
+                    viewBox="0 0 24 24"
+                    fill="#fff"
+                  >
+                    <Path d="M18.581 2.14 12.316.051a1 1 0 0 0-.632 0L5.419 2.14A4.993 4.993 0 0 0 2 6.883V12c0 7.563 9.2 11.74 9.594 11.914a1 1 0 0 0 .812 0C12.8 23.74 22 19.563 22 12V6.883a4.993 4.993 0 0 0-3.419-4.743Zm-1.863 7.577-4.272 4.272a1.873 1.873 0 0 1-1.335.553h-.033a1.872 1.872 0 0 1-1.345-.6l-2.306-2.4a1 1 0 1 1 1.441-1.382l2.244 2.34L15.3 8.3a1 1 0 0 1 1.414 1.414Z" />
+                  </Svg>
+
+                  <Text className="text-base text-white font-bold">Start</Text>
+                </View>
+              </Button>
+
+              <ParagraphText align="center" fontSize="sm">
+                Learn how we protect your personal{" "}
+                <Text className="text-blue-500 font-semibold">
+                  information here.
+                </Text>
+              </ParagraphText>
+            </View>
+          </View>
+          <QuickTipsBottomSheet
+            open={activeBottomSheet}
+            onClose={() => setActiveBottomSheet(false)}
+            activeScanner={() => setActiveScanner(true)}
+          />
+
+          {activeScanner && (
+            <IDScanner
+              close={() => setActiveScanner(false)}
+              nextPage={() => setStage(1)}
+            />
+          )}
+        </View>
+      );
+  }
+};
+
+const SetUsernameScreen = (props) => {
+  const [username, setUsername] = useState("");
 
   return (
     <View className="w-full h-full bg-white relative">
       <StatusBar style="dark" />
-      <View className="h-full flex justify-between items-center px-8 py-10">
-        <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
-          <Pressable onPress={props.back}>
-            <Svg
-              xmlns="http://www.w3.org/2000/svg"
-              width={30}
-              height={30}
-              viewBox="0 0 24 24"
-              fill="#374957"
-            >
-              <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
-            </Svg>
-          </Pressable>
-          <View className="p-1 bg-slate-200 rounded-lg">
-            <Svg
-              xmlns="http://www.w3.org/2000/svg"
-              width={20}
-              height={20}
-              viewBox="0 0 24 24"
-              fill="#374957"
-            >
-              <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm0 22a10 10 0 1 1 10-10 10.011 10.011 0 0 1-10 10Z" />
-              <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
-              <Rect width={2} height={2} x={11} y={17} rx={1} />
-            </Svg>
-          </View>
-        </View>
-
-        <View className="mt-10 flex items-center">
-          <Image source={AppLogo} className="w-24 h-24" />
-          <ParagraphText fontSize="lg" padding="p-2" align="center">
-            The way how you{" "}
-            <Text className="text-blue-500 font-semibold">
-              create an account
-            </Text>{" "}
-            for us, is just provide an ID, and you’re good to go!
-          </ParagraphText>
-        </View>
-        <Image source={AppLogo} className="w-56 h-56" />
-
-        <View className="w-full flex gap-y-4 p-2">
-          <Button hasIcon={true} onPress={() => setActiveBottomSheet(true)}>
-            <View className="flex flex-row gap-x-3 items-center">
-              <Svg
-                xmlns="http://www.w3.org/2000/svg"
-                width={20}
-                height={20}
-                viewBox="0 0 24 24"
-                fill="#fff"
-              >
-                <Path d="M18.581 2.14 12.316.051a1 1 0 0 0-.632 0L5.419 2.14A4.993 4.993 0 0 0 2 6.883V12c0 7.563 9.2 11.74 9.594 11.914a1 1 0 0 0 .812 0C12.8 23.74 22 19.563 22 12V6.883a4.993 4.993 0 0 0-3.419-4.743Zm-1.863 7.577-4.272 4.272a1.873 1.873 0 0 1-1.335.553h-.033a1.872 1.872 0 0 1-1.345-.6l-2.306-2.4a1 1 0 1 1 1.441-1.382l2.244 2.34L15.3 8.3a1 1 0 0 1 1.414 1.414Z" />
-              </Svg>
-
-              <Text className="text-base text-white font-bold">Start</Text>
-            </View>
-          </Button>
-
-          <ParagraphText align="center" fontSize="sm">
-            Learn how we protect your personal{" "}
-            <Text className="text-blue-500 font-semibold">
-              information here.
-            </Text>
-          </ParagraphText>
-        </View>
-      </View>
-      <QuickTipsBottomSheet
-        open={activeBottomSheet}
-        onClose={() => setActiveBottomSheet(false)}
-        activeScanner={() => setActiveScanner(true)}
-      />
-
-      {activeScanner && <IDScanner close={() => setActiveScanner(false)} />}
-    </View>
-  );
-};
-
-const SetUsernameScreen = (props) => {
-  const [username, setUsername] = useState("John Doe");
-
-  return (
-    <View className="w-full h-full bg-white absolute inset-0 z-50">
-      <StatusBar style="dark" />
       <View className="h-full  flex justify-between items-center px-8 py-10">
         <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
-          <Pressable onPress={() => props.setStage(2)}>
+          <Pressable onPress={props.back}>
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={30}
@@ -266,7 +297,7 @@ const SetUsernameScreen = (props) => {
         <View></View>
 
         <View className="w-full flex gap-y-4 p-2">
-          <Button>Create Account</Button>
+          <Button onPress={props.nextPage}>Create Account</Button>
 
           <ParagraphText align="center" fontSize="sm">
             Learn how we protect your personal{" "}
@@ -282,11 +313,11 @@ const SetUsernameScreen = (props) => {
 
 const TermsAndConditionScreen = (props) => {
   return (
-    <View className="w-full h-full bg-white absolute inset-0 z-50">
+    <View className="w-full h-full bg-white relative">
       <StatusBar style="dark" />
       <View className="h-full  flex justify-between items-center px-8 py-10">
         <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
-          <Pressable onPress={() => props.setStage(3)}>
+          <Pressable onPress={props.back}>
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={30}
@@ -316,24 +347,17 @@ const TermsAndConditionScreen = (props) => {
           <Text className=" text-2xl text-black p-4 font-semibold">
             Terms and Conditions
           </Text>
-
-          <ParagraphText
-            align="center"
-            fontSize="sm"
-            padding="py-2 px-6"
-            textColor="text-neutral-700"
-          >
-            Name looks good! Try to correct if needed.
-          </ParagraphText>
         </View>
-        <View></View>
 
         <View className="w-full flex gap-y-4 p-2">
           <Button>I Accept and wish to proceed</Button>
 
           <ParagraphText align="center" fontSize="sm">
-            By clickng the proceed you are also agreeing to our Data and Privacy
-            Policy as well.
+            By clickng the proceed you are also agreeing to our{" "}
+            <Text className="text-blue-500 font-semibold">
+              Data and Privacy Policy
+            </Text>{" "}
+            as well.
           </ParagraphText>
         </View>
       </View>

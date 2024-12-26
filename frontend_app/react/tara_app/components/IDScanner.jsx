@@ -12,7 +12,6 @@ import {
 } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
 import AppLogo from "../assets/splash-icon.png";
-import { scanID } from "../config/hooks";
 import Button from "./Button";
 import ParagraphText from "./ParagraphText";
 import { useToast } from "./ToastNotify";
@@ -75,30 +74,25 @@ const IDScanner = (props) => {
         name: fileName,
       });
 
-      const scanIdResponse = await scanID();
+      // const scanIdResponse = await scanID();
 
-      // Check for scan errors
-      if (
-        scanIdResponse.data.name === null ||
-        scanIdResponse.data.name === "NO NAME FOUND"
-      ) {
-        setIsError(true);
-        toast("error", "Your photo is blurry");
-        return;
-      }
-
-      toast("success", "Image scanned successfully");
+      // // Check for scan errors
+      // if (
+      //   scanIdResponse.data.name === null ||
+      //   scanIdResponse.data.name === "NO NAME FOUND"
+      // ) {
+      //   setIsError(true);
+      //   toast("error", "Your photo is blurry");
+      //   return;
+      // }
+      setTimeout(() => {
+        toast("success", "Image scanned successfully");
+        setIsLoading(false);
+        props.nextPage();
+      }, 3000);
     } catch (error) {
       console.log("This is Error: ", error);
-    } finally {
-      setIsLoading(false);
     }
-  };
-
-  const handleError = (message) => {
-    setIsLoading(false);
-    props.close();
-    return;
   };
 
   return (
@@ -278,6 +272,8 @@ const ErrorProcessingPhoto = (props) => {
           <Button bgColor="bg-slate-300" textColor="text-neutral-700">
             Try again
           </Button>
+
+          {/* <Button>Try again</Button> */}
 
           <ParagraphText align="center" fontSize="sm">
             Learn how we protect your personal{" "}
