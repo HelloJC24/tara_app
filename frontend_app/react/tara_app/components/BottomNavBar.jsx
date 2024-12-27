@@ -7,7 +7,7 @@ const BottomNavBar = () => {
   const navigation = useNavigation();
   return (
     <View
-      className="w-full absolute bottom-0 left-0 right-0 border-t border-x border-slate-100 bg-white p-5 shadow-xl shadow-neutral-500 rounded-3xl
+      className="w-full absolute bottom-2 left-0 right-0 border-t border-x border-slate-100 bg-white p-5 shadow-xl shadow-neutral-500 rounded-3xl
     flex flex-row items-center justify-between"
     >
       <View className="flex gap-y-1 justify-center items-center">
@@ -43,7 +43,10 @@ const BottomNavBar = () => {
         <Text className="text-sm text-slate-500">Scan</Text>
       </TouchableOpacity>
 
-      <View className="flex gap-y-1 justify-center items-center">
+      <TouchableOpacity
+        onPress={() => navigation.navigate("chats")}
+        className="flex gap-y-1 justify-center items-center"
+      >
         <Svg
           xmlns="http://www.w3.org/2000/svg"
           width={25}
@@ -56,9 +59,12 @@ const BottomNavBar = () => {
         </Svg>
 
         <Text className="text-sm text-slate-500">Chat</Text>
-      </View>
+      </TouchableOpacity>
 
-      <View className="flex gap-y-1 justify-center items-center">
+      <TouchableOpacity
+        onPress={() => navigation.navigate("account")}
+        className="flex gap-y-1 justify-center items-center"
+      >
         <Svg
           xmlns="http://www.w3.org/2000/svg"
           width={25}
@@ -72,7 +78,7 @@ const BottomNavBar = () => {
         </Svg>
 
         <Text className="text-sm text-slate-500">More</Text>
-      </View>
+      </TouchableOpacity>
     </View>
   );
 };

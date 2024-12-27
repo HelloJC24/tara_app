@@ -8,7 +8,7 @@ import ParagraphText from "../components/ParagraphText";
 
 const HomeScreen = () => {
   return (
-    <View className="w-full h-full bg-white p-8">
+    <View className="w-full h-full bg-white p-6">
       <StatusBar style="dark" />
       <View className="w-full h-full relative">
         <View className="w-full flex flex-row gap-x-3 items-center justify-end py-6">
@@ -44,14 +44,14 @@ const HomeScreen = () => {
           <ParagraphText
             padding="py-4 pb-6 pr-16"
             fontSize="lg"
-            textColor="text-slate-500"
+            textColor="text-neutral-700"
           >
             It's kind of sunny and cloudy today! Enjoy the trip..
           </ParagraphText>
         </View>
 
         <View
-          className="w-full border-t border-x border-slate-100 p-3 shadow-xl shadow-neutral-500 bg-white rounded-2xl 
+          className="w-full border-t border-x border-slate-100 p-3 shadow-md shadow-neutral-500 bg-white rounded-2xl 
         flex flex-row items-center justify-between"
         >
           <View className="flex flex-row gap-x-4 ">
@@ -69,7 +69,9 @@ const HomeScreen = () => {
             </View>
 
             <View>
-              <Text className="text-xl font-semibold">Wallet</Text>
+              <Text className="text-xl font-semibold text-neutral-700">
+                Wallet
+              </Text>
               <Text className="text-base">₱128.00</Text>
             </View>
           </View>
@@ -86,6 +88,11 @@ const HomeScreen = () => {
               <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0zm4 13h-3v3a1 1 0 0 1-2 0v-3H8a1 1 0 0 1 0-2h3V8a1 1 0 0 1 2 0v3h3a1 1 0 0 1 0 2z" />
             </Svg>
           </View>
+        </View>
+        <View className="w-full py-4">
+          <Text className="text-lg text-neutral-700">Choose a ride</Text>
+
+          <View className="w-full flex flex-row justify-between items-center py-2"></View>
         </View>
 
         <BottomNavBar />

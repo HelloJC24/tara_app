@@ -102,12 +102,12 @@ const ToastIcon = ({ status }) => {
 
   if (status === "error") {
     return (
-      <View className="bg-red-200 p-3 rounded-xl flex justify-center items-center">
-        <View className="bg-red-500  rounded-full">
+      <View className="bg-red-200 p-3 rounded-xl">
+        <View className="bg-red-500 rounded-full">
           <Svg
             xmlns="http://www.w3.org/2000/svg"
-            width={30}
-            height={30}
+            width={25}
+            height={25}
             viewBox="0 0 24 24"
             fill="white"
           >

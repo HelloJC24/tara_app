@@ -22,7 +22,9 @@ const Button = ({
           padding ? `${padding}` : "p-3"
         } ${radius ? `rounded-${radius}` : "rounded-2xl"} `}
       >
-        <View className="flex justify-center items-center">{children}</View>
+        <View className="flex flex-row gap-x-3 items-center justify-center">
+          {children}
+        </View>
       </TouchableOpacity>
     );
   }

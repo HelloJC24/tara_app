@@ -5,10 +5,13 @@ import { ToastProvider } from "./components/ToastNotify";
 import AuthProvider, { AuthContext } from "./context/authContext";
 import DataProvider from "./context/dataContext";
 import "./global.css";
+import AccountScreen from "./screens/account";
 import AuthScreen from "./screens/auth";
+import ChatScreen from "./screens/chats";
 import HomeScreen from "./screens/home";
 import QrCodeScannerScreen from "./screens/qrcode_scanner";
 import SplashScreen from "./screens/splash";
+import WebViewerScreen from "./screens/web_viewer";
 
 const Stack = createNativeStackNavigator();
 
@@ -25,6 +28,9 @@ const ProtectedRouting = () => {
         <>
           <Stack.Screen name="home" component={HomeScreen} />
           <Stack.Screen name="qrcode" component={QrCodeScannerScreen} />
+          <Stack.Screen name="chats" component={ChatScreen} />
+          <Stack.Screen name="account" component={AccountScreen} />
+          <Stack.Screen name="webview" component={WebViewerScreen} />
         </>
       ) : (
         <Stack.Screen name="auth" component={AuthScreen} />
