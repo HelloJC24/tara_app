@@ -7,7 +7,7 @@ const BottomNavBar = () => {
   const navigation = useNavigation();
   return (
     <View
-      className="w-full absolute bottom-2 left-0 right-0 border-t border-x border-slate-100 bg-white p-5 shadow-xl shadow-neutral-500 rounded-3xl
+      className="w-full absolute bottom-6 left-6 border-t border-x border-slate-100 bg-white p-5 shadow-xl shadow-neutral-500 rounded-3xl
     flex flex-row items-center justify-between"
     >
       <View className="flex gap-y-1 justify-center items-center">
@@ -44,7 +44,7 @@ const BottomNavBar = () => {
       </TouchableOpacity>
 
       <TouchableOpacity
-        onPress={() => navigation.navigate("chats")}
+        onPress={() => navigation.navigate("inbox")}
         className="flex gap-y-1 justify-center items-center"
       >
         <Svg

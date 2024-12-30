@@ -10,20 +10,16 @@ const WebViewerScreen = ({ route }) => {
     <View className="flex-1 bg-white relative">
       <StatusBar style="dark" />
 
-      {isConnected ? (
-        <WebView
-          source={{ uri: url }}
-          onLoadEnd={() => setIsLoading(false)}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          onError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.warn("WebView error: ", nativeEvent);
-          }}
-        />
-      ) : (
-        <NoInternet />
-      )}
+      <WebView
+        source={{ uri: url }}
+        onLoadEnd={() => setIsLoading(false)}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        onError={(syntheticEvent) => {
+          const { nativeEvent } = syntheticEvent;
+          console.warn("WebView error: ", nativeEvent);
+        }}
+      />
     </View>
   );
 };

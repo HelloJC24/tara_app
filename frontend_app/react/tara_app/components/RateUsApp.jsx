@@ -8,7 +8,7 @@ const RateUsApp = (props) => {
     <View className="w-full h-full bg-white absolute inset-0 z-50">
       <StatusBar style="dark" />
 
-      <View className="h-full flex justify-between items-center px-8 py-10 z-[100]">
+      <View className="h-full flex justify-between items-center px-6 py-10 ">
         <View className="w-full flex flex-row gap-x-3 items-center justify-end py-2">
           <Pressable onPress={props.close}>
             <Svg
@@ -31,7 +31,7 @@ const RateUsApp = (props) => {
             Rate your experience
           </Text>
 
-          <View className="w-full flex flex-row gap-x-4 justify-between items-center py-10 ">
+          <View className="w-full flex flex-row gap-x-6 justify-between items-center py-10 ">
             <TouchableOpacity className="flex flex-col gap-y-2 items-center">
               <Svg
                 xmlns="http://www.w3.org/2000/svg"

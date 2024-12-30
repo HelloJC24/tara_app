@@ -96,11 +96,11 @@ const IDScanner = (props) => {
   };
 
   return (
-    <View className="w-full h-screen bg-white absolute inset-0 z-[100]">
+    <View className="w-full h-full bg-white absolute inset-0 z-[200]">
       <StatusBar style="dark" />
 
       <View className="py-6">
-        <View className="w-full flex flex-row gap-x-3 items-center justify-between px-6 py-6">
+        <View className="w-full  flex flex-row gap-x-3 items-center justify-between px-6 py-6 z-50">
           <Pressable onPress={props.close}>
             <Svg
               xmlns="http://www.w3.org/2000/svg"
@@ -161,9 +161,9 @@ const IDScanner = (props) => {
 
 const ProcessingPhoto = (props) => {
   return (
-    <View className="w-full h-full bg-white absolute inset-0 z-[100]">
+    <View className="w-full h-screen bg-white absolute inset-0 z-[200]">
       <StatusBar style="dark" />
-      <View className="h-full flex justify-between items-center px-6 py-10">
+      <View className="h-full bg-white flex justify-between items-center px-6 py-10 z-50">
         <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
           <Pressable onPress={props.close}>
             <Svg
@@ -205,7 +205,7 @@ const ProcessingPhoto = (props) => {
             Cancel
           </Button>
 
-          <ParagraphText align="center" fontSize="sm">
+          <ParagraphText align="center" fontSize="sm" padding="px-4">
             Learn how we protect your personal{" "}
             <Text className="text-blue-500 font-semibold">
               information here.
@@ -219,7 +219,7 @@ const ProcessingPhoto = (props) => {
 
 const ErrorProcessingPhoto = (props) => {
   return (
-    <View className="w-full h-full bg-white absolute inset-0 z-[100]">
+    <View className="w-full h-screen bg-white absolute inset-0 z-[200]">
       <StatusBar style="dark" />
       <View className="h-full flex justify-between items-center px-6 py-10">
         <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
@@ -263,7 +263,7 @@ const ErrorProcessingPhoto = (props) => {
 
           {/* <Button>Try again</Button> */}
 
-          <ParagraphText align="center" fontSize="sm">
+          <ParagraphText align="center" fontSize="sm" padding="px-6">
             Learn how we protect your personal{" "}
             <Text className="text-blue-500 font-semibold">
               information here.

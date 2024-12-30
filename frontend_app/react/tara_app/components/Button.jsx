@@ -12,6 +12,7 @@ const Button = ({
   radius,
   children,
 }) => {
+  
   if (hasIcon) {
     return (
       <TouchableOpacity

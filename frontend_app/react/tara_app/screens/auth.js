@@ -112,7 +112,7 @@ const MainAuthScreen = ({ setStage }) => {
             Create new account
           </Button>
           <Button
-            onPress={() => navigation.navigate("home")}
+            onPress={showToast}
             bgColor="bg-yellow-100"
             textColor="text-amber-600"
           >
@@ -211,7 +211,7 @@ const CreateAccountScreen = (props) => {
                 <Text className="text-base text-white font-bold">Start</Text>
               </Button>
 
-              <ParagraphText align="center" fontSize="sm">
+              <ParagraphText align="center" fontSize="sm" padding="px-4">
                 Learn how we protect your personal{" "}
                 <Text className="text-blue-500 font-semibold">
                   information here.
@@ -302,7 +302,7 @@ const SetUsernameScreen = (props) => {
         <View className="w-full flex gap-y-4 p-2">
           <Button onPress={props.nextPage}>Create Account</Button>
 
-          <ParagraphText align="center" fontSize="sm">
+          <ParagraphText align="center" fontSize="sm" padding="px-4">
             Learn how we protect your personal{" "}
             <Text className="text-blue-500 font-semibold">
               information here.
@@ -355,7 +355,7 @@ const TermsAndConditionScreen = (props) => {
         <View className="w-full flex gap-y-4 p-2">
           <Button>I Accept and wish to proceed</Button>
 
-          <ParagraphText align="center" fontSize="sm">
+          <ParagraphText align="center" fontSize="sm" padding="px-4">
             By clickng the proceed you are also agreeing to our{" "}
             <Text className="text-blue-500 font-semibold">
               Data and Privacy Policy
@@ -455,7 +455,7 @@ const SignUpScreen = (props) => {
         <View className="w-full flex gap-y-4 p-2">
           <Button onPress={() => setActiveOTPScreen(true)}>Sign in</Button>
 
-          <ParagraphText align="center" fontSize="sm">
+          <ParagraphText align="center" fontSize="sm" padding="px-4">
             Learn how to recover your account{" "}
             <Text className="text-blue-500 font-semibold">
               effectively here.
@@ -542,7 +542,7 @@ const OTPScreen = (props) => {
           </Button>
           <Button onPress={() => setActiveRateUs(true)}>Verify Code</Button>
 
-          <ParagraphText align="center" fontSize="sm">
+          <ParagraphText align="center" fontSize="sm" padding="px-4">
             Learn how to recover your account{" "}
             <Text className="text-blue-500 font-semibold">
               effectively here.

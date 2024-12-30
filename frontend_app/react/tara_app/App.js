@@ -7,8 +7,8 @@ import DataProvider from "./context/dataContext";
 import "./global.css";
 import AccountScreen from "./screens/account";
 import AuthScreen from "./screens/auth";
-import ChatScreen from "./screens/chats";
 import HomeScreen from "./screens/home";
+import InboxScreen from "./screens/inbox";
 import QrCodeScannerScreen from "./screens/qrcode_scanner";
 import SplashScreen from "./screens/splash";
 import WebViewerScreen from "./screens/web_viewer";
@@ -24,11 +24,11 @@ const ProtectedRouting = () => {
         headerShown: false,
       })}
     >
-      {auth?.accessToken ? (
+      {!auth?.accessToken ? (
         <>
           <Stack.Screen name="home" component={HomeScreen} />
           <Stack.Screen name="qrcode" component={QrCodeScannerScreen} />
-          <Stack.Screen name="chats" component={ChatScreen} />
+          <Stack.Screen name="inbox" component={InboxScreen} />
           <Stack.Screen name="account" component={AccountScreen} />
           <Stack.Screen name="webview" component={WebViewerScreen} />
         </>
