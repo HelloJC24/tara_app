@@ -16,7 +16,7 @@ import WebViewerScreen from "./screens/web_viewer";
 const Stack = createNativeStackNavigator();
 
 const ProtectedRouting = () => {
-  const { auth } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
 
   return (
     <Stack.Navigator
@@ -24,7 +24,7 @@ const ProtectedRouting = () => {
         headerShown: false,
       })}
     >
-      {!auth?.accessToken ? (
+      {!user?.accessToken ? (
         <>
           <Stack.Screen name="home" component={HomeScreen} />
           <Stack.Screen name="qrcode" component={QrCodeScannerScreen} />

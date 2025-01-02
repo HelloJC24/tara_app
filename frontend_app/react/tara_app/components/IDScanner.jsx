@@ -154,7 +154,6 @@ const IDScanner = (props) => {
       </View>
 
       {isLoading && <ProcessingPhoto close={props.close} />}
-      {isError && <ErrorProcessingPhoto close={props.close} />}
     </View>
   );
 };

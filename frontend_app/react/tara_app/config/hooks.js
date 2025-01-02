@@ -1,5 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import { setDoc } from "firebase/firestore";
+import { db } from "./firebase-config";
 
 // header config for token authorization
 const config = async () => {
@@ -47,6 +49,89 @@ export const scanID = async (imgUrl) => {
   } catch (error) {
     console.error(error);
 
+    return {
+      status: "error",
+      message: error.message,
+    };
+  }
+};
+
+export const insertChat = async (chat) => {
+  try {
+    const msg = {
+      id: new Date().getTime().toString(),
+      senderId: chat.customerId,
+      receiverId: chat.riderId,
+      msg: chat.msg,
+      datetime: chat.datetime,
+      session: chat.session,
+      seen: false,
+      createdAt: serverTimestamp(),
+    };
+
+    const chatRef = await doc(
+      db,
+      `chats/${chat.senderId}/messages/${chat.receiverId}/conversations`,
+      msg.id
+    );
+    const res = await setDoc(chatRef, msg);
+
+    console.log(res);
+  } catch (error) {
+    console.error(error);
+    return {
+      status: "error",
+      message: error.message,
+    };
+  }
+};
+
+export const fetchConversations = async (senderId, receiverId) => {
+  try {
+    const chatRef = collection(
+      db,
+      `chats/${senderId}/messages/${receiverId}/conversations`
+    );
+    const q = query(chatRef, orderBy("createdAt", "asc"));
+
+    return onSnapshot(q, (snapshots) => {
+      const convo = snapshots.docs.map((doc) => ({
+        ...doc.data(),
+        id: doc.id,
+      }));
+
+      cb({
+        status: "success",
+        data: convo,
+      });
+    });
+  } catch (error) {
+    console.error(error);
+    return {
+      status: "error",
+      message: error.message,
+    };
+  }
+};
+
+export const fetchInboxMessages = async (senderId, cb) => {
+  try {
+    const chatRef = collection(db, `chats/${senderId}/messages`);
+    const q = query(chatRef, orderBy("seen", false));
+
+    return onSnapshot(q, (snapshots) => {
+      const inboxMsg = snapshots.docs.map((doc) => ({
+        ...doc.data(),
+        id: doc.id,
+      }));
+
+      cb({
+        status: "success",
+        data: inboxMsg,
+      });
+    });
+  } catch (error) {
+    console.error(error);
     return {
       status: "error",
       message: error.message,

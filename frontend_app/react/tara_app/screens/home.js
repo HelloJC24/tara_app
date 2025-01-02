@@ -218,12 +218,15 @@ const FriendsWithBenefits = ({ close }) => {
           align="center"
           fontSize="sm"
           textColor="text-neutral-700"
+          padding="px-2"
         >
           Here’s your unique QR code! Anyone who scans it can get between 10 and
           20 points, and you'll receive the same rewards too.
         </ParagraphText>
 
-        <Text className="text-center text-base font-semibold">OR</Text>
+        <Text className="text-center text-base font-semibold text-neutral-700">
+          OR
+        </Text>
 
         <View className="w-full flex gap-y-4">
           <Button>Scan a friend</Button>

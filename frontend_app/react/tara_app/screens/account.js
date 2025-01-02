@@ -1,6 +1,7 @@
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  BackHandler,
   Image,
   Pressable,
   Text,
@@ -14,6 +15,12 @@ import Button from "../components/Button";
 import ParagraphText from "../components/ParagraphText";
 
 const AccountScreen = ({ navigation }) => {
+  const [activeEditUsername, setActiveEditUsername] = useState(false);
+  const [activeAddMobileNum, setActiveMobileNum] = useState(false);
+  const [activeAddEmailAddress, setActiveAddEmailAddress] = useState(false);
+  const [activeAccountDeletionModal, setActiveAccountDeletionModal] =
+    useState(false);
+
   return (
     <View className="w-full h-full bg-white relative">
       <StatusBar style="dark" />
@@ -60,7 +67,7 @@ const AccountScreen = ({ navigation }) => {
                   <Text className="text-sm text-neutral-700">Legal Name</Text>
                   <Text className="text-lg py-1">John Doe</Text>
                 </View>
-                <TouchableOpacity>
+                <TouchableOpacity onPress={() => setActiveEditUsername(true)}>
                   <Svg
                     xmlns="http://www.w3.org/2000/svg"
                     width={20}
@@ -92,7 +99,7 @@ const AccountScreen = ({ navigation }) => {
                   </Text>
                   <Text className="text-lg py-1">+639275042174</Text>
                 </View>
-                <View>
+                <TouchableOpacity onPress={() => setActiveMobileNum(true)}>
                   <Svg
                     xmlns="http://www.w3.org/2000/svg"
                     width={20}
@@ -102,7 +109,7 @@ const AccountScreen = ({ navigation }) => {
                   >
                     <Path d="M1.172 19.119A4 4 0 0 0 0 21.947V24h2.053a4 4 0 0 0 2.828-1.172L18.224 9.485l-3.709-3.709ZM23.145.855a2.622 2.622 0 0 0-3.71 0l-3.506 3.507 3.709 3.709 3.507-3.506a2.622 2.622 0 0 0 0-3.71Z" />
                   </Svg>
-                </View>
+                </TouchableOpacity>
               </View>
 
               <View className="flex flex-row justify-between items-center">
@@ -116,7 +123,9 @@ const AccountScreen = ({ navigation }) => {
                     Add an e-mail address
                   </Text>
                 </View>
-                <View>
+                <TouchableOpacity
+                  onPress={() => setActiveAddEmailAddress(true)}
+                >
                   <Svg
                     xmlns="http://www.w3.org/2000/svg"
                     width={20}
@@ -126,7 +135,7 @@ const AccountScreen = ({ navigation }) => {
                   >
                     <Path d="M1.172 19.119A4 4 0 0 0 0 21.947V24h2.053a4 4 0 0 0 2.828-1.172L18.224 9.485l-3.709-3.709ZM23.145.855a2.622 2.622 0 0 0-3.71 0l-3.506 3.507 3.709 3.709 3.507-3.506a2.622 2.622 0 0 0 0-3.71Z" />
                   </Svg>
-                </View>
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -149,7 +158,10 @@ const AccountScreen = ({ navigation }) => {
               </View>
 
               <View className="w-full border-b border-slate-200 py-2">
-                <Text className="text-lg py-1 text-blue-500 font-semibold">
+                <Text
+                  onPress={() => setActiveAccountDeletionModal(true)}
+                  className="text-lg py-1 text-blue-500 font-semibold"
+                >
                   Request for Account Deletion
                 </Text>
               </View>
@@ -190,19 +202,90 @@ const AccountScreen = ({ navigation }) => {
           v.1.0.1 Beta
         </Text>
       </View>
+
+      {activeEditUsername && (
+        <EditUsernameScreen close={() => setActiveEditUsername(false)} />
+      )}
+      {activeAddMobileNum && (
+        <AddMobileNumber close={() => setActiveMobileNum(false)} />
+      )}
+      {activeAddEmailAddress && (
+        <AddEmailAddress close={() => setActiveAddEmailAddress(false)} />
+      )}
+
+      {activeAccountDeletionModal && (
+        <AccountDeletionModal
+          close={() => setActiveAccountDeletionModal(false)}
+        />
+      )}
     </View>
   );
 };
 
-const EditUsernameScreen = (props) => {
+const AccountDeletionModal = ({ close }) => {
+  return (
+    <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
+      <View
+        className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
+      flex gap-y-6"
+      >
+        <Text className="text-center text-2xl font-bold">How it works?</Text>
+
+        <View className="w-full flex justify-center items-center p-4">
+          <Image
+            source={{
+              uri: "https://pnghq.com/wp-content/uploads/2023/02/minecraft-steve-skin-render-png-3129.png",
+            }}
+            className="w-48 h-60"
+          />
+        </View>
+
+        <ParagraphText
+          align="center"
+          fontSize="sm"
+          textColor="text-neutral-700"
+          padding="px-2"
+        >
+          If you would like to request the deletion of all your personal data
+          from our system, please fill out the form, and we will inform you of
+          the status via email.
+        </ParagraphText>
+
+        <View className="w-full flex gap-y-4">
+          <Button>Fill out the form</Button>
+          <Button
+            onPress={close}
+            bgColor="bg-slate-200"
+            textColor="text-neutral-700"
+          >
+            Close
+          </Button>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const EditUsernameScreen = ({ close }) => {
   const [username, setUsername] = useState("John Doe");
 
+  const handleBackPress = () => {
+    close();
+    return true;
+  };
+  useEffect(() => {
+    BackHandler.addEventListener("hardwareBackPress", handleBackPress);
+    return () => {
+      BackHandler.removeEventListener("hardwareBackPress", handleBackPress);
+    };
+  }, [close]);
+
   return (
-    <View className="w-full h-screen bg-white relative">
+    <View className="w-full h-full bg-white absolute inset-0 z-50">
       <StatusBar style="dark" />
       <View className="h-full  flex justify-between items-center px-6 py-10">
         <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
-          <Pressable onPress={props.close}>
+          <Pressable onPress={close}>
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={30}
@@ -272,15 +355,114 @@ const EditUsernameScreen = (props) => {
   );
 };
 
-const EditEmailScreen = (props) => {
-  const [email, setEmail] = useState("example@gmail.com");
+const AddMobileNumber = ({ close }) => {
+  const [phoneNumber, setPhoneNumber] = useState("");
 
+  const handleBackPress = () => {
+    close();
+    return true;
+  };
+  useEffect(() => {
+    BackHandler.addEventListener("hardwareBackPress", handleBackPress);
+    return () => {
+      BackHandler.removeEventListener("hardwareBackPress", handleBackPress);
+    };
+  }, [close]);
   return (
-    <View className="w-full h-full bg-white absolute inset-0">
+    <View className="w-full h-full bg-white absolute inset-0 z-50">
       <StatusBar style="dark" />
       <View className="h-full  flex justify-between items-center px-6 py-10">
         <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
-          <Pressable onPress={() => props.setStage(2)}>
+          <Pressable onPress={close}>
+            <Svg
+              xmlns="http://www.w3.org/2000/svg"
+              width={30}
+              height={30}
+              viewBox="0 0 24 24"
+              fill="#374957"
+            >
+              <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
+            </Svg>
+          </Pressable>
+          <View className="p-1 bg-slate-200 rounded-lg">
+            <Svg
+              xmlns="http://www.w3.org/2000/svg"
+              width={20}
+              height={20}
+              viewBox="0 0 24 24"
+              fill="#374957"
+            >
+              <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm0 22a10 10 0 1 1 10-10 10.011 10.011 0 0 1-10 10Z" />
+              <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
+              <Rect width={2} height={2} x={11} y={17} rx={1} />
+            </Svg>
+          </View>
+        </View>
+
+        <View className="w-full z-50">
+          <Text className="text-center text-2xl text-black p-4 font-semibold">
+            Link Phone Number
+          </Text>
+
+          <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
+            <Image source={AppLogo} className="w-14 h-14" />
+
+            <TextInput
+              className="w-full text-lg text-blue-500"
+              type="number"
+              keyboardType="number-pad"
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              placeholder=""
+            />
+          </View>
+
+          <ParagraphText
+            align="center"
+            fontSize="sm"
+            padding="py-2 px-6"
+            textColor="text-neutral-700"
+          >
+            Number must be 11 digits
+          </ParagraphText>
+        </View>
+        <View></View>
+        <View></View>
+        <View></View>
+
+        <View className="w-full flex gap-y-4 p-2">
+          <Button>Update Account</Button>
+
+          <ParagraphText align="center" fontSize="sm">
+            Learn how we protect your personal{" "}
+            <Text className="text-blue-500 font-semibold">
+              information here.
+            </Text>
+          </ParagraphText>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const AddEmailAddress = ({ close }) => {
+  const [email, setEmail] = useState("example@gmail.com");
+  const handleBackPress = () => {
+    close();
+    return true;
+  };
+  useEffect(() => {
+    BackHandler.addEventListener("hardwareBackPress", handleBackPress);
+    return () => {
+      BackHandler.removeEventListener("hardwareBackPress", handleBackPress);
+    };
+  }, [close]);
+  return (
+    <View className="w-full h-full bg-white absolute inset-0 z-50">
+      <StatusBar style="dark" />
+      <View className="h-full  flex justify-between items-center px-6 py-10">
+        <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
+          <Pressable onPress={close}>
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={30}
@@ -329,84 +511,6 @@ const EditEmailScreen = (props) => {
             textColor="text-neutral-700"
           >
             Incorrect email format
-          </ParagraphText>
-        </View>
-        <View></View>
-        <View></View>
-        <View></View>
-
-        <View className="w-full flex gap-y-4 p-2">
-          <Button>Update Account</Button>
-
-          <ParagraphText align="center" fontSize="sm">
-            Learn how we protect your personal{" "}
-            <Text className="text-blue-500 font-semibold">
-              information here.
-            </Text>
-          </ParagraphText>
-        </View>
-      </View>
-    </View>
-  );
-};
-
-const EditPhoneNumberScreen = (props) => {
-  const [phoneNumber, setPhoneNumber] = useState("");
-
-  return (
-    <View className="w-full h-full bg-white absolute inset-0">
-      <StatusBar style="dark" />
-      <View className="h-full  flex justify-between items-center px-6 py-10">
-        <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
-          <Pressable onPress={props.close}>
-            <Svg
-              xmlns="http://www.w3.org/2000/svg"
-              width={30}
-              height={30}
-              viewBox="0 0 24 24"
-              fill="#374957"
-            >
-              <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
-            </Svg>
-          </Pressable>
-          <View className="p-1 bg-slate-200 rounded-lg">
-            <Svg
-              xmlns="http://www.w3.org/2000/svg"
-              width={20}
-              height={20}
-              viewBox="0 0 24 24"
-              fill="#374957"
-            >
-              <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm0 22a10 10 0 1 1 10-10 10.011 10.011 0 0 1-10 10Z" />
-              <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
-              <Rect width={2} height={2} x={11} y={17} rx={1} />
-            </Svg>
-          </View>
-        </View>
-
-        <View className="w-full z-50">
-          <Text className="text-center text-2xl text-black p-4 font-semibold">
-            Link Phone Number
-          </Text>
-
-          <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
-            <Image source={AppLogo} className="w-14 h-14" />
-
-            <TextInput
-              className="w-full text-lg text-blue-500"
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
-              placeholder=""
-            />
-          </View>
-
-          <ParagraphText
-            align="center"
-            fontSize="sm"
-            padding="py-2 px-6"
-            textColor="text-neutral-700"
-          >
-            Number must be 11 digits
           </ParagraphText>
         </View>
         <View></View>

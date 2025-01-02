@@ -1,7 +1,7 @@
+import BottomSheet from "@devvie/bottom-sheet";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  BackHandler,
   FlatList,
   Image,
   Pressable,
@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import Profile from "../assets/icon.png";
+import Button from "../components/Button";
 import ParagraphText from "../components/ParagraphText";
 
 const InboxScreen = ({ navigation }) => {
@@ -112,6 +113,7 @@ const ChatList = ({ status, onPress }) => {
 const Chat = ({ chatId, close }) => {
   const scrollViewRef = useRef(null);
   const [msg, setMsg] = useState("");
+  const [activeAutoReport, setActiveAutoReport] = useState(false);
   const [chats, setChat] = useState([
     {
       id: 1,
@@ -132,17 +134,6 @@ const Chat = ({ chatId, close }) => {
   const expiredSession = false;
   const userId = "4143234";
 
-  const handleBackPress = () => {
-    close();
-    return true;
-  };
-  useEffect(() => {
-    BackHandler.addEventListener("hardwareBackPress", handleBackPress);
-    return () => {
-      BackHandler.removeEventListener("hardwareBackPress", handleBackPress);
-    };
-  }, [close]);
-
   return (
     <View className="w-full h-full bg-white absolute inset-0 z-50">
       <StatusBar style="dark" />
@@ -159,7 +150,12 @@ const Chat = ({ chatId, close }) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-          <View></View>
+          <Pressable onPress={() => setActiveAutoReport(true)}>
+            <Image
+              source={Profile}
+              className="w-12 h-12 bg-neutral-500 rounded-xl object-cover"
+            />
+          </Pressable>
         </View>
 
         <View className="flex-1">
@@ -233,6 +229,9 @@ const Chat = ({ chatId, close }) => {
                         <View className="w-full flex items-start">
                           <View className="max-w-['60%'] border border-slate-300 px-4 py-3 rounded-xl">
                             <Text className="text-black text-sm">{msg}</Text>
+                            <Text className="text-blue-600 underline text-xs">
+                              See translation
+                            </Text>
                           </View>
                           <Text className="p-1 text-neutral-500 text-xs">
                             2:34pm
@@ -279,6 +278,11 @@ const Chat = ({ chatId, close }) => {
           )}
         </View>
       </View>
+
+      <AutoReport
+        open={activeAutoReport}
+        onClose={() => setActiveAutoReport(false)}
+      />
     </View>
   );
 };
@@ -386,6 +390,56 @@ const ChatSessionExpired = () => {
         chat session.
       </Text>
     </View>
+  );
+};
+
+const AutoReport = ({ open, onClose }) => {
+  const sheetRef = useRef(null);
+
+  useEffect(() => {
+    if (open) {
+      sheetRef.current?.open();
+    }
+  }, [open]);
+
+  return (
+    <BottomSheet
+      onClose={onClose}
+      animationType="spring"
+      ref={sheetRef}
+      containerHeight={1000}
+      style={{ backgroundColor: "#fff" }}
+    >
+      <View className="w-full h-full p-6 flex gap-y-4 ">
+        <View className="flex flex-row gap-x-4 items-center justify-center">
+          <Image
+            source={Profile}
+            className="w-12 h-12 bg-neutral-500 rounded-xl object-cover"
+          />
+          <Text className="text-2xl font-bold text-neutral-700">
+            Auto-Report
+          </Text>
+        </View>
+
+        <ParagraphText fontSize="base" align="center" padding="py-4">
+          Our AI is monitoring your chat conversation to protect you from any
+          rude messages and will automatically report the rider/driver.
+        </ParagraphText>
+
+        <View className="w-full flex gap-y-4">
+          <Button
+            onPress={() => sheetRef.current?.close()}
+            bgColor="bg-slate-200"
+            textColor="text-neutral-700"
+          >
+            Close
+          </Button>
+          <Button bgColor="bg-slate-200" textColor="text-blue-500">
+            Learn More
+          </Button>
+        </View>
+      </View>
+    </BottomSheet>
   );
 };
 

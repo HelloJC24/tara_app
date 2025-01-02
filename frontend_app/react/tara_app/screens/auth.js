@@ -397,7 +397,7 @@ const SignUpScreen = (props) => {
       <StatusBar style="dark" />
       <View className="h-full flex justify-between items-center px-6 py-10">
         <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
-          <Pressable onPress={() => props.back()}>
+          <Pressable onPress={props.back}>
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={30}
@@ -478,7 +478,7 @@ const OTPScreen = (props) => {
       <StatusBar style="dark" />
       <View className="h-full flex justify-between items-center px-6 py-10">
         <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
-          <Pressable onPress={() => props.back()}>
+          <Pressable onPress={props.back}>
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={30}
