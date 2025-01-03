@@ -30,6 +30,7 @@ try {
     //access granted
     //echo "UID is valid. User email: " . $userRecord->email;
     //Records Log the email and UID access and activity
+    //update USER Token
 } catch (\Kreait\Firebase\Exception\Auth\UserNotFound $e) {
     http_response_code(401); // Unauthorized
     $response_as_error = array (

@@ -3,7 +3,8 @@
 error_reporting(0);
 header('Content-Type: application/json');
 
-
+include '../../api_header.php';
+include '../../service-checker.php';
 include "../../encdec.php";
 
 //USAGE: <https:api.example.com/encdec/?encrypt=Hello World
