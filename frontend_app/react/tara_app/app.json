@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "Tara app",
+    "name": "Tara Rides",
     "slug": "tara_app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/2025.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -28,7 +28,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera"
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera for identity check only"
         }
       ]
     ]

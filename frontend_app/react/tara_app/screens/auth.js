@@ -18,6 +18,7 @@ import ParagraphText from "../components/ParagraphText";
 import QuickTipsBottomSheet from "../components/QuickTipsBottomSheet";
 import RateUsApp from "../components/RateUsApp";
 import { useToast } from "../components/ToastNotify";
+import { WelcomeGraphic } from "../components/CustomGraphic";
 
 const AuthScreen = () => {
   const [stage, setStage] = useState(0);
@@ -100,7 +101,9 @@ const MainAuthScreen = ({ setStage }) => {
             How would you like to continue?
           </ParagraphText>
         </View>
-        <Image source={AppLogo} className="w-72 h-80" />
+        <View>
+          <WelcomeGraphic size={320} />
+        </View>
 
         <View className="w-full flex gap-y-4 p-2 pb-4">
           <Button onPress={() => setStage(1)}>Sign up</Button>

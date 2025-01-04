@@ -4,6 +4,10 @@ import React, { useRef, useState } from "react";
 import { Image, Text, View } from "react-native";
 import AppIcon from "../assets/splash-icon.png";
 import Button from "../components/Button";
+import { SearchingGraphic } from "../components/CustomGraphic";
+import LottieView from 'lottie-react-native';
+
+
 const QrCodeScannerScreen = () => {
   const [permission, requestPermission] = useCameraPermissions();
   const [imageUri, setImageUri] = useState(null);
@@ -53,7 +57,13 @@ const QrCodeScannerScreen = () => {
 const ScanRiderModal = () => {
   return (
     <View className="w-full absolute bottom-8 rounded-xl shadow-xl shadow-black flex flex-row gap-x-4 items-center p-3 bg-white z-[100]">
-      <Image source={AppIcon} className="w-14 h-14" />
+      <LottieView
+                            source={require('../assets/animation/tara.json')}
+                            autoPlay
+                            loop
+                            width={40}
+                            height={40}
+                        />
       <Text className="flex-1 text-sm">
         Scan a rider to book, so that you still have records for the
         transactions, safe tracking and cashback!
@@ -65,18 +75,13 @@ const ScanRiderModal = () => {
 const RiderFoundModal = ({ close }) => {
   return (
     <View className="w-full absolute bottom-8 rounded-xl shadow-xl shadow-black  bg-white z-[100] overflow-hidden">
-      <View className="w-full h-36">
-        <Image
-          source={{
-            uri: "https://ichef.bbci.co.uk/ace/standard/976/cpsprodpb/F2E3/production/_132197126_jackblack.jpg.webp",
-          }}
-          className="w-full h-full"
-        />
+      <View className="w-full h-36 bg-blue-100 overflow-hidden">
+        <SearchingGraphic size={190} />
       </View>
 
       <View className="p-4">
         <Text className="text-lg text-center px-10">
-          <Text className="text-blue-500">Rider found</Text>! Do you want to
+          <Text className="text-blue-500 font-semibold">Rider found</Text>! Do you want to
           book this rider?
         </Text>
 

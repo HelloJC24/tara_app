@@ -7,6 +7,9 @@ import TaraLogo from "../assets/tara_icon.png";
 import BottomNavBar from "../components/BottomNavBar";
 import Button from "../components/Button";
 import ParagraphText from "../components/ParagraphText";
+import { TaraWalletIcon, TaraMotor, TaraCar, TaraVan } from "../components/CustomIcon";
+import { InviteGraphic } from "../components/CustomGraphic";
+import LottieView from 'lottie-react-native';
 
 const HomeScreen = () => {
   const [activeScanFriend, setActiveScanFriend] = useState(false);
@@ -60,24 +63,15 @@ const HomeScreen = () => {
         >
           <View className="flex flex-row gap-x-4 ">
             <View className="border border-slate-300 p-2 rounded-xl">
-              <Svg
-                xmlns="http://www.w3.org/2000/svg"
-                width={30}
-                height={30}
-                data-name="Layer 1"
-                viewBox="0 0 24 24"
-                fill="#64748b"
-              >
-                <Path d="M20.723 7H22a2 2 0 0 0 2-2 4 4 0 0 0-4-4H5a5.006 5.006 0 0 0-5 5v6.515a6.954 6.954 0 0 0 2.05 4.949l.95.95V19.5a3.5 3.5 0 0 0 7 0V19h5v.5a3.5 3.5 0 0 0 7 0V19h1a1 1 0 0 0 1-1v-3.407a7.009 7.009 0 0 0-.922-3.472ZM2 7h6v2H2Zm6 12.5a1.5 1.5 0 0 1-3 0V19h3Zm5-2.5H4.414l-.95-.95A4.967 4.967 0 0 1 2 12.515V11h6a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H2.172A3 3 0 0 1 5 3h15a2 2 0 0 1 2 2h-5a4 4 0 0 0-4 4Zm7.7-6H15V9a2 2 0 0 1 2-2h1.419Zm-.7 8.5a1.5 1.5 0 0 1-3 0V19h3Zm2-2.5h-7v-4h6.739A5 5 0 0 1 22 14.593Z" />
-              </Svg>
+            <TaraWalletIcon color="#404040" size={35} />
             </View>
 
             <View>
-              <Text className="text-xl font-semibold text-neutral-700">
+              <Text className="text-lg font-semibold text-neutral-700">
                 Wallet
               </Text>
               <View className="flex flex-row gap-x-1 items-center">
-                <Text className="text-base">₱128.00</Text>
+                <Text className="text-xl font-medium">₱128.00</Text>
                 <Svg
                   xmlns="http://www.w3.org/2000/svg"
                   width={15}
@@ -108,27 +102,33 @@ const HomeScreen = () => {
             </Svg>
           </TouchableOpacity>
         </View>
-        <View className="w-full py-4">
-          <Text className="text-lg text-neutral-700 py-2">Choose a ride</Text>
+        <View className="mt-4 w-full py-4">
+          <Text className="text-lg font-medium text-neutral-800 py-2">Choose a ride</Text>
 
           <View className="w-full flex flex-row justify-between items-center py-2 px-4">
             <View className="flex gap-y-1">
-              <View className="w-20 h-20 bg-slate-200 rounded-full"></View>
-              <Text className="text-base text-center text-slate-500">
+              <View className="pt-2 w-20 h-20 bg-slate-200 rounded-full">
+                <TaraMotor size="65" />
+              </View>
+              <Text className="text-base text-center text-blue-500">
                 TaraRide
               </Text>
             </View>
 
             <View className="flex gap-y-1">
-              <View className="w-20 h-20 bg-slate-200 rounded-full"></View>
-              <Text className="text-base text-center text-slate-500">
+              <View className="w-20 h-20 bg-slate-200 rounded-full">
+              <TaraCar size="75" />
+              </View>
+              <Text className="text-base text-center text-blue-500">
                 TaraCar
               </Text>
             </View>
 
             <View className="flex gap-y-1">
-              <View className="w-20 h-20 bg-slate-200 rounded-full"></View>
-              <Text className="text-base text-center text-slate-500">
+              <View className="w-20 h-20 bg-slate-200 rounded-full">
+              <TaraVan size="75" />
+              </View>
+              <Text className="text-base text-center text-blue-500">
                 TaraVan
               </Text>
             </View>
@@ -153,10 +153,15 @@ const ExistingBooking = () => {
         flex flex-row items-center justify-between"
     >
       <View className="flex flex-row gap-x-4 items-center ">
-        <Image
-          source={AppIcon}
-          className="w-12 h-12 border border-slate-300 p-2 rounded-xl"
-        />
+        <View className="bg-white rounded-xl p-2.5">
+        <LottieView
+                      source={require('../assets/animation/tara.json')}
+                      autoPlay
+                      loop
+                      width={40}
+                      height={40}
+                  />
+        </View>
 
         <View>
           <Text className="text-lg font-semibold text-white">
@@ -164,16 +169,13 @@ const ExistingBooking = () => {
           </Text>
 
           <View className="flex flex-row gap-x-1 items-center">
-            <Svg
-              xmlns="http://www.w3.org/2000/svg"
-              width={15}
-              height={15}
-              data-name="Layer 1"
-              viewBox="0 0 24 24"
-              fill="#e2e8f0"
-            >
-              <Path d="M24 12a12 12 0 0 1-24 0 1 1 0 0 1 2 0A10 10 0 1 0 12 2a1 1 0 0 1 0-2 12.013 12.013 0 0 1 12 12zm-13.723-1H8a1 1 0 0 0 0 2h2.277A1.994 1.994 0 1 0 13 10.277V7a1 1 0 0 0-2 0v3.277a2 2 0 0 0-.723.723zm-8.45-2.216a1 1 0 1 0-1-1 1 1 0 0 0 1 1zm2.394-3.577a1 1 0 1 0-1-1 1 1 0 0 0 1 1zm3.558-2.366a1 1 0 1 0-1-1 1 1 0 0 0 1 1z" />
-            </Svg>
+          <LottieView
+                      source={require('../assets/animation/clock.json')}
+                      autoPlay
+                      loop
+                      width={20}
+                      height={20}
+                  />
             <Text className="text-base text-slate-200">3mins</Text>
           </View>
         </View>
@@ -206,12 +208,7 @@ const FriendsWithBenefits = ({ close }) => {
         </Text>
 
         <View className="w-full flex justify-center items-center p-4">
-          <Image
-            source={{
-              uri: "https://pnghq.com/wp-content/uploads/2023/02/minecraft-steve-skin-render-png-3129.png",
-            }}
-            className="w-60 h-72"
-          />
+          <InviteGraphic size={300} />
         </View>
 
         <ParagraphText

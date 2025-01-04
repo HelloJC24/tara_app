@@ -13,6 +13,11 @@ import Svg, { Circle, Path, Rect } from "react-native-svg";
 import AppLogo from "../assets/splash-icon.png";
 import Button from "../components/Button";
 import ParagraphText from "../components/ParagraphText";
+import { TaraLogo } from "../components/CustomIcon";
+import { DeletionGraphic } from "../components/CustomGraphic";
+import LottieView from 'lottie-react-native';
+import appJson from '../app.json';
+const appVersion = appJson.expo.version;
 
 const AccountScreen = ({ navigation }) => {
   const [activeEditUsername, setActiveEditUsername] = useState(false);
@@ -53,7 +58,7 @@ const AccountScreen = ({ navigation }) => {
 
         <View className="w-full h-full  z-50">
           <View className="w-full flex items-center p-4">
-            <Image source={AppLogo} className="w-16 h-16" />
+           <TaraLogo size={50} />
           </View>
 
           <View>
@@ -91,7 +96,7 @@ const AccountScreen = ({ navigation }) => {
               </ParagraphText>
             </View>
 
-            <View className="w-full  border-b border-slate-200 pb-4">
+            <View className="mt-4 w-full  border-b border-slate-200 pb-4">
               <View className="flex flex-row justify-between items-center">
                 <View className="flex-1">
                   <Text className="text-sm text-neutral-700">
@@ -112,7 +117,7 @@ const AccountScreen = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
 
-              <View className="flex flex-row justify-between items-center">
+              <View className="mt-4 flex flex-row justify-between items-center">
                 <View className="flex-1">
                   <Text className="text-sm text-neutral-700">
                     Email Address
@@ -175,15 +180,13 @@ const AccountScreen = ({ navigation }) => {
                   Tara Safe
                 </Text>
 
-                <Svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width={20}
-                  height={20}
-                  viewBox="0 0 24 24"
-                  fill="#22c55e"
-                >
-                  <Path d="M18.581 2.14 12.316.051a1 1 0 0 0-.632 0L5.419 2.14A4.993 4.993 0 0 0 2 6.883V12c0 7.563 9.2 11.74 9.594 11.914a1 1 0 0 0 .812 0C12.8 23.74 22 19.563 22 12V6.883a4.993 4.993 0 0 0-3.419-4.743Zm-1.863 7.577-4.272 4.272a1.873 1.873 0 0 1-1.335.553h-.033a1.872 1.872 0 0 1-1.345-.6l-2.306-2.4a1 1 0 1 1 1.441-1.382l2.244 2.34L15.3 8.3a1 1 0 0 1 1.414 1.414Z" />
-                </Svg>
+                <LottieView
+                source={require('../assets/animation/s-check.json')}
+                autoPlay
+                loop
+                width={32}
+                height={32}
+            />
               </View>
             </View>
           </View>
@@ -199,7 +202,7 @@ const AccountScreen = ({ navigation }) => {
           <Text className="text-blue-500 font-semibold">Terms of Use</Text>
         </ParagraphText>
         <Text className="text-center text-sm text-neutral-500">
-          v.1.0.1 Beta
+          {appVersion} Beta
         </Text>
       </View>
 
@@ -232,12 +235,7 @@ const AccountDeletionModal = ({ close }) => {
         <Text className="text-center text-2xl font-bold">How it works?</Text>
 
         <View className="w-full flex justify-center items-center p-4">
-          <Image
-            source={{
-              uri: "https://pnghq.com/wp-content/uploads/2023/02/minecraft-steve-skin-render-png-3129.png",
-            }}
-            className="w-48 h-60"
-          />
+          < DeletionGraphic size={170} />
         </View>
 
         <ParagraphText
@@ -317,7 +315,7 @@ const EditUsernameScreen = ({ close }) => {
           </Text>
 
           <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
-            <Image source={AppLogo} className="w-14 h-14" />
+          <TaraLogo size={50} />
 
             <TextInput
               className="w-full text-lg text-blue-500"
@@ -405,8 +403,7 @@ const AddMobileNumber = ({ close }) => {
           </Text>
 
           <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
-            <Image source={AppLogo} className="w-14 h-14" />
-
+          <TaraLogo size={50} />
             <TextInput
               className="w-full text-lg text-blue-500"
               type="number"
@@ -494,7 +491,7 @@ const AddEmailAddress = ({ close }) => {
           </Text>
 
           <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
-            <Image source={AppLogo} className="w-14 h-14" />
+          <TaraLogo size={50} />
 
             <TextInput
               className="w-full text-lg text-blue-500"
