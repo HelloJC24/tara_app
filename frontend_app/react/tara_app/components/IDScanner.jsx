@@ -15,6 +15,7 @@ import AppLogo from "../assets/splash-icon.png";
 import Button from "./Button";
 import ParagraphText from "./ParagraphText";
 import { useToast } from "./ToastNotify";
+import { UptimeGraphic } from "./CustomGraphic";
 
 const IDScanner = (props) => {
   const [permission, requestPermission] = useCameraPermissions();
@@ -191,7 +192,7 @@ const ProcessingPhoto = (props) => {
         </View>
 
         <View className="w-full flex items-center gap-y-4">
-          <Image source={AppLogo} className="w-56 h-56" />
+        <UptimeGraphic size={200}/>
           <Text className="text-center text-base z-50">
             Processing your photo..
           </Text>

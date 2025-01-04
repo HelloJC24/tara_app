@@ -11,14 +11,15 @@ import {
 } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
 import AppLogo from "../assets/splash-icon.png";
-import TaraLogo from "../assets/tara_icon.png";
+import TaraLogoImage from "../assets/tara_icon.png";
+import { TaraLogo } from "../components/CustomIcon";
 import Button from "../components/Button";
 import IDScanner from "../components/IDScanner";
 import ParagraphText from "../components/ParagraphText";
 import QuickTipsBottomSheet from "../components/QuickTipsBottomSheet";
 import RateUsApp from "../components/RateUsApp";
 import { useToast } from "../components/ToastNotify";
-import { WelcomeGraphic } from "../components/CustomGraphic";
+import { WelcomeGraphic, IDGraphic } from "../components/CustomGraphic";
 
 const AuthScreen = () => {
   const [stage, setStage] = useState(0);
@@ -96,7 +97,7 @@ const MainAuthScreen = ({ setStage }) => {
         </View>
 
         <View className="mt-10 flex items-center">
-          <Image source={TaraLogo} className="w-36 h-8" />
+          <Image source={TaraLogoImage} className="w-36 h-8" />
           <ParagraphText fontSize="lg" padding="p-4" align="center">
             How would you like to continue?
           </ParagraphText>
@@ -188,7 +189,7 @@ const CreateAccountScreen = (props) => {
             </View>
 
             <View className="mt-10 flex items-center">
-              <Image source={AppLogo} className="w-24 h-24" />
+              <Image source={TaraLogoImage} className="w-32 h-8" />
               <ParagraphText fontSize="lg" padding="p-2" align="center">
                 The way how you{" "}
                 <Text className="text-blue-500 font-semibold">
@@ -197,7 +198,9 @@ const CreateAccountScreen = (props) => {
                 for us, is just provide an ID, and you’re good to go!
               </ParagraphText>
             </View>
-            <Image source={AppLogo} className="w-56 h-56" />
+            <View>
+              <IDGraphic size={280} />
+            </View>
 
             <View className="w-full flex gap-y-4 p-2">
               <Button hasIcon={true} onPress={() => setActiveBottomSheet(true)}>
@@ -432,7 +435,7 @@ const SignUpScreen = (props) => {
           </Text>
 
           <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
-            <Image source={AppLogo} className="w-14 h-14" />
+            <TaraLogo size={50} />
 
             <TextInput
               className="w-full text-lg"
@@ -513,7 +516,7 @@ const OTPScreen = (props) => {
           </Text>
 
           <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
-            <Image source={AppLogo} className="w-14 h-14" />
+          <TaraLogo size={50} />
 
             <TextInput
               className={`w-full text-2xl ${inputValue ? "font-bold" : ""}`}

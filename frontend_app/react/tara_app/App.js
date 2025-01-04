@@ -24,7 +24,7 @@ const ProtectedRouting = () => {
         headerShown: false,
       })}
     >
-      {!user?.accessToken ? (
+      {/* {!user?.accessToken ? (
         <>
           <Stack.Screen name="home" component={HomeScreen} />
           <Stack.Screen name="qrcode" component={QrCodeScannerScreen} />
@@ -34,7 +34,8 @@ const ProtectedRouting = () => {
         </>
       ) : (
         <Stack.Screen name="auth" component={AuthScreen} />
-      )}
+      )} */}
+       <Stack.Screen name="auth" component={AuthScreen} />
     </Stack.Navigator>
   );
 };
