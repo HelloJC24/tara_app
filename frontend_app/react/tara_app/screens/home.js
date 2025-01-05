@@ -1,17 +1,21 @@
 import { StatusBar } from "expo-status-bar";
+import LottieView from "lottie-react-native";
 import React, { useState } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import AppIcon from "../assets/splash-icon.png";
 import TaraLogo from "../assets/tara_icon.png";
 import BottomNavBar from "../components/BottomNavBar";
 import Button from "../components/Button";
-import ParagraphText from "../components/ParagraphText";
-import { TaraWalletIcon, TaraMotor, TaraCar, TaraVan } from "../components/CustomIcon";
 import { InviteGraphic } from "../components/CustomGraphic";
-import LottieView from 'lottie-react-native';
+import {
+  TaraCar,
+  TaraMotor,
+  TaraVan,
+  TaraWalletIcon,
+} from "../components/CustomIcon";
+import ParagraphText from "../components/ParagraphText";
 
-const HomeScreen = () => {
+const HomeScreen = ({ navigation }) => {
   const [activeScanFriend, setActiveScanFriend] = useState(false);
 
   return (
@@ -63,7 +67,7 @@ const HomeScreen = () => {
         >
           <View className="flex flex-row gap-x-4 ">
             <View className="border border-slate-300 p-2 rounded-xl">
-            <TaraWalletIcon color="#404040" size={35} />
+              <TaraWalletIcon color="#404040" size={35} />
             </View>
 
             <View>
@@ -72,16 +76,18 @@ const HomeScreen = () => {
               </Text>
               <View className="flex flex-row gap-x-1 items-center">
                 <Text className="text-xl font-medium">₱128.00</Text>
-                <Svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width={15}
-                  height={15}
-                  data-name="Layer 1"
-                  viewBox="0 0 24 24"
-                  fill="#3b82f6"
-                >
-                  <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0zm4 13h-3v3a1 1 0 0 1-2 0v-3H8a1 1 0 0 1 0-2h3V8a1 1 0 0 1 2 0v3h3a1 1 0 0 1 0 2z" />
-                </Svg>
+                <TouchableOpacity onPress={() => navigation.navigate("wallet")}>
+                  <Svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width={15}
+                    height={15}
+                    data-name="Layer 1"
+                    viewBox="0 0 24 24"
+                    fill="#3b82f6"
+                  >
+                    <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0zm4 13h-3v3a1 1 0 0 1-2 0v-3H8a1 1 0 0 1 0-2h3V8a1 1 0 0 1 2 0v3h3a1 1 0 0 1 0 2z" />
+                  </Svg>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -103,7 +109,9 @@ const HomeScreen = () => {
           </TouchableOpacity>
         </View>
         <View className="mt-4 w-full py-4">
-          <Text className="text-lg font-medium text-neutral-800 py-2">Choose a ride</Text>
+          <Text className="text-lg font-medium text-neutral-800 py-2">
+            Choose a ride
+          </Text>
 
           <View className="w-full flex flex-row justify-between items-center py-2 px-4">
             <View className="flex gap-y-1">
@@ -117,7 +125,7 @@ const HomeScreen = () => {
 
             <View className="flex gap-y-1">
               <View className="w-20 h-20 bg-slate-200 rounded-full">
-              <TaraCar size="75" />
+                <TaraCar size="75" />
               </View>
               <Text className="text-base text-center text-blue-500">
                 TaraCar
@@ -126,7 +134,7 @@ const HomeScreen = () => {
 
             <View className="flex gap-y-1">
               <View className="w-20 h-20 bg-slate-200 rounded-full">
-              <TaraVan size="75" />
+                <TaraVan size="75" />
               </View>
               <Text className="text-base text-center text-blue-500">
                 TaraVan
@@ -154,13 +162,13 @@ const ExistingBooking = () => {
     >
       <View className="flex flex-row gap-x-4 items-center ">
         <View className="bg-white rounded-xl p-2.5">
-        <LottieView
-                      source={require('../assets/animation/tara.json')}
-                      autoPlay
-                      loop
-                      width={40}
-                      height={40}
-                  />
+          <LottieView
+            source={require("../assets/animation/tara.json")}
+            autoPlay
+            loop
+            width={40}
+            height={40}
+          />
         </View>
 
         <View>
@@ -169,13 +177,13 @@ const ExistingBooking = () => {
           </Text>
 
           <View className="flex flex-row gap-x-1 items-center">
-          <LottieView
-                      source={require('../assets/animation/clock.json')}
-                      autoPlay
-                      loop
-                      width={20}
-                      height={20}
-                  />
+            <LottieView
+              source={require("../assets/animation/clock.json")}
+              autoPlay
+              loop
+              width={20}
+              height={20}
+            />
             <Text className="text-base text-slate-200">3mins</Text>
           </View>
         </View>

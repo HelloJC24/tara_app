@@ -1,8 +1,8 @@
 import { StatusBar } from "expo-status-bar";
+import LottieView from "lottie-react-native";
 import React, { useEffect, useState } from "react";
 import {
   BackHandler,
-  Image,
   Pressable,
   Text,
   TextInput,
@@ -10,19 +10,18 @@ import {
   View,
 } from "react-native";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
-import AppLogo from "../assets/splash-icon.png";
+import appJson from "../app.json";
 import Button from "../components/Button";
-import ParagraphText from "../components/ParagraphText";
-import { TaraLogo } from "../components/CustomIcon";
 import { DeletionGraphic } from "../components/CustomGraphic";
-import LottieView from 'lottie-react-native';
-import appJson from '../app.json';
+import { TaraLogo } from "../components/CustomIcon";
+import ParagraphText from "../components/ParagraphText";
 const appVersion = appJson.expo.version;
 
 const AccountScreen = ({ navigation }) => {
   const [activeEditUsername, setActiveEditUsername] = useState(false);
   const [activeAddMobileNum, setActiveMobileNum] = useState(false);
   const [activeAddEmailAddress, setActiveAddEmailAddress] = useState(false);
+  const [activeTaraSafe, setActiveTaraSafe] = useState(false);
   const [activeAccountDeletionModal, setActiveAccountDeletionModal] =
     useState(false);
 
@@ -58,7 +57,7 @@ const AccountScreen = ({ navigation }) => {
 
         <View className="w-full h-full  z-50">
           <View className="w-full flex items-center p-4">
-           <TaraLogo size={50} />
+            <TaraLogo size={50} />
           </View>
 
           <View>
@@ -175,19 +174,22 @@ const AccountScreen = ({ navigation }) => {
                   Check Update
                 </Text>
               </View>
-              <View className="w-full flex flex-row justify-between items-center border-b border-slate-200 py-2">
+              <TouchableOpacity
+                onPress={() => setActiveTaraSafe(true)}
+                className="w-full flex flex-row justify-between items-center border-b border-slate-200 py-2"
+              >
                 <Text className="flex-1 text-lg py-1 text-blue-500 font-semibold">
                   Tara Safe
                 </Text>
 
                 <LottieView
-                source={require('../assets/animation/s-check.json')}
-                autoPlay
-                loop
-                width={32}
-                height={32}
-            />
-              </View>
+                  source={require("../assets/animation/s-check.json")}
+                  autoPlay
+                  loop
+                  width={32}
+                  height={32}
+                />
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -221,6 +223,8 @@ const AccountScreen = ({ navigation }) => {
           close={() => setActiveAccountDeletionModal(false)}
         />
       )}
+
+      {activeTaraSafe && <TaraSafe close={() => setActiveTaraSafe(false)} />}
     </View>
   );
 };
@@ -235,7 +239,7 @@ const AccountDeletionModal = ({ close }) => {
         <Text className="text-center text-2xl font-bold">How it works?</Text>
 
         <View className="w-full flex justify-center items-center p-4">
-          < DeletionGraphic size={170} />
+          <DeletionGraphic size={170} />
         </View>
 
         <ParagraphText
@@ -315,7 +319,9 @@ const EditUsernameScreen = ({ close }) => {
           </Text>
 
           <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
-          <TaraLogo size={50} />
+            <View className="p-2">
+              <TaraLogo size={40} />
+            </View>
 
             <TextInput
               className="w-full text-lg text-blue-500"
@@ -403,7 +409,9 @@ const AddMobileNumber = ({ close }) => {
           </Text>
 
           <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
-          <TaraLogo size={50} />
+            <View className="p-2">
+              <TaraLogo size={40} />
+            </View>
             <TextInput
               className="w-full text-lg text-blue-500"
               type="number"
@@ -491,7 +499,9 @@ const AddEmailAddress = ({ close }) => {
           </Text>
 
           <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
-          <TaraLogo size={50} />
+            <View className="p-2">
+              <TaraLogo size={40} />
+            </View>
 
             <TextInput
               className="w-full text-lg text-blue-500"
@@ -529,4 +539,159 @@ const AddEmailAddress = ({ close }) => {
   );
 };
 
+const TaraSafe = ({ close }) => {
+  const [input, setInput] = useState("example@gmail.com");
+  const [input2, setInput2] = useState("");
+
+  const handleBackPress = () => {
+    close();
+    return true;
+  };
+  useEffect(() => {
+    BackHandler.addEventListener("hardwareBackPress", handleBackPress);
+    return () => {
+      BackHandler.removeEventListener("hardwareBackPress", handleBackPress);
+    };
+  }, [close]);
+  return (
+    <View className="w-full h-full bg-white absolute inset-0 z-50">
+      <StatusBar style="dark" />
+      <View className="h-full  flex justify-between items-center px-6 py-10">
+        <View>
+          <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
+            <Pressable onPress={close}>
+              <Svg
+                xmlns="http://www.w3.org/2000/svg"
+                width={30}
+                height={30}
+                viewBox="0 0 24 24"
+                fill="#374957"
+              >
+                <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
+              </Svg>
+            </Pressable>
+            <View className="p-1 bg-slate-200 rounded-lg">
+              <Svg
+                xmlns="http://www.w3.org/2000/svg"
+                width={20}
+                height={20}
+                viewBox="0 0 24 24"
+                fill="#374957"
+              >
+                <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm0 22a10 10 0 1 1 10-10 10.011 10.011 0 0 1-10 10Z" />
+                <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
+                <Rect width={2} height={2} x={11} y={17} rx={1} />
+              </Svg>
+            </View>
+          </View>
+
+          <View className="w-full">
+            <View className="w-full flex flex-row gap-x-4 items-center p-4">
+              <TaraLogo size={50} />
+
+              <Text className="font-bold text-2xl">How it works?</Text>
+            </View>
+
+            <View className="py-4">
+              <TaraLogo size={150} />
+
+              <ParagraphText fontSize="sm" textColor="text-neutral-500">
+                We will notify these people via SMS or email every time you book
+                with us. Sounds safe? Let’s do it!
+              </ParagraphText>
+            </View>
+
+            <ParagraphText
+              fontSize="base"
+              textColor="text-neutral-700"
+              padding="py-4"
+            >
+              Provide two email addresses or phone numbers. We don’t mind if
+              they have a Tara account or not.
+            </ParagraphText>
+
+            <View className="w-full flex gap-y-4 py-4">
+              <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
+                <View className="p-2">
+                  {!input ? (
+                    <Svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width={25}
+                      height={25}
+                      viewBox="0 0 24 24"
+                      fill="#ccc"
+                    >
+                      <Path d="M18.581 2.14 12.316.051a1 1 0 0 0-.632 0L5.419 2.14A4.993 4.993 0 0 0 2 6.883V12c0 7.563 9.2 11.74 9.594 11.914a1 1 0 0 0 .812 0C12.8 23.74 22 19.563 22 12V6.883a4.993 4.993 0 0 0-3.419-4.743ZM20 12c0 5.455-6.319 9.033-8 9.889-1.683-.853-8-4.42-8-9.889V6.883a3 3 0 0 1 2.052-2.846L12 2.054l5.948 1.983A3 3 0 0 1 20 6.883Z" />
+                      <Path d="m15.3 8.3-4.188 4.2-2.244-2.34a1 1 0 1 0-1.441 1.386l2.306 2.4a1.872 1.872 0 0 0 1.345.6h.033a1.873 1.873 0 0 0 1.335-.553l4.272-4.272A1 1 0 0 0 15.3 8.3Z" />
+                    </Svg>
+                  ) : (
+                    <Svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width={25}
+                      height={25}
+                      viewBox="0 0 24 24"
+                      fill="#22c55e"
+                    >
+                      <Path d="M18.581 2.14 12.316.051a1 1 0 0 0-.632 0L5.419 2.14A4.993 4.993 0 0 0 2 6.883V12c0 7.563 9.2 11.74 9.594 11.914a1 1 0 0 0 .812 0C12.8 23.74 22 19.563 22 12V6.883a4.993 4.993 0 0 0-3.419-4.743Zm-1.863 7.577-4.272 4.272a1.873 1.873 0 0 1-1.335.553h-.033a1.872 1.872 0 0 1-1.345-.6l-2.306-2.4a1 1 0 1 1 1.441-1.382l2.244 2.34L15.3 8.3a1 1 0 0 1 1.414 1.414Z" />
+                    </Svg>
+                  )}
+                </View>
+
+                <TextInput
+                  className="flex-1 text-lg text-blue-500"
+                  value={input}
+                  onChangeText={setInput}
+                  placeholder="Enter your email or phone number"
+                />
+              </View>
+
+              <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
+                <View className="px-2">
+                  {!input2 ? (
+                    <Svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width={25}
+                      height={25}
+                      viewBox="0 0 24 24"
+                      fill="#ccc"
+                    >
+                      <Path d="M18.581 2.14 12.316.051a1 1 0 0 0-.632 0L5.419 2.14A4.993 4.993 0 0 0 2 6.883V12c0 7.563 9.2 11.74 9.594 11.914a1 1 0 0 0 .812 0C12.8 23.74 22 19.563 22 12V6.883a4.993 4.993 0 0 0-3.419-4.743ZM20 12c0 5.455-6.319 9.033-8 9.889-1.683-.853-8-4.42-8-9.889V6.883a3 3 0 0 1 2.052-2.846L12 2.054l5.948 1.983A3 3 0 0 1 20 6.883Z" />
+                      <Path d="m15.3 8.3-4.188 4.2-2.244-2.34a1 1 0 1 0-1.441 1.386l2.306 2.4a1.872 1.872 0 0 0 1.345.6h.033a1.873 1.873 0 0 0 1.335-.553l4.272-4.272A1 1 0 0 0 15.3 8.3Z" />
+                    </Svg>
+                  ) : (
+                    <Svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width={25}
+                      height={25}
+                      viewBox="0 0 24 24"
+                      fill="#22c55e"
+                    >
+                      <Path d="M18.581 2.14 12.316.051a1 1 0 0 0-.632 0L5.419 2.14A4.993 4.993 0 0 0 2 6.883V12c0 7.563 9.2 11.74 9.594 11.914a1 1 0 0 0 .812 0C12.8 23.74 22 19.563 22 12V6.883a4.993 4.993 0 0 0-3.419-4.743Zm-1.863 7.577-4.272 4.272a1.873 1.873 0 0 1-1.335.553h-.033a1.872 1.872 0 0 1-1.345-.6l-2.306-2.4a1 1 0 1 1 1.441-1.382l2.244 2.34L15.3 8.3a1 1 0 0 1 1.414 1.414Z" />
+                    </Svg>
+                  )}
+                </View>
+
+                <TextInput
+                  className="flex-1 text-lg text-blue-500"
+                  value={input2}
+                  onChangeText={setInput2}
+                  placeholder="Enter your email or phone number"
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View className="w-full flex gap-y-4 p-2">
+          <Button>Enable</Button>
+
+          <ParagraphText align="center" fontSize="sm">
+            Learn how Tara keep you safe or visit our{" "}
+            <Text className="text-blue-500 font-semibold">FAQs here.</Text>
+          </ParagraphText>
+        </View>
+      </View>
+    </View>
+  );
+};
 export default AccountScreen;

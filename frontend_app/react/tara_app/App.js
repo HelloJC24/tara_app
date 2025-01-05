@@ -11,6 +11,7 @@ import HomeScreen from "./screens/home";
 import InboxScreen from "./screens/inbox";
 import QrCodeScannerScreen from "./screens/qrcode_scanner";
 import SplashScreen from "./screens/splash";
+import WalletScreen from "./screens/wallet";
 import WebViewerScreen from "./screens/web_viewer";
 
 const Stack = createNativeStackNavigator();
@@ -24,9 +25,10 @@ const ProtectedRouting = () => {
         headerShown: false,
       })}
     >
-      {/* {!user?.accessToken ? (
+      {!user?.accessToken ? (
         <>
           <Stack.Screen name="home" component={HomeScreen} />
+          <Stack.Screen name="wallet" component={WalletScreen} />
           <Stack.Screen name="qrcode" component={QrCodeScannerScreen} />
           <Stack.Screen name="inbox" component={InboxScreen} />
           <Stack.Screen name="account" component={AccountScreen} />
@@ -34,8 +36,8 @@ const ProtectedRouting = () => {
         </>
       ) : (
         <Stack.Screen name="auth" component={AuthScreen} />
-      )} */}
-       <Stack.Screen name="auth" component={AuthScreen} />
+      )}
+      {/* <Stack.Screen name="auth" component={AuthScreen} /> */}
     </Stack.Navigator>
   );
 };
