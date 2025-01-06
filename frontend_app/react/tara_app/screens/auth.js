@@ -436,7 +436,9 @@ const SignUpScreen = (props) => {
           </Text>
 
           <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
-            <TaraLogo size={50} />
+            <View className="p-2">
+              <TaraLogo size={40} />
+            </View>
 
             <TextInput
               className="w-full text-lg"
@@ -517,7 +519,9 @@ const OTPScreen = (props) => {
           </Text>
 
           <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
-            <TaraLogo size={50} />
+            <View className="p-2">
+              <TaraLogo size={40} />
+            </View>
 
             <TextInput
               className={`w-full text-2xl ${inputValue ? "font-bold" : ""}`}

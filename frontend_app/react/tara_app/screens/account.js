@@ -91,7 +91,7 @@ const AccountScreen = ({ navigation }) => {
               </Text>
               <ParagraphText fontSize="sm" textColor="text-neutral-700">
                 Providing contact information will help you recover your account
-                in the future logins and straight receipt to your mail.
+                during future logins and ensure a direct receipt to your email.
               </ParagraphText>
             </View>
 
@@ -124,7 +124,7 @@ const AccountScreen = ({ navigation }) => {
                   {/* <Text className="text-lg py-1">example@gmail.com</Text> */}
 
                   <Text className="text-lg py-1 text-blue-500 font-semibold">
-                    Add an e-mail address
+                    Add an email address
                   </Text>
                 </View>
                 <TouchableOpacity
