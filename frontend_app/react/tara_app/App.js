@@ -11,6 +11,7 @@ import HomeScreen from "./screens/home";
 import InboxScreen from "./screens/inbox";
 import QrCodeScannerScreen from "./screens/qrcode_scanner";
 import SplashScreen from "./screens/splash";
+import WalletScreen from "./screens/wallet";
 import WebViewerScreen from "./screens/web_viewer";
 import BookingPage from "./screens/map";
 
@@ -28,6 +29,7 @@ const ProtectedRouting = () => {
       {!user?.accessToken ? (
         <>
           <Stack.Screen name="home" component={HomeScreen} />
+          <Stack.Screen name="wallet" component={WalletScreen} />
           <Stack.Screen name="qrcode" component={QrCodeScannerScreen} />
           <Stack.Screen name="inbox" component={InboxScreen} />
           <Stack.Screen name="account" component={AccountScreen} />

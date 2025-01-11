@@ -15,28 +15,28 @@ import TaraNoticeIcon from "../assets/custom-svg/notice.svg"
 import TaraQRIcon from "../assets/custom-svg/qr.svg"
 
 export const TaraWalletIcon = (props) => {
-    return (
-      <TaraWallet width={props.size} height={props.size} fill={props.color} />
-    );
-  }
-  
+  return (
+    <TaraWallet width={props.size} height={props.size} fill={props.color} />
+  );
+};
+
 export const TaraLogo = (props) => {
   return (
     <TaraIconSvg width={props.size} height={props.size} fill={props.color} />
   );
-}
+};
 
 export const TaraMotor = (props) => {
   return (
     <TaraMotorIcon width={props.size} height={props.size} fill={props.color} />
   );
-}
+};
 
 export const TaraCar = (props) => {
   return (
     <TaraCarIcon width={props.size} height={props.size} fill={props.color} />
   );
-}
+};
 
 export const TaraVan = (props) => {
   return (

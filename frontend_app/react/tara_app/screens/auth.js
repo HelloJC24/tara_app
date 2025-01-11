@@ -10,16 +10,15 @@ import {
   View,
 } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
-import AppLogo from "../assets/splash-icon.png";
 import TaraLogoImage from "../assets/tara_icon.png";
-import { TaraLogo } from "../components/CustomIcon";
 import Button from "../components/Button";
+import { IDGraphic, WelcomeGraphic } from "../components/CustomGraphic";
+import { TaraLogo } from "../components/CustomIcon";
 import IDScanner from "../components/IDScanner";
 import ParagraphText from "../components/ParagraphText";
 import QuickTipsBottomSheet from "../components/QuickTipsBottomSheet";
 import RateUsApp from "../components/RateUsApp";
 import { useToast } from "../components/ToastNotify";
-import { WelcomeGraphic, IDGraphic } from "../components/CustomGraphic";
 
 const AuthScreen = () => {
   const [stage, setStage] = useState(0);
@@ -282,7 +281,9 @@ const SetUsernameScreen = (props) => {
           </Text>
 
           <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
-            <Image source={AppLogo} className="w-14 h-14" />
+            <View className="p-2">
+              <TaraLogo size={40} />
+            </View>
 
             <TextInput
               className="w-full text-lg text-blue-500"
@@ -435,7 +436,9 @@ const SignUpScreen = (props) => {
           </Text>
 
           <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
-            <TaraLogo size={50} />
+            <View className="p-2">
+              <TaraLogo size={40} />
+            </View>
 
             <TextInput
               className="w-full text-lg"
@@ -516,7 +519,9 @@ const OTPScreen = (props) => {
           </Text>
 
           <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
-          <TaraLogo size={50} />
+            <View className="p-2">
+              <TaraLogo size={40} />
+            </View>
 
             <TextInput
               className={`w-full text-2xl ${inputValue ? "font-bold" : ""}`}
@@ -591,7 +596,9 @@ const ReportProblemScreen = (props) => {
 
           <View className="w-full z-50 py-10">
             <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
-              <Image source={AppLogo} className="w-14 h-14" />
+              <View className="p-2">
+                <TaraLogo size={40} />
+              </View>
 
               <TextInput
                 className="w-full text-lg"
