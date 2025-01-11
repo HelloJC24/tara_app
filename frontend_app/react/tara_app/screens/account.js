@@ -181,11 +181,11 @@ const AccountScreen = ({ navigation }) => {
                 </Text>
 
                 <LottieView
-                source={require('../assets/animation/s-check.json')}
+                source={require('../assets/animation/safety-tara.json')}
                 autoPlay
                 loop
-                width={32}
-                height={32}
+                width={35}
+                height={35}
             />
               </View>
             </View>

@@ -11,6 +11,7 @@ const Button = ({
   padding,
   radius,
   children,
+  bwidth
 }) => {
   
   if (hasIcon) {
@@ -19,7 +20,7 @@ const Button = ({
         disabled={disabled}
         onPress={onPress}
         activeOpacity={0.9}
-        className={`w-full ${bgColor ? `${bgColor}` : "bg-blue-500"}  ${
+        className={`${bwidth ? bwidth : 'w-full'} ${bgColor ? `${bgColor}` : "bg-blue-500"}  ${
           padding ? `${padding}` : "p-3"
         } ${radius ? `rounded-${radius}` : "rounded-2xl"} `}
       >
@@ -35,7 +36,7 @@ const Button = ({
       disabled={disabled}
       onPress={onPress}
       activeOpacity={0.9}
-      className={`w-full ${bgColor ? `${bgColor}` : "bg-blue-500"}  ${
+      className={`${bwidth ? bwidth : 'w-full'} ${bgColor ? `${bgColor}` : "bg-blue-500"}  ${
         padding ? `${padding}` : "p-3"
       } ${radius ? `rounded-${radius}` : "rounded-2xl"}`}
     >

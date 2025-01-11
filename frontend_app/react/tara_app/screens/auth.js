@@ -107,7 +107,7 @@ const MainAuthScreen = ({ setStage }) => {
         </View>
 
         <View className="w-full flex gap-y-4 p-2 pb-4">
-          <Button onPress={() => setStage(1)}>Sign up</Button>
+          <Button onPress={() => setStage(1)}>Login</Button>
           <Button
             onPress={() => setStage(2)}
             bgColor="bg-blue-100"

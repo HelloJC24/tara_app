@@ -1,25 +1,33 @@
 import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import { Image, Pressable, Text, TouchableOpacity, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import AppIcon from "../assets/splash-icon.png";
 import TaraLogo from "../assets/tara_icon.png";
 import BottomNavBar from "../components/BottomNavBar";
 import Button from "../components/Button";
 import ParagraphText from "../components/ParagraphText";
-import { TaraWalletIcon, TaraMotor, TaraCar, TaraVan } from "../components/CustomIcon";
+import { TaraWalletIcon, TaraMotor, TaraCar, TaraVan, TaraGift } from "../components/CustomIcon";
 import { InviteGraphic } from "../components/CustomGraphic";
 import LottieView from 'lottie-react-native';
+import { useNavigation } from "@react-navigation/native";
 
 const HomeScreen = () => {
   const [activeScanFriend, setActiveScanFriend] = useState(false);
+  const [rewardsAvailable, SetRewards] = useState(true)
+  const navigation = useNavigation();
+
+  const taraBook = (vehicle) =>{
+    navigation.navigate("booking")
+  }
+
 
   return (
     <View className="w-full h-full bg-white relative">
       <StatusBar style="dark" />
       <View className="w-full h-full p-6 ">
         <View className="w-full flex flex-row gap-x-3 items-center justify-between pt-10">
-          <Image source={TaraLogo} className="w-32 h-full" />
+          <Image source={TaraLogo} className="w-36 h-full" />
 
           <View className="flex flex-row gap-x-3 items-center justify-between">
             <View className="p-1 bg-slate-200 rounded-lg">
@@ -33,18 +41,27 @@ const HomeScreen = () => {
                 <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm10 12a9.938 9.938 0 0 1-1.662 5.508l-1.192-1.193a.5.5 0 0 1-.146-.353V15a3 3 0 0 0-3-3h-3a1 1 0 0 1-1-1v-.5a.5.5 0 0 1 .5-.5A2.5 2.5 0 0 0 15 7.5v-1a.5.5 0 0 1 .5-.5h1.379a2.516 2.516 0 0 0 1.767-.732l.377-.377A9.969 9.969 0 0 1 22 12Zm-19.951.963 3.158 3.158A2.978 2.978 0 0 0 7.329 17H10a1 1 0 0 1 1 1v3.949a10.016 10.016 0 0 1-8.951-8.986ZM13 21.949V18a3 3 0 0 0-3-3H7.329a1 1 0 0 1-.708-.293l-4.458-4.458A9.978 9.978 0 0 1 17.456 3.63l-.224.224a.507.507 0 0 1-.353.146H15.5A2.5 2.5 0 0 0 13 6.5v1a.5.5 0 0 1-.5.5 2.5 2.5 0 0 0-2.5 2.5v.5a3 3 0 0 0 3 3h3a1 1 0 0 1 1 1v.962a2.516 2.516 0 0 0 .732 1.767l1.337 1.337A9.971 9.971 0 0 1 13 21.949Z" />
               </Svg>
             </View>
-            <View className="p-1 bg-amber-200 rounded-lg">
-              <Svg
-                xmlns="http://www.w3.org/2000/svg"
-                width={20}
-                height={20}
-                data-name="Layer 1"
-                viewBox="0 0 24 24"
-                fill="#fbbf24"
-              >
-                <Path d="M2 15h9v9H7a5 5 0 0 1-5-5Zm22-4a2 2 0 0 1-2 2h-9V8.957c-.336.026-.671.043-1 .043s-.664-.017-1-.043V13H2a2 2 0 0 1-2-2 4 4 0 0 1 4-4h1.738A5.137 5.137 0 0 1 4 3a1 1 0 0 1 2 0c0 2.622 2.371 3.53 4.174 3.841A9.332 9.332 0 0 1 9 3a3 3 0 0 1 6 0 9.332 9.332 0 0 1-1.174 3.841C15.629 6.53 18 5.622 18 3a1 1 0 0 1 2 0 5.137 5.137 0 0 1-1.738 4H20a4 4 0 0 1 4 4ZM11 3a7.71 7.71 0 0 0 1 3.013A7.71 7.71 0 0 0 13 3a1 1 0 0 0-2 0Zm2 21h4a5 5 0 0 0 5-5v-4h-9Z" />
-              </Svg>
-            </View>
+       
+                {
+                  rewardsAvailable ? (
+                    <View className="pb-1.5 bg-white rounded-lg">
+                <LottieView
+                          source={require('../assets/animation/taragift.json')}
+                          autoPlay
+                          loop
+                          width={40}
+                          height={35}
+                      />
+                </View>
+                  ):(
+                    <View className="pt-1.5 px-2 bg-white rounded-lg">
+                    <TaraGift size={24} />
+                    </View>
+                  )
+                }
+          
+                       
+          
           </View>
         </View>
 
@@ -106,18 +123,18 @@ const HomeScreen = () => {
           <Text className="text-lg font-medium text-neutral-800 py-2">Choose a ride</Text>
 
           <View className="w-full flex flex-row justify-between items-center py-2 px-4">
-            <View className="flex gap-y-1">
-              <View className="pt-2 w-20 h-20 bg-slate-200 rounded-full">
-                <TaraMotor size="65" />
+            <Pressable onPress={()=>taraBook(2)} className="flex gap-y-1">
+              <View className="flex justify-center items-center pt-2 w-20 h-20 bg-slate-200 rounded-full">
+                <TaraMotor size="55" />
               </View>
               <Text className="text-base text-center text-blue-500">
                 TaraRide
               </Text>
-            </View>
+            </Pressable>
 
             <View className="flex gap-y-1">
-              <View className="w-20 h-20 bg-slate-200 rounded-full">
-              <TaraCar size="75" />
+              <View className="flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
+              <TaraCar size="65" />
               </View>
               <Text className="text-base text-center text-blue-500">
                 TaraCar
@@ -125,8 +142,8 @@ const HomeScreen = () => {
             </View>
 
             <View className="flex gap-y-1">
-              <View className="w-20 h-20 bg-slate-200 rounded-full">
-              <TaraVan size="75" />
+              <View className="flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
+              <TaraVan size="65" />
               </View>
               <Text className="text-base text-center text-blue-500">
                 TaraVan
@@ -137,7 +154,7 @@ const HomeScreen = () => {
 
         <BottomNavBar />
       </View>
-      <ExistingBooking />
+      {/* <ExistingBooking /> */}
 
       {activeScanFriend && (
         <FriendsWithBenefits close={() => setActiveScanFriend(false)} />

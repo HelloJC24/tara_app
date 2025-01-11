@@ -1,6 +1,7 @@
 import BottomSheet from "@devvie/bottom-sheet";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useRef, useState } from "react";
+import LottieView from 'lottie-react-native';
 import {
   FlatList,
   Image,
@@ -133,6 +134,7 @@ const Chat = ({ chatId, close }) => {
 
   const expiredSession = false;
   const userId = "4143234";
+  const receiverID = "???" ; // para itong dalawa lng ipapasa completo ang sender and receiver, mostly ang receiver ay kung sino ang rider na nakalagay sa inbox
 
   return (
     <View className="w-full h-full bg-white absolute inset-0 z-50">
@@ -151,10 +153,13 @@ const Chat = ({ chatId, close }) => {
             </Svg>
           </Pressable>
           <Pressable onPress={() => setActiveAutoReport(true)}>
-            <Image
-              source={Profile}
-              className="w-12 h-12 bg-neutral-500 rounded-xl object-cover"
-            />
+            <LottieView
+              source={require('../assets/animation/eye-watch.json')}
+              autoPlay
+              loop
+              width={40}
+              height={40}
+          />
           </Pressable>
         </View>
 
@@ -175,7 +180,7 @@ const Chat = ({ chatId, close }) => {
                 />
 
                 <Text className="text-2xl text-center font-bold">
-                  Lebro James
+                  Lebron James
                 </Text>
 
                 <ParagraphText
@@ -242,6 +247,15 @@ const Chat = ({ chatId, close }) => {
                   );
                 })}
               </View>
+            </View>
+            <View>
+            <LottieView
+              source={require('../assets/animation/typing.json')}
+              autoPlay
+              loop
+              width={60}
+              height={60}
+          />
             </View>
           </ScrollView>
 
@@ -386,8 +400,7 @@ const ChatSessionExpired = () => {
         Chat session expired
       </Text>
       <Text className="text-white text-center text-sm">
-        To <Text className="text-blue-500 font-bold">Learn more</Text> about
-        chat session.
+        To learn more check out our <Text className="text-blue-500 font-normal underline">Help Centre</Text> or chat us.
       </Text>
     </View>
   );
@@ -412,18 +425,21 @@ const AutoReport = ({ open, onClose }) => {
     >
       <View className="w-full h-full p-6 flex gap-y-4 ">
         <View className="flex flex-row gap-x-4 items-center justify-center">
-          <Image
-            source={Profile}
-            className="w-12 h-12 bg-neutral-500 rounded-xl object-cover"
+        <LottieView
+              source={require('../assets/animation/eye-watch.json')}
+              autoPlay
+              loop
+              width={60}
+              height={60}
           />
           <Text className="text-2xl font-bold text-neutral-700">
             Auto-Report
           </Text>
         </View>
 
-        <ParagraphText fontSize="base" align="center" padding="py-4">
-          Our AI is monitoring your chat conversation to protect you from any
-          rude messages and will automatically report the rider/driver.
+        <ParagraphText fontSize="base" align="center" padding="py-1.5">
+          Tara AI is monitoring your chat conversation to protect you from any
+          rude messages and will automatically report the rider/driver, so it will save time for you to reach us.
         </ParagraphText>
 
         <View className="w-full flex gap-y-4">

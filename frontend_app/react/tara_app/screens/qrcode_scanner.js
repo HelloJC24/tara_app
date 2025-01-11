@@ -58,11 +58,11 @@ const ScanRiderModal = () => {
   return (
     <View className="w-full absolute bottom-8 rounded-xl shadow-xl shadow-black flex flex-row gap-x-4 items-center p-3 bg-white z-[100]">
       <LottieView
-                            source={require('../assets/animation/tara.json')}
+                            source={require('../assets/animation/QR.json')}
                             autoPlay
                             loop
-                            width={40}
-                            height={40}
+                            width={60}
+                            height={60}
                         />
       <Text className="flex-1 text-sm">
         Scan a rider to book, so that you still have records for the
