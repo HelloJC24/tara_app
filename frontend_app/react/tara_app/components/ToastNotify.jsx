@@ -1,9 +1,9 @@
 import React, {
   createContext,
   useCallback,
-  useContext,
   useEffect,
   useState,
+  useContext
 } from "react";
 import { Text, View } from "react-native";
 import Animated, {

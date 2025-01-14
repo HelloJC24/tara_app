@@ -9,6 +9,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Linking
 } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
 import AppLogo from "../assets/splash-icon.png";
@@ -176,19 +177,7 @@ const ProcessingPhoto = (props) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-          <View className="p-1 bg-slate-200 rounded-lg">
-            <Svg
-              xmlns="http://www.w3.org/2000/svg"
-              width={20}
-              height={20}
-              viewBox="0 0 24 24"
-              fill="#374957"
-            >
-              <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm0 22a10 10 0 1 1 10-10 10.011 10.011 0 0 1-10 10Z" />
-              <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
-              <Rect width={2} height={2} x={11} y={17} rx={1} />
-            </Svg>
-          </View>
+        
         </View>
 
         <View className="w-full flex items-center gap-y-4">
@@ -201,13 +190,13 @@ const ProcessingPhoto = (props) => {
         <View></View>
 
         <View className="w-full flex gap-y-4 p-2">
-          <Button bgColor="bg-slate-300" textColor="text-neutral-700">
+          <Button bgColor="bg-slate-200" textColor="text-neutral-700">
             Cancel
           </Button>
 
           <ParagraphText align="center" fontSize="sm" padding="px-4">
             Learn how we protect your personal{" "}
-            <Text className="text-blue-500 font-semibold">
+            <Text onPress={()=>Linking.openURL("https://taranapo.com/data-protection/")} className="text-blue-500 font-semibold">
               information here.
             </Text>
           </ParagraphText>

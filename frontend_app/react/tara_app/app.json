@@ -28,7 +28,13 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera for identity check only"
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera for identity check only."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to perform better user services performance."
         }
       ]
     ]

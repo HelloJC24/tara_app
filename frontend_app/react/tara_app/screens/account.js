@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import LottieView from "lottie-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState,useContext } from "react";
 import {
   BackHandler,
   Pressable,
@@ -8,22 +8,77 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Linking,
+  Alert
 } from "react-native";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import appJson from "../app.json";
 import Button from "../components/Button";
-import { DeletionGraphic } from "../components/CustomGraphic";
+import { DeletionGraphic,TaraSafeGraphic } from "../components/CustomGraphic";
 import { TaraLogo } from "../components/CustomIcon";
 import ParagraphText from "../components/ParagraphText";
 const appVersion = appJson.expo.version;
+import ReportProblemScreen from "../components/ReportContainer";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import AuthProvider, { AuthContext } from "../context/authContext";
 
-const AccountScreen = ({ navigation }) => {
+const AccountScreen = ({ route, navigation }) => {
   const [activeEditUsername, setActiveEditUsername] = useState(false);
   const [activeAddMobileNum, setActiveMobileNum] = useState(false);
   const [activeAddEmailAddress, setActiveAddEmailAddress] = useState(false);
   const [activeTaraSafe, setActiveTaraSafe] = useState(false);
-  const [activeAccountDeletionModal, setActiveAccountDeletionModal] =
-    useState(false);
+  const [activeAccountDeletionModal, setActiveAccountDeletionModal] = useState(false);
+  const [viewreport,setViewReport] = useState(false)
+  const [phoneNumber,setPhone] = useState(null)
+  const [email,setEmail] = useState(null)
+  const [userName,setUserName] = useState("John Charlie Ubay Saclet");
+  const [userID,setUSERID] = useState(121212)
+  const { setUser } = useContext(AuthContext)
+
+  useEffect(()=>{
+    if(route.params){
+    const {purpose} = route.params;
+    if(route.params){
+      if(purpose == 'tarasafe'){
+        setActiveTaraSafe(true)
+      }else if(purpose == 'phone'){
+        setActiveMobileNum(true)
+      }
+    }
+  }
+
+  },[route])
+
+const logOut = () =>{
+  Alert.alert(
+    'Logging Out?',
+    'Do you want to sign out? Ensure your email or phone is linked to recover your account.',
+    [
+      {
+        text: 'Close',
+        type: 'cancel'
+      },
+      {
+        text: 'Logout',
+        onPress: async () => {
+         //connect to logout 
+         await AsyncStorage.removeItem('register');
+         setUser({accessToken:false})
+        },
+      }
+      
+    ],
+  );
+}
+
+
+
+  const LiveReport = () =>{
+    navigation.navigate('webview', {
+     track: userID,
+     url: "https://taranapo.com/report/"
+     });
+ }
 
   return (
     <View className="w-full h-full bg-white relative">
@@ -41,7 +96,7 @@ const AccountScreen = ({ navigation }) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-          <View className="">
+          <Pressable onPress={()=>logOut()} className="">
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={20}
@@ -52,7 +107,7 @@ const AccountScreen = ({ navigation }) => {
               <Path d="M15 3.849a1.02 1.02 0 0 0 .629.926A9 9 0 0 1 21 13.292 9 9 0 0 1 3 13a9 9 0 0 1 5.371-8.224A1.023 1.023 0 0 0 9 3.848a1 1 0 0 0-1.374-.929 11 11 0 1 0 8.751 0 1 1 0 0 0-1.377.93Z" />
               <Rect width={2} height={8} x={11} rx={1} />
             </Svg>
-          </View>
+          </Pressable>
         </View>
 
         <View className="w-full h-full  z-50">
@@ -69,7 +124,7 @@ const AccountScreen = ({ navigation }) => {
               <View className="flex flex-row justify-between items-center">
                 <View className="flex-1">
                   <Text className="text-sm text-neutral-700">Legal Name</Text>
-                  <Text className="text-lg py-1">John Doe</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" className="text-lg py-1">{userName}</Text>
                 </View>
                 <TouchableOpacity onPress={() => setActiveEditUsername(true)}>
                   <Svg
@@ -90,8 +145,7 @@ const AccountScreen = ({ navigation }) => {
                 Contact Details
               </Text>
               <ParagraphText fontSize="sm" textColor="text-neutral-700">
-                Providing contact information will help you recover your account
-                during future logins and ensure a direct receipt to your email.
+              Providing your contact info helps recover your account and ensures receipts are sent to your email.
               </ParagraphText>
             </View>
 
@@ -101,7 +155,13 @@ const AccountScreen = ({ navigation }) => {
                   <Text className="text-sm text-neutral-700">
                     Mobile Number
                   </Text>
-                  <Text className="text-lg py-1">+639275042174</Text>
+                 {
+                   phoneNumber ? (
+                    <Text className="text-lg py-1">{phoneNumber}</Text>
+                   ):(
+                    <Text onPress={() => setActiveMobileNum(true)} className="text-lg py-1 text-blue-500 font-semibold">Add Mobile Number</Text>
+                   )
+                 }
                 </View>
                 <TouchableOpacity onPress={() => setActiveMobileNum(true)}>
                   <Svg
@@ -123,9 +183,17 @@ const AccountScreen = ({ navigation }) => {
                   </Text>
                   {/* <Text className="text-lg py-1">example@gmail.com</Text> */}
 
-                  <Text className="text-lg py-1 text-blue-500 font-semibold">
+                  {
+                    email ? (
+                <Text className="text-lg py-1">
+                    {email}
+                  </Text>
+                    ):(
+                      <Text onPress={() => setActiveAddEmailAddress(true)} className="text-lg py-1 text-blue-500 font-semibold">
                     Add an email address
                   </Text>
+                    )
+                  }
                 </View>
                 <TouchableOpacity
                   onPress={() => setActiveAddEmailAddress(true)}
@@ -192,34 +260,41 @@ const AccountScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </View>
-      <View className="w-full absolute left-0 bottom-0 p-8">
+          <View className="w-full p-8">
         <ParagraphText
           fontSize="base"
           align="center"
           textColor="text-neutral-500"
         >
-          <Text className="text-blue-500 font-semibold">Privay Policy</Text> &{" "}
-          <Text className="text-blue-500 font-semibold">Terms of Use</Text>
+          <Text onPress={()=>Linking.openURL("https://taranapo.com/data-and-privacy/")} className="text-blue-500 font-semibold">Privacy Policy</Text> &{" "}
+          <Text onPress={()=>Linking.openURL("https://taranapo.com/terms-and-conditions/")} className="text-blue-500 font-semibold">Terms of Use</Text>
         </ParagraphText>
         <Text className="text-center text-sm text-neutral-500">
           {appVersion} Beta
         </Text>
       </View>
+        </View>
+       
+      </View>
+      
 
       {activeEditUsername && (
-        <EditUsernameScreen close={() => setActiveEditUsername(false)} />
+        <EditUsernameScreen report={setViewReport} close={() => setActiveEditUsername(false)} />
       )}
       {activeAddMobileNum && (
-        <AddMobileNumber close={() => setActiveMobileNum(false)} />
+        <AddMobileNumber report={setViewReport} close={() => setActiveMobileNum(false)} />
       )}
       {activeAddEmailAddress && (
-        <AddEmailAddress close={() => setActiveAddEmailAddress(false)} />
+        <AddEmailAddress report={setViewReport} close={() => setActiveAddEmailAddress(false)} />
+      )}
+
+      {viewreport && (
+        <ReportProblemScreen navigation={navigation} close={() => setViewReport(false)} />
       )}
 
       {activeAccountDeletionModal && (
         <AccountDeletionModal
+        navigation={navigation}
           close={() => setActiveAccountDeletionModal(false)}
         />
       )}
@@ -229,7 +304,18 @@ const AccountScreen = ({ navigation }) => {
   );
 };
 
-const AccountDeletionModal = ({ close }) => {
+const AccountDeletionModal = ({ navigation, close }) => {
+
+  const SeeForm = () =>{
+    close();
+    navigation.navigate('webview', {
+     track: 'user',
+     url: "https://taranapo.com/deletion-request/"
+     });
+ }
+
+
+
   return (
     <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
       <View
@@ -254,7 +340,7 @@ const AccountDeletionModal = ({ close }) => {
         </ParagraphText>
 
         <View className="w-full flex gap-y-4">
-          <Button>Fill out the form</Button>
+          <Button onPress={()=>SeeForm()}>Fill out the form</Button>
           <Button
             onPress={close}
             bgColor="bg-slate-200"
@@ -268,7 +354,7 @@ const AccountDeletionModal = ({ close }) => {
   );
 };
 
-const EditUsernameScreen = ({ close }) => {
+const EditUsernameScreen = ({report, close }) => {
   const [username, setUsername] = useState("John Doe");
 
   const handleBackPress = () => {
@@ -298,7 +384,7 @@ const EditUsernameScreen = ({ close }) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-          <View className="p-1 bg-slate-200 rounded-lg">
+          <Pressable onPress={()=>report(true)} className="p-1 bg-slate-200 rounded-lg">
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={20}
@@ -310,7 +396,7 @@ const EditUsernameScreen = ({ close }) => {
               <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
               <Rect width={2} height={2} x={11} y={17} rx={1} />
             </Svg>
-          </View>
+          </Pressable>
         </View>
 
         <View className="w-full z-50">
@@ -359,7 +445,7 @@ const EditUsernameScreen = ({ close }) => {
   );
 };
 
-const AddMobileNumber = ({ close }) => {
+const AddMobileNumber = ({report, close }) => {
   const [phoneNumber, setPhoneNumber] = useState("");
 
   const handleBackPress = () => {
@@ -388,7 +474,7 @@ const AddMobileNumber = ({ close }) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-          <View className="p-1 bg-slate-200 rounded-lg">
+          <Pressable  onPress={()=>report(true)} className="p-1 bg-slate-200 rounded-lg">
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={20}
@@ -400,7 +486,7 @@ const AddMobileNumber = ({ close }) => {
               <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
               <Rect width={2} height={2} x={11} y={17} rx={1} />
             </Svg>
-          </View>
+          </Pressable>
         </View>
 
         <View className="w-full z-50">
@@ -450,7 +536,7 @@ const AddMobileNumber = ({ close }) => {
   );
 };
 
-const AddEmailAddress = ({ close }) => {
+const AddEmailAddress = ({report, close }) => {
   const [email, setEmail] = useState("example@gmail.com");
   const handleBackPress = () => {
     close();
@@ -478,7 +564,7 @@ const AddEmailAddress = ({ close }) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-          <View className="p-1 bg-slate-200 rounded-lg">
+          <Pressable  onPress={()=>report(true)} className="p-1 bg-slate-200 rounded-lg">
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={20}
@@ -490,7 +576,7 @@ const AddEmailAddress = ({ close }) => {
               <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
               <Rect width={2} height={2} x={11} y={17} rx={1} />
             </Svg>
-          </View>
+          </Pressable>
         </View>
 
         <View className="w-full z-50">
@@ -508,6 +594,7 @@ const AddEmailAddress = ({ close }) => {
               value={email}
               onChangeText={setEmail}
               placeholder=""
+              keyboardType="email"
             />
           </View>
 
@@ -570,19 +657,7 @@ const TaraSafe = ({ close }) => {
                 <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
               </Svg>
             </Pressable>
-            <View className="p-1 bg-slate-200 rounded-lg">
-              <Svg
-                xmlns="http://www.w3.org/2000/svg"
-                width={20}
-                height={20}
-                viewBox="0 0 24 24"
-                fill="#374957"
-              >
-                <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm0 22a10 10 0 1 1 10-10 10.011 10.011 0 0 1-10 10Z" />
-                <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
-                <Rect width={2} height={2} x={11} y={17} rx={1} />
-              </Svg>
-            </View>
+      
           </View>
 
           <View className="w-full">
@@ -593,21 +668,20 @@ const TaraSafe = ({ close }) => {
             </View>
 
             <View className="py-4">
-              <TaraLogo size={150} />
+             <View className="flex-row justify-center items-center">
+             <TaraSafeGraphic size={250} />
+             </View>
 
-              <ParagraphText fontSize="sm" textColor="text-neutral-500">
-                We will notify these people via SMS or email every time you book
-                with us. Sounds safe? Let’s do it!
+              <ParagraphText fontSize="sm" textColor="text-neutral-500 text-center">
+              We’ll notify these people via SMS or email for every booking. Sounds safe? Let’s do it!
               </ParagraphText>
             </View>
 
             <ParagraphText
               fontSize="base"
-              textColor="text-neutral-700"
-              padding="py-4"
+              textColor="text-neutral-700 text-center"
             >
-              Provide two email addresses or phone numbers. We don’t mind if
-              they have a Tara account or not.
+              Provide two email addresses or phone numbers—they don’t need a Tara account!
             </ParagraphText>
 
             <View className="w-full flex gap-y-4 py-4">
@@ -687,7 +761,7 @@ const TaraSafe = ({ close }) => {
 
           <ParagraphText align="center" fontSize="sm">
             Learn how Tara keep you safe or visit our{" "}
-            <Text className="text-blue-500 font-semibold">FAQs here.</Text>
+            <Text onPress={()=>Linking.openURL("https://taranapo.com/faqs/")}  className="text-blue-500 font-semibold">FAQs here.</Text>
           </ParagraphText>
         </View>
       </View>

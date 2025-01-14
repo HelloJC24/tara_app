@@ -13,6 +13,12 @@ import TaraTargetIcon from "../assets/custom-svg/target.svg"
 import TaraPinMapIcon from "../assets/custom-svg/pin-map.svg"
 import TaraNoticeIcon from "../assets/custom-svg/notice.svg"
 import TaraQRIcon from "../assets/custom-svg/qr.svg"
+import IconGcash from "../assets/custom-svg/gcash.svg"
+import TaraCC from "../assets/custom-svg/card.svg"
+import TaraTicket from "../assets/custom-svg/ticket.svg"
+import IconMaya from "../assets/custom-svg/maya.svg"
+import TaraBankIcon from "../assets/custom-svg/bank.svg"
+import TaraBlackQRIcon from "../assets/custom-svg/mamba.svg"
 
 export const TaraWalletIcon = (props) => {
   return (
@@ -103,3 +109,40 @@ export const TaraQR = (props) => {
     <TaraQRIcon width={props.size} height={props.size} fill={props.color} />
   );
 }
+
+export const GCashIcon = (props) => {
+  return (
+    <IconGcash width={props.size} height={props.size} fill={props.color} />
+  );
+}
+
+export const TaraCard = (props) => {
+  return (
+    <TaraCC width={props.size} height={props.size} fill={props.color} />
+  );
+}
+
+export const TaraCoupon = (props) => {
+  return (
+    <TaraTicket width={props.size} height={props.size} fill={props.color} />
+  );
+}
+
+export const MayaIcon = (props) => {
+  return (
+    <IconMaya width={props.size} height={props.size} fill={props.color} />
+  );
+}
+
+export const TaraBank = (props) => {
+  return (
+    <TaraBankIcon width={props.size} height={props.size} fill={props.color} />
+  );
+}
+
+export const TaraBlackQR = (props) => {
+  return (
+    <TaraBlackQRIcon width={props.size} height={props.size} fill={props.color} />
+  );
+}
+
