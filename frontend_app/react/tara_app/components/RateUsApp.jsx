@@ -109,7 +109,7 @@ const RateUsApp = (props) => {
         <View></View>
 
         <View>
-          <Text className="text-blue-500 text-center text-2xl font-semibold p-2">
+          <Text onPress={props.close} className="text-blue-500 text-center text-2xl font-semibold p-2">
             Ask me later
           </Text>
           <Text className="text-blue-500 text-center text-lg p-2">

@@ -1,9 +1,9 @@
-import { View, Text,TouchableOpacity, ScrollView, TextInput, Pressable, StyleSheet,Animated,Image } from "react-native";
+import { View, Text,TouchableOpacity, ScrollView, TextInput, Pressable, StyleSheet,Animated,Image,PanResponder,FlatList,Alert } from "react-native";
 import { WebView } from 'react-native-webview';
-import Svg, { Circle, Path,Rect } from "react-native-svg";
+import Svg, { Circle, Path,Rect,Defs, Filter, FeGaussianBlur } from "react-native-svg";
 import LottieView from 'lottie-react-native';
 import BottomSheet from "@devvie/bottom-sheet";
-import { useRef,useEffect, useState } from "react";
+import { useRef,useEffect, useState, use } from "react";
 import Button from "../components/Button";
 import animationMarker from '../assets/animation/marker.json';
 import { 
@@ -24,39 +24,165 @@ TaraVan
 } from "../components/CustomIcon";
 import { LocationCard } from "../components/Cards";
 import {Slider} from '@miblanchard/react-native-slider';
+import axios from 'axios';
+import * as Location from 'expo-location';
+import { useToast } from "../components/ToastNotify";
+import QRCodeStyled from 'react-native-qrcode-styled';
 
-const BookingPage = ({navigation}) =>{
+const BookingPage = ({route,navigation}) =>{
  const sheetRef = useRef(null);
  const sheetRef2 = useRef(null);
  const sheetRef3 = useRef(null);
  const lottieRef = useRef(null);
  const [suggest,setSuggest] = useState(false)
  const [viewRiderMap,setViewRiders] = useState(false)
+ const [vehicleType,setVehicle] = useState(1)
  const [pickupName,setPickupName] = useState("")
  const [dropName,setDropName] = useState("")
  const [infoMode, setInfoMode] = useState(1) //using 2 is drop mode
  const [infoInput, setInfoInput] = useState("")
  const [MapPin,setMapPin] = useState(false)
- const [calculated,setCalculated] = useState(true)
+ const [calculated,setCalculated] = useState(false) //already calculated the rate
  const [offerCom,setComOffer] = useState(false)
  const [minimizeView,setMinizeView] = useState(false)
- const [fareRate,setFareRate] = useState("0.00")
+ const [fareRate,setFareRate] = useState(0)
  const [cSlide,setCustomSlide] = useState(0)
  const [cSlideEffect,setCSlideEffect] = useState("blue")
  const [searching,setSearching] = useState(false) // true searching and false - try agian
- const [rider,setRider] = useState(true) //true rider found
- const [bookState,setBookState] = useState(3) //1 waiting, 2 ontheway, 3 pickup,
+ const [rider,setRider] = useState(false) //true rider found
+ const [bookState,setBookState] = useState(1) //1 waiting, 2 ontheway, 3 pickup,
+ const [taraSafe,setTaraSafe] = useState(true)
+ const [bookingID,setBookingID] = useState(null)
+ const [pickupCoordinates,setPickupCoordinates] = useState(null)
+ const [dropCoordinates,setDropCoordinates] = useState(null)
+ const [fareAPIResponse,setFareAPIResponse] = useState([])
+ const [pickmotor,selectMotor] = useState(false)
+ const [pickcar4,selectCard4] = useState(false)
+ const [pickcard6,selectCar6] = useState(false)
+ const [pickVan,selectVan] = useState(false)
+ const [activemotor,selectActiveMotor] = useState(true)
+ const [activecar4,selectActiveCard4] = useState(true)
+ const [activecard6,selectActiveCar6] = useState(true)
+ const [activeVan,selectActiveVan] = useState(true)
+ const [myLocation,setMyLocation] = useState([])
+ const webViewRef = useRef(null);
+ const [webLoad,setWebLoad] = useState(false)
+const [locationPermission,setPermissionAsk] = useState(false);
+const [location, setLocation] = useState([])
+const [showCurrentLocation,setCurrentLocation] = useState(false);
+const toast = useToast();
+const [slideGuide,setSlideGuide] = useState(true);
+const [generateQR,setGenerateQR] = useState(false)
+
+const showToast = (type,msg) => {
+toast(type, msg);
+};
 
 
+useEffect(()=>{
+const {wheels,start} = route.params;
+if(route.params){
+addVehicle(wheels)
+setMyLocation(`${start.coords.latitude}>>>${start.coords.longitude}`)
+//setVehicle(wheels)
+//disabling vehicles
+switch (wheels) {
+    case 2:
+        return selectActiveVan(false)
+    case 5:
+        return selectActiveMotor(false)
+}
+
+}
+},[route])
+
+
+
+useEffect(()=>{
+const calculateMetric = async ()=>{
+const fareAPI = await axios.get(
+`https://onthewaypo.com/OTW/api/metrics/`,
+{
+    params: {
+    from: pickupCoordinates,
+    to:dropCoordinates
+    },
+}
+);
+
+//console.log(fareAPI.data)
+if(fareAPI.data){
+setFareAPIResponse(fareAPI.data.data)
+setCalculated(true)
+setFareRate(fareAPI.data.data.amount)
+}
+}
+
+calculateMetric();
+
+},[dropName,dropCoordinates])
+
+const myPinLocation = async () =>{
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+        if(location.mocked){
+            //exit
+        }else{
+            setLocation(location);
+            setCurrentLocation(true);
+            //replace start
+            setMyLocation(`${location.coords.latitude}>>>${location.coords.longitude}`)
+            //provide name in the pickup
+        }
+        
+        
+}
+
+const switchLocations = () =>{
+    setPickupCoordinates(dropCoordinates)
+    setPickupName(dropName)
+    setDropCoordinates(pickupCoordinates)
+    setDropName(pickupName)
+    setCalculated(false)
+}
+  
 const selectLocation = (selectMode) =>{
     setInfoMode(selectMode)
     sheetRef.current?.open();  
 }
 
+const addVehicle = (vh) =>{
+    switch(vh) {
+        case 4:
+            return pickcar4 ? selectCard4(false) : selectCard4(true)
+        case 4.5:
+            return pickcard6 ? selectCar6(false) : selectCar6(true)
+        case 5:
+            return pickVan ? selectVan(false) : selectVan(true)
+        default:
+            return pickmotor ? selectMotor(false) : selectMotor(true)
+    }
+
+}
+
+const RequestVehicle = () =>{
+    showToast("try_again","This is vehicle is not available.");
+}
+
+const goSearchRider = async () =>{
+//connect to API
+setSearching(true);
+}
+
+const cancelSearch = () =>{
+    setSearching(false);
+}
 
 const selectCurrentLocation = () =>{
     sheetRef.current?.close();
     setSuggest(false);
+    myPinLocation();
     //run location permission
 }
 
@@ -69,6 +195,7 @@ const selectPinMap = () =>{
 const viewRiders = () =>{
     setSuggest(false);
     setViewRiders(true)
+    showToast("try_again","Viewing nearby drivers..");
     //run api
 }
 
@@ -77,8 +204,9 @@ const backToBooking = () =>{
     //clear markers
 }
 
-const InputLocation = (e) =>{
+const InputLocation = async (e) =>{
     setInfoInput(e)
+    await searchLocations(e);
 }
 
 const selectThisLocation = () =>{
@@ -103,15 +231,71 @@ const closeMap = () =>{
     }
 }
 
-const handleWebViewMessage = (event) => {
-    const message = event.nativeEvent.data;
-    if (message === "drag_started") {
-      console.log("Drag started in WebView!");
-    } else if (message === "drag_stopped") {
-      console.log("Drag stopped in WebView!");
-    }
-  };
 
+//SCREEN NAVIGATION
+
+const openTaraSafe = () =>{
+    navigation.navigate('account', {
+        purpose: 'tarasafe',
+        track: "user"
+        });
+}
+
+const openChat = () =>{
+    navigation.navigate('inbox', {
+        purpose: 'chat',
+        sender: "user",
+        receiver: "riderID"
+        });
+}
+
+const QRBooking = () =>{
+    if(generateQR){
+        setGenerateQR(false)
+    }else{
+        setGenerateQR(true)
+    }
+}
+
+const handleWebViewMessage = (event) => {
+const data = JSON.parse(event.nativeEvent.data);
+//Alert.alert("Message from Web Page", data.message);
+};
+
+
+
+useEffect(()=>{
+    const jsonData = JSON.stringify({ 
+        message: "Tara APP",
+        MyPin: myLocation, 
+        search: searching,
+        pollyline: calculated,
+        start: pickupCoordinates,
+        end: dropCoordinates,
+        vehicle: 0,
+        viewriders: viewRiderMap,
+        stop: 0,
+        meme: showCurrentLocation,
+        timestamp: new Date().toISOString()
+    });
+    // console.log(jsonData)
+    webViewRef.current?.injectJavaScript(`
+        document.dispatchEvent(new MessageEvent('message', { data: '${jsonData}' }));
+        true; // Suppress warnings
+    `);
+},[webViewRef,
+    webLoad,
+    searching,
+    setSearching,
+    calculated,
+    setCalculated,
+    viewRiderMap,
+    setViewRiders,
+    showCurrentLocation,
+    setCurrentLocation])
+
+
+  //ANIMATIOn
 
 const defaultOptions = {
     animationData: animationMarker,
@@ -123,15 +307,45 @@ const defaultOptions = {
     }
   };
 
-const styles = StyleSheet.create({
-    marker: {
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        paddingBottom: 43,
-        transform: 'translate(-50%, -50%)',
-        zIndex: 999
-    }
+
+
+  const translateX = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Create a looping bounce animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(translateX, {
+          toValue: 500, // Move to the right
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateX, {
+          toValue: 800, // Move back to the left
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [translateX]);
+ 
+  const pan = useRef(new Animated.ValueXY()).current;
+ 
+  const panResponder = PanResponder.create({
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderMove: (evt, gestureState) => {
+      if (gestureState.dy > 0) {
+        setMinizeView(true)
+      } else {
+        setMinizeView(false)
+      }
+    },
+    onPanResponderRelease: () => {
+      Animated.spring(pan, {
+        toValue: { x: 0, y: 0 },
+        useNativeDriver: true,
+      }).start();
+    },
   });
 
 
@@ -168,13 +382,48 @@ const styles = StyleSheet.create({
     ]).start();
   };
 
+
+
+const styles = StyleSheet.create({
+    marker: {
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        paddingBottom: 43,
+        transform: 'translate(-50%, -50%)',
+        zIndex: 999
+    },
+    bar: {
+        height: 5,
+        backgroundColor: '#cbd5e1',
+        borderRadius: 10,
+        width:100
+      }
+  });
+
+
+
+
+  
+
   const handleValueChange = (value) => {
-    //setFareRate(value * 155); // Example calculation
     fadeIn();
     setCustomSlide(value)
-    //console.log(value)
     scaleAnim.setValue(1); // Reset scale when sliding
     setCSlideEffect('green')
+    switch (value[0]) {
+        case 0:
+          return setFareRate(fareAPIResponse.discount2);
+        case 3:
+          return setFareRate(fareAPIResponse.discount1);
+        case 9:
+          return  setFareRate(fareAPIResponse.tip1)
+        case 12:
+          return  setFareRate(fareAPIResponse.tip2)
+        default:
+          return setFareRate(fareAPIResponse.amount);
+      }
+    
   };
 
   const handleSlidingComplete = () => {
@@ -184,7 +433,7 @@ const styles = StyleSheet.create({
   const renderAboveThumbComponent = () => {
     return (
       <Animated.View
-      className={`${cSlide > 5 ? 'right-[80px]' : 'left-4'} p-2 border rounded-xl border-gray-200 shadow-2xl bg-white`}
+      className={`${cSlide > 5 ? 'right-[80px]' : 'left-4'} p-2  rounded-xl shadow-2xl bg-green-500`}
         style={[
           {
             opacity: fadeAnim, // Bind opacity to fadeAnim
@@ -192,7 +441,7 @@ const styles = StyleSheet.create({
           },
         ]}
       >
-        <Text className="font-medium text-slate-800 text-3xl">&#8369;{fareRate}</Text>
+        <Text className="font-medium text-white text-3xl">&#8369;{fareRate}</Text>
       </Animated.View>
     );
   };
@@ -204,6 +453,35 @@ const CustomThumb = () => (
     </View>
 );
 
+
+
+  const [locations, setLocations] = useState([]);
+  const [errorAPI, setError] = useState('');
+
+  const searchLocations = async (place) => {
+    try {
+      const response = await axios.get(
+        `https://onthewaypo.com/OTW/api/locations/`,
+        {
+          params: {
+            search: infoInput,
+            track:myLocation
+          },
+        }
+      );
+
+      if (response.data && response.data.length > 0) {
+        setLocations(response.data);
+        setError('');
+      } else {
+        setLocations([]);
+        setError('No locations found');
+      }
+    } catch (error) {
+      setError('An error occurred while fetching data');
+      console.error(error);
+    }
+  };
 
 
 
@@ -291,12 +569,31 @@ height={120}
     )
 }
 
+
+
+{
+    searching && (
+        <View style={styles.marker}>
+<LottieView
+source={require('../assets/animation/tara_search.json')}
+autoPlay
+loop
+width={200}
+height={200}
+/>
+</View>
+    )
+}
+
 <WebView
-source={{ uri: "https://kiefers-app.com/livetracking/?track=000" }}
+ref={webViewRef}
+source={{ uri: `https://onthewaypo.com/OTW/api/playground/map/` }}
 javaScriptEnabled={true}
 onMessage={handleWebViewMessage}
 className="bg-white"
+onLoad={()=>setWebLoad(true)}
 onTouchStart={()=>setMinizeView(true)}
+cacheEnabled={false}
 
 />
 
@@ -324,12 +621,14 @@ onTouchStart={()=>setMinizeView(true)}
   className={`fixed ${
     viewRiderMap
       ? 'bottom-[70px]'
+      : minimizeView == true && rider == true && bookState == 3
+      ? 'bottom-[310px]'
       : minimizeView == true && rider == true
       ? 'bottom-[270px]'
       : minimizeView == true
       ? 'bottom-[200px]'
       : rider == true
-      ? 'bottom-[590px]'
+      ? 'bottom-[610px]'
       : searching == true
       ? 'bottom-[280px]'
       : offerCom == true
@@ -337,15 +636,23 @@ onTouchStart={()=>setMinizeView(true)}
       : calculated == true
       ? 'bottom-[520px]'
       : 'bottom-[350px]'
-  }`}
+  } `}
 >
+
+
+<Animated.View
+className="z-50"
+        {...panResponder.panHandlers}
+        style={[ { transform: pan.getTranslateTransform() }]}
+      >
+<View >
 
 {
     !viewRiderMap && searching == false && (
 <View className="flex-row justify-end items-center mx-2.5">
    {
      rider ? (
-        <TouchableOpacity className="bg-white border border-gray-200 rounded-xl w-16 h-16 flex-row justify-center items-center mb-2 shadow-xl">   
+        <TouchableOpacity onPress={()=>openChat()} className="bg-white border border-gray-200 rounded-xl w-16 h-16 flex-row justify-center items-center mb-2 shadow-xl">   
       <View className="relative">
       <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 <Path d="M24 15.9999V20.9999C24 21.7955 23.6839 22.5586 23.1213 23.1212C22.5587 23.6838 21.7956 23.9999 21 23.9999H16C14.5971 23.9985 13.2192 23.6281 12.0047 22.926C10.7901 22.224 9.78145 21.2148 9.08 19.9999C9.83387 19.9945 10.5852 19.9114 11.322 19.7519C11.8832 20.4535 12.595 21.0199 13.4048 21.4091C14.2146 21.7982 15.1016 22.0001 16 21.9999H21C21.2652 21.9999 21.5196 21.8945 21.7071 21.707C21.8946 21.5195 22 21.2651 22 20.9999V15.9999C21.9998 15.1011 21.7972 14.2139 21.4074 13.4041C21.0175 12.5943 20.4504 11.8826 19.748 11.3219C19.9088 10.5852 19.9933 9.8339 20 9.07989C21.215 9.78134 22.2241 10.79 22.9262 12.0045C23.6282 13.2191 23.9986 14.597 24 15.9999ZM17.977 9.65089C18.0705 8.36253 17.8856 7.06913 17.4348 5.85859C16.9841 4.64804 16.278 3.54871 15.3646 2.63531C14.4512 1.7219 13.3518 1.01582 12.1413 0.565046C10.9308 0.114271 9.63736 -0.0706368 8.349 0.0228889C6.06592 0.283621 3.95693 1.37006 2.41918 3.07763C0.881427 4.7852 0.0210272 6.99606 0 9.29389L0 14.3339C0 16.8659 1.507 17.9999 3 17.9999H8.7C10.9988 17.9801 13.211 17.1203 14.9198 15.5824C16.6286 14.0446 17.7159 11.9349 17.977 9.65089ZM13.95 4.05089C14.6599 4.76239 15.2088 5.61809 15.5593 6.56008C15.9099 7.50207 16.054 8.50837 15.982 9.51089C15.7686 11.2946 14.9105 12.9387 13.5693 14.1338C12.2282 15.3289 10.4964 15.9926 8.7 15.9999H3C2.072 15.9999 2 14.7249 2 14.3339V9.29389C2.00834 7.49826 2.67265 5.76759 3.86792 4.42757C5.06319 3.08754 6.70699 2.23056 8.49 2.01789C8.656 2.00589 8.822 1.99989 8.988 1.99989C9.90927 1.99903 10.8217 2.17973 11.6731 2.53165C12.5245 2.88357 13.2982 3.39982 13.95 4.05089Z" fill="#374957"/>
@@ -355,7 +662,7 @@ onTouchStart={()=>setMinizeView(true)}
         </TouchableOpacity>
     
      ): calculated ? (
-        <Pressable className="bg-blue-500 rounded-xl w-16 h-16 flex-row justify-center items-center mb-2 shadow-xl">   
+        <Pressable onPress={()=>QRBooking()} className="bg-blue-500 rounded-xl w-16 h-16 flex-row justify-center items-center mb-2 shadow-xl">   
         <TaraQR size={25} />  
          </Pressable>
      ):(
@@ -379,15 +686,16 @@ onTouchStart={()=>setMinizeView(true)}
     rider && (
         <View className="mx-2.5 mb-2.5">
         <View className="relative shadow-lg">
-    <View className="bg-white rounded-xl border border-gray-300  w-full flex-row flex-wrap gap-x-6 gap-y-4
+    <View className="shadow-xl bg-white rounded-xl border border-gray-300  w-full flex-row flex-wrap gap-x-6 gap-y-4
     ">
     
 
         {
             bookState == 2 ? (
+                <View>
                 <View className="rounded-t-xl bg-slate-100 w-full flex-row justify-between items-center p-2.5">
                 <View className="px-2">
-                <Text className="text-slate-800 text-xl font-medium">Driver is en route.</Text>
+                <Text className="text-slate-800 text-xl font-medium">Driver is on the way.</Text>
                 <Text className="text-slate-500 text-sm">Please go to your pickup location.</Text>
                     </View>
     
@@ -395,7 +703,17 @@ onTouchStart={()=>setMinizeView(true)}
                     <Text className="font-medium text-xl">4 mins</Text>
                     </View>
             </View>
+            <View className="overflow-hidden bg-neutral-800">
+            <Animated.View
+                style={[
+                styles.bar,
+                { transform: [{ translateX }] },
+                ]}
+            />
+            </View>
+                    </View>
             ) : bookState == 3 ? (
+                <View>
                 <View className="rounded-t-xl bg-slate-100 w-full flex-row justify-between items-center p-2.5">
                 <View className="px-2">
                 <Text className="text-slate-800 text-xl font-medium">Driver has picked you up..</Text>
@@ -406,6 +724,15 @@ onTouchStart={()=>setMinizeView(true)}
                     <Text className="font-medium text-xl">4 mins</Text>
                     </View>
             </View> 
+                <View className="overflow-hidden bg-neutral-800">
+                <Animated.View
+                    style={[
+                    styles.bar,
+                    { transform: [{ translateX }] },
+                    ]}
+                />
+                </View>
+                </View>
             ):(
                 <View className="rounded-t-xl bg-blue-500 w-full flex-row justify-between items-center p-2.5">
                 <View className="px-2">
@@ -489,9 +816,11 @@ onTouchStart={()=>setMinizeView(true)}
 {
     bookState == 3 && (
         <View className="mx-2.5 mb-2.5">
-        <View className="relative shadow-lg">
-        <View className="p-2.5 bg-white rounded-xl border border-gray-300  w-full flex-row flex-wrap gap-x-6 gap-y-4
-    ">
+        <View className="relative">
+        <View className="p-2.5 bg-white shadow-lg rounded-xl border border-gray-300  w-full">
+
+
+<View className="px-1.5 w-full flex-row justify-between items-center">
 
         <View className="flex-row justify-items items-center gap-x-2">
         <LottieView
@@ -501,7 +830,31 @@ onTouchStart={()=>setMinizeView(true)}
         width={35}
         height={35}
     />
+    <View>
     <Text className="font-medium text-xl">Tara Safe</Text>
+    {
+        taraSafe ? (
+            <Text className="font-normal text-xs">We sent notification to your Tara Safe contacts.</Text>
+        ):(
+            <Text className="font-normal text-xs">Notify your favorite person for every booking.</Text>
+        )
+    }
+        </View>
+
+</View>
+
+        {
+            taraSafe ? (
+            <View className="bg-green-500 px-2 py-1.5 rounded-lg">
+            <Text className="font-medium text-white text-center text-sm">Activated</Text>
+            </View>
+            ):(
+            <Pressable onPress={()=>openTaraSafe()} className="bg-blue-500 px-2 py-1.5 rounded-lg">
+            <Text className="font-medium text-blue-100 text-center text-sm">Try now</Text>
+            </Pressable>
+            )
+        }
+   
                 </View>
     
     </View>
@@ -536,8 +889,14 @@ onTouchStart={()=>setMinizeView(true)}
 {
     searching || rider ? (
 <View className="w-full">
-    <Text className="font-semibold text-gray-400 text-lg">Pickup Location?</Text>
+    <Text numberOfLines={1} ellipsizeMode="tail" className="font-semibold text-gray-800 text-lg">{pickupName}</Text>
 </View>
+
+    ): pickupName ? (
+        <TouchableOpacity onPress={()=>selectLocation(1)} className="w-80">
+        <Text numberOfLines={1} ellipsizeMode="tail" className="font-semibold text-gray-800 text-lg">{pickupName}</Text>
+    </TouchableOpacity>
+    
     ):(
         <TouchableOpacity onPress={()=>selectLocation(1)} className="w-full">
     <Text className="font-semibold text-gray-400 text-lg">Pickup Location?</Text>
@@ -548,13 +907,11 @@ onTouchStart={()=>setMinizeView(true)}
 
 {
     calculated && minimizeView == false && searching == false && rider == false ? (
-<View className="flex-row justify-center items-center gap-x-2 w-full pr-4">
-<View className="h-px bg-gray-200 w-48"></View>
-<TouchableOpacity className="flex-row justify-center items-center gap-x-2">
-<Text className="font-medium text-blue-500">Switch</Text>
-<TaraChange size={12} color="#3b82f6" />
+<View className="flex-row justify-start items-center gap-x-2 w-full pr-4">
+<TouchableOpacity onPress={()=>switchLocations()} className="pl-1.5 flex-row justify-center items-center gap-x-2">
+<TaraChange size={20} color="#3b82f6" />
 </TouchableOpacity>
-<View className="h-px bg-gray-200 w-48"></View>
+<View className="h-px bg-gray-200 w-full"></View>
 </View>
     ):(
 <View className="h-px bg-gray-200 w-full"></View>
@@ -571,8 +928,14 @@ onTouchStart={()=>setMinizeView(true)}
 {
     searching || rider ? (
 <View className="w-full">
-    <Text className="font-semibold text-gray-400 text-lg">Drop-off Location?</Text>
+    <Text numberOfLines={1} ellipsizeMode="tail"  className="font-semibold text-gray-800 text-lg">{dropName}</Text>
 </View>
+    ): dropName ? (
+
+        <TouchableOpacity onPress={()=>selectLocation(2)} className="w-80">
+        <Text numberOfLines={1} ellipsizeMode="tail" className="font-semibold text-gray-800 text-lg">{dropName}</Text>
+    </TouchableOpacity> 
+
     ):(
         <TouchableOpacity onPress={()=>selectLocation(2)} className="w-full">
     <Text className="font-semibold text-gray-400 text-lg">Drop-off Location?</Text>
@@ -593,49 +956,134 @@ onTouchStart={()=>setMinizeView(true)}
 <View className="p-2.5 w-full flex-row flex-wrap gap-x-6 gap-y-4
 ">
 
-<TouchableOpacity  className="w-44 flex-row justify-start items-center gap-x-2">
-    <View className="border border-blue-500 rounded-lg h-6 w-6 flex-row justify-center items-center">
+
+{
+    activemotor ? (
+<TouchableOpacity onPress={()=>addVehicle(2)}  className="w-44 flex-row justify-start items-center gap-x-2">
+    {
+        pickmotor ? (
+            <View className="border border-blue-500 rounded-lg h-6 w-6 flex-row justify-center items-center">
     <View className="bg-blue-500 rounded h-4 w-4"></View>
     </View>
+        ):(
+            <View className="border border-gray-300 rounded-lg h-6 w-6 flex-row justify-center items-center">
+    </View>   
+        )
+    }
     <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
     <TaraMotor size="28" />
     </View>
-    <Text className="text-lg font-medium text-gray-800">MotorTaxi</Text>
+    <Text className="text-sm font-medium text-gray-800">MotorTaxi</Text>
 </TouchableOpacity>
-
-
-<TouchableOpacity  className="w-44 flex-row justify-start items-center gap-x-2">
-<View className="border border-gray-300 rounded-lg h-6 w-6 flex-row justify-center items-center">
-
-    </View>
-    <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
-    <TaraCar size="28" />
-    </View>
-    <Text className="text-lg font-medium text-gray-800">4 seat- Car</Text>
-</TouchableOpacity>
-
-
-
-<TouchableOpacity  className="w-44 flex-row justify-start items-center gap-x-2">
-<View className="border border-gray-300 rounded-lg h-6 w-6 flex-row justify-center items-center">
-
-    </View>
-    <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
-    <TaraCar size="28" />
-    </View>
-    <Text className="text-lg font-medium text-gray-800">6 seat - Car</Text>
-</TouchableOpacity>
-
-
-<TouchableOpacity className="opacity-20 w-44 flex-row justify-start items-center gap-x-2">
+    ):(
+<TouchableOpacity onPress={()=>RequestVehicle(2)}  className="opacity-50 w-44 flex-row justify-start items-center gap-x-2">
     <View className="border border-gray-300 rounded-lg h-6 w-6 flex-row justify-center items-center">
-
+    </View>   
+    <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
+    <TaraMotor size="28" />
     </View>
+    <Text className="text-sm font-medium text-gray-800">MotorTaxi</Text>
+</TouchableOpacity>
+    )
+}
+
+
+
+{
+    activecar4 ? (
+        <TouchableOpacity onPress={()=>addVehicle(4)}  className="w-44 flex-row justify-start items-center gap-x-2">
+{
+        pickcar4 ? (
+            <View className="border border-blue-500 rounded-lg h-6 w-6 flex-row justify-center items-center">
+    <View className="bg-blue-500 rounded h-4 w-4"></View>
+    </View>
+        ):(
+            <View className="border border-gray-300 rounded-lg h-6 w-6 flex-row justify-center items-center">
+    </View>   
+        )
+    }
+    <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
+    <TaraCar size="28" />
+    </View>
+    <Text className="text-sm font-medium text-gray-800">4 seater- Car</Text>
+</TouchableOpacity>
+    ):(
+    <TouchableOpacity onPress={()=>RequestVehicle(4)}  className="opacity-50 w-44 flex-row justify-start items-center gap-x-2">
+    <View className="border border-gray-300 rounded-lg h-6 w-6 flex-row justify-center items-center">
+    </View>   
+    <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
+    <TaraCar size="28" />
+    </View>
+    <Text className="text-sm font-medium text-gray-800">4 seater- Car</Text>
+</TouchableOpacity>
+    )
+}
+
+
+{
+    activecard6 ? (
+<TouchableOpacity onPress={()=>addVehicle(4.5)}  className="w-44 flex-row justify-start items-center gap-x-2">
+{
+        pickcard6 ? (
+            <View className="border border-blue-500 rounded-lg h-6 w-6 flex-row justify-center items-center">
+    <View className="bg-blue-500 rounded h-4 w-4"></View>
+    </View>
+        ):(
+            <View className="border border-gray-300 rounded-lg h-6 w-6 flex-row justify-center items-center">
+    </View>   
+        )
+    }
+    <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
+    <TaraCar size="28" />
+    </View>
+    <Text className="text-sm font-medium text-gray-800">6 seater - Car</Text>
+</TouchableOpacity>
+    ):(
+<TouchableOpacity onPress={()=>RequestVehicle(4.5)}  className="opacity-50 w-44 flex-row justify-start items-center gap-x-2">
+            <View className="border border-gray-300 rounded-lg h-6 w-6 flex-row justify-center items-center">
+    </View>   
+    <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
+    <TaraCar size="28" />
+    </View>
+    <Text className="text-sm font-medium text-gray-800">6 seater - Car</Text>
+</TouchableOpacity>
+    )
+}
+
+
+
+
+{
+    activeVan ? (
+<TouchableOpacity onPress={()=>addVehicle(5)} className="w-44 flex-row justify-start items-center gap-x-2">
+{
+        pickVan ? (
+            <View className="border border-blue-500 rounded-lg h-6 w-6 flex-row justify-center items-center">
+    <View className="bg-blue-500 rounded h-4 w-4"></View>
+    </View>
+        ):(
+            <View className="border border-gray-300 rounded-lg h-6 w-6 flex-row justify-center items-center">
+    </View>   
+        )
+    }
     <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
     <TaraVan size="28" />
     </View>
-    <Text className="text-lg font-medium text-gray-800">Van Exp</Text>
+    <Text className="text-sm font-medium text-gray-800">Van Express</Text>
 </TouchableOpacity>
+    ):(
+        <TouchableOpacity onPress={()=>RequestVehicle(5)} className="opacity-50 w-44 flex-row justify-start items-center gap-x-2">
+            <View className="border border-gray-300 rounded-lg h-6 w-6 flex-row justify-center items-center">
+    </View>   
+    <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
+    <TaraVan size="28" />
+    </View>
+    <Text className="text-sm font-medium text-gray-800">Van Express</Text>
+</TouchableOpacity>
+    )
+}
+
+
 
 
 
@@ -647,7 +1095,26 @@ onTouchStart={()=>setMinizeView(true)}
 
 {
     calculated &&  minimizeView == false && searching == false && rider == false && (
-        <View className="mx-2.5 mb-2.5">
+        <View className="mx-2.5 mb-2.5 relative">
+
+{
+    slideGuide && offerCom && (
+        <>
+        <Pressable onPress={()=>setSlideGuide(false)} className="h-full w-full bg-gray-100 rounded-xl absolute z-30 opacity-50"></Pressable>
+<Pressable onPress={()=>setSlideGuide(false)} className="inset-0 z-40 flex-row justify-center w-full h-full absolute top-16 -left-10">
+    <LottieView
+    source={require('../assets/animation/slide.json')}
+    autoPlay
+    loop
+    width={100}
+    height={80}
+    />
+</Pressable>
+</>
+    )
+}
+
+
     <View className="bg-white rounded-xl p-2 border border-gray-200 shadow-lg">
 <View className="p-2">
 
@@ -690,16 +1157,19 @@ fill="#3b82f6">
 
 {
     offerCom && (
-<View>
+<View className="relative">
     <Slider
     animateTransitions
     renderAboveThumbComponent={renderAboveThumbComponent}
     renderThumbComponent={CustomThumb}
     maximumValue={12}
     minimumValue={0}
+    value={6}
     onValueChange={handleValueChange}
     onSlidingComplete={handleSlidingComplete}
     step={3} />
+
+
 
 
 <View className="flex-row justify-between items-center w-full">
@@ -719,11 +1189,14 @@ fill="#22c55e"
 </Svg>
 </View>
 
-<Text className="text-xs">Discount?</Text>
+<Text className="text-xs">Discounted</Text>
 </View>
 
+
+
+
 <View className="relative">
-<View className="absolute -top-5 right-0 left-2 mx-auto flex-row justify-start">
+<View className="absolute -top-5 right-0 -left-4 mx-auto flex-row justify-center">
 <Svg
 xmlns="http://www.w3.org/2000/svg"
 width={18}
@@ -736,44 +1209,11 @@ fill="#22c55e"
 </Svg>
 </View>
 
-<Text className="text-xs">Discount?</Text>
+<Text className="text-xs">App Rate</Text>
 </View>
 
 
-<View className="relative">
-<View className="absolute -top-5 right-0 -left-2 mx-auto flex-row justify-center">
-<Svg
-xmlns="http://www.w3.org/2000/svg"
-width={18}
-height={18}
-data-name="Layer 1"
-viewBox="0 0 24 24"
-fill="#22c55e"
->
-<Path d="M17.9998 15.5C17.8682 15.5008 17.7377 15.4756 17.6159 15.4258C17.494 15.3761 17.3832 15.3027 17.2898 15.21L12.7098 10.6201C12.6168 10.5263 12.5062 10.4519 12.3844 10.4012C12.2625 10.3504 12.1318 10.3243 11.9998 10.3243C11.8678 10.3243 11.7371 10.3504 11.6152 10.4012C11.4934 10.4519 11.3828 10.5263 11.2898 10.6201L6.70979 15.21C6.52149 15.3984 6.26609 15.5041 5.99979 15.5041C5.73349 15.5041 5.47809 15.3984 5.28979 15.21C5.10149 15.0217 4.9957 14.7664 4.9957 14.5001C4.9957 14.3682 5.02167 14.2376 5.07213 14.1158C5.12259 13.994 5.19655 13.8833 5.28979 13.7901L9.87979 9.21006C10.4497 8.6625 11.2094 8.35669 11.9998 8.35669C12.7901 8.35669 13.5498 8.6625 14.1198 9.21006L18.7098 13.7901C18.8035 13.883 18.8779 13.9936 18.9287 14.1155C18.9794 14.2373 19.0056 14.368 19.0056 14.5001C19.0056 14.6321 18.9794 14.7628 18.9287 14.8846C18.8779 15.0065 18.8035 15.1171 18.7098 15.21C18.6163 15.3027 18.5055 15.3761 18.3837 15.4258C18.2619 15.4756 18.1314 15.5008 17.9998 15.5Z" fill="#22c55e"/>
-</Svg>
-</View>
 
-<Text className="text-xs">Tara Rates</Text>
-</View>
-
-
-<View className="relative">
-<View className="absolute -top-5 right-0 left-2 mx-auto flex-row justify-center">
-<Svg
-xmlns="http://www.w3.org/2000/svg"
-width={18}
-height={18}
-data-name="Layer 1"
-viewBox="0 0 24 24"
-fill="#22c55e"
->
-<Path d="M17.9998 15.5C17.8682 15.5008 17.7377 15.4756 17.6159 15.4258C17.494 15.3761 17.3832 15.3027 17.2898 15.21L12.7098 10.6201C12.6168 10.5263 12.5062 10.4519 12.3844 10.4012C12.2625 10.3504 12.1318 10.3243 11.9998 10.3243C11.8678 10.3243 11.7371 10.3504 11.6152 10.4012C11.4934 10.4519 11.3828 10.5263 11.2898 10.6201L6.70979 15.21C6.52149 15.3984 6.26609 15.5041 5.99979 15.5041C5.73349 15.5041 5.47809 15.3984 5.28979 15.21C5.10149 15.0217 4.9957 14.7664 4.9957 14.5001C4.9957 14.3682 5.02167 14.2376 5.07213 14.1158C5.12259 13.994 5.19655 13.8833 5.28979 13.7901L9.87979 9.21006C10.4497 8.6625 11.2094 8.35669 11.9998 8.35669C12.7901 8.35669 13.5498 8.6625 14.1198 9.21006L18.7098 13.7901C18.8035 13.883 18.8779 13.9936 18.9287 14.1155C18.9794 14.2373 19.0056 14.368 19.0056 14.5001C19.0056 14.6321 18.9794 14.7628 18.9287 14.8846C18.8779 15.0065 18.8035 15.1171 18.7098 15.21C18.6163 15.3027 18.5055 15.3761 18.3837 15.4258C18.2619 15.4756 18.1314 15.5008 17.9998 15.5Z" fill="#22c55e"/>
-</Svg>
-</View>
-
-<Text className="text-xs">Give Tips</Text>
-</View>
 
 
 <View className="relative">
@@ -790,7 +1230,7 @@ fill="#22c55e"
 </Svg>
 </View>
 
-<Text className="text-xs">Give Tips</Text>
+<Text className="text-xs">Give Tip</Text>
 </View>
 
 </View> 
@@ -804,6 +1244,12 @@ fill="#22c55e"
 
     </View>
         </View>
+
+
+
+
+
+
         </View>
     )
 }
@@ -839,7 +1285,7 @@ height={300}
 
 <View className="flex-row justify-start items-center gap-x-2">
 <TaraInvoice size={20} />
-<Text className="text-slate-800 text-xl font-semibold">&#8369;{fareRate}</Text>
+<Text className="text-slate-800 text-xl font-semibold">&#8369;{fareRate}.00</Text>
 {
     calculated && (
         <TouchableOpacity onPress={()=>sheetRef2.current?.open() }>
@@ -871,11 +1317,13 @@ height={300}
 
 </View>
 
+
+
 <View>
     {
         searching ? (
 <Button
-onPress={() => sheetRef.current?.close()}
+onPress={() => cancelSearch()}
 bgColor="bg-neutral-700"
 textColor="text-white"
 fontSize="lg"
@@ -894,9 +1342,9 @@ Cancel Book
 </Button>
 
 
-) : calculated ? (
+) : calculated && pickmotor || pickcar4 || pickcard6 || pickVan ? (
 <Button
-onPress={() => sheetRef.current?.close()}
+onPress={() => goSearchRider()}
 bgColor="bg-blue-500"
 textColor="text-white"
 fontSize="lg"
@@ -945,8 +1393,31 @@ height={400}
     )
 }
 
-</View>
 
+
+
+</View>
+</Animated.View>
+
+
+<View className="h-full w-full z-10  top-20 mx-auto left-0 right-0 bottom-0  absolute">
+<Svg height="100%" width="100%">
+        <Defs>
+          <Filter id="blur">
+            <FeGaussianBlur stdDeviation="30" />
+          </Filter>
+        </Defs>
+        <Rect
+          x="0"
+          y="0"
+          width="800"
+          height="800"
+          fill="rgba(226, 226, 226, 0.4)" 
+          filter="url(#blur)"
+        />
+      </Svg>
+</View>
+</View>
 ):(
   
 <View className="fixed bottom-[150px]">
@@ -986,10 +1457,10 @@ Select this location
       animationType="false"
       ref={sheetRef}
       height={650}
-      containerHeight={1000}
+      containerHeight={900}
       hideDragHandle={true}
       style={{ backgroundColor: "#fff",zIndex:999 }}
-
+      onClose={()=>setInfoMode(infoMode)}
     >
 
 <View className="p-4">
@@ -1078,7 +1549,27 @@ height={40}
 </TouchableOpacity>
 
 
-<LocationCard infoMode={infoMode} />
+
+
+<FlatList
+        data={locations}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+            <LocationCard
+            sheet={sheetRef}
+            infoMode={infoMode}
+            data={item}
+            pickupname={setPickupName}
+            dropname={setDropName}
+            setPickup={setPickupCoordinates}
+            setDrop={setDropCoordinates}
+            reset={setInfoInput}
+             />
+        )}
+      />
+
+
+
 
 
 </View>
@@ -1088,7 +1579,7 @@ height={40}
 <BottomSheet
       animationType="false"
       ref={sheetRef2}
-      containerHeight={1000}
+      containerHeight={900}
       hideDragHandle={true}
       style={{ backgroundColor: "#fff",zIndex:999 }}
     >
@@ -1106,22 +1597,22 @@ height={40}
 
            <View className="flex-row justify-between items-center">
            <Text className="text-slate-500 font-normal text-lg">Base Fare</Text>
-           <Text className="text-slate-600 font-medium text-lg">P0.00</Text>
+           <Text className="text-slate-600 font-medium text-lg">&#8369;{fareAPIResponse.base_fare}.00</Text>
            </View>
 
            <View className="flex-row justify-between items-center">
            <Text className="text-slate-500 font-normal text-lg">Per KM</Text>
-           <Text className="text-slate-600 font-medium text-lg">P0.00</Text>
+           <Text className="text-slate-600 font-medium text-lg">&#8369;{fareAPIResponse.per_km}.00</Text>
            </View>
 
            <View className="flex-row justify-between items-center">
            <Text className="text-slate-500 font-normal text-lg">Night Diff.</Text>
-           <Text className="text-slate-600 font-medium text-lg">P0.00</Text>
+           <Text className="text-slate-600 font-medium text-lg">&#8369;{fareAPIResponse.night}.00</Text>
            </View>
 
            <View className="flex-row justify-between items-center">
            <Text className="text-slate-500 font-normal text-lg">Total KM.</Text>
-           <Text className="text-slate-600 font-medium text-lg">0</Text>
+           <Text className="text-slate-600 font-medium text-lg">{fareAPIResponse.distance}</Text>
            </View>
 
 
@@ -1148,7 +1639,7 @@ Close
 <BottomSheet
 animationType="false"
 ref={sheetRef3}
-containerHeight={1000}
+containerHeight={900}
 hideDragHandle={true}
 height={280}
 style={{ backgroundColor: "#fff",zIndex:999 }}
@@ -1212,10 +1703,10 @@ Confirm
 </Button>
 </View>
 </View>
-    </BottomSheet>
+</BottomSheet>
 
 
-
+{generateQR && <GenerateQRBooking QR={"sdds"} close={setGenerateQR} />}
 
 </>
 
@@ -1226,6 +1717,64 @@ Confirm
 
 };
 
+
+const GenerateQRBooking = ({QR, close }) => {
+    return (
+      <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
+        <View
+          className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
+        flex gap-y-4"
+        >
+          <Text className="text-center text-2xl font-bold">
+            QR - Quick Rider
+          </Text>
+  {/* before generating check the vehicle type */}
+          <View className="relative w-full flex justify-center items-center p-4">
+  <View className="relative">
+  <QRCodeStyled
+    data={QR}
+    style={{backgroundColor: 'transparent'}}
+    padding={10}
+    pieceSize={5}
+    pieceCornerType='rounded'
+    color={'#020617'}
+    pieceScale={1.02}
+    pieceLiquidRadius={3}
+    logo={{
+      href: require('../assets/tara_app.png'),
+      padding: 4,
+      scale: 1,
+      hidePieces: true
+    }}
+    errorCorrectionLevel={'H'}
+    innerEyesOptions={{
+      borderRadius: 4,
+      color: '#404040',
+    }}
+    outerEyesOptions={{
+      borderRadius: 12,
+      color: '#ffa114',
+    }}
+  />
+  </View>
+          </View>
+  
+          <Text className="text-center">If a nearby rider is in front of you, let them scan this QR to become your assigned driver. It saves time!</Text>
+  
+          
+          <View className="w-full flex gap-y-4">
+            <Button
+            onPress={()=>close(false)}
+              bgColor="bg-slate-200"
+              textColor="text-neutral-700"
+            >
+              Close
+            </Button>
+          </View>
+        </View>
+      </View>
+    );
+  };
 
 
 export default BookingPage;

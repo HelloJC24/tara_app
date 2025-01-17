@@ -1,6 +1,6 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { useContext } from "react";
+import { useContext,Alert, useState, useEffect } from "react";
 import { ToastProvider } from "./components/ToastNotify";
 import AuthProvider, { AuthContext } from "./context/authContext";
 import DataProvider from "./context/dataContext";
@@ -14,11 +14,42 @@ import SplashScreen from "./screens/splash";
 import WalletScreen from "./screens/wallet";
 import WebViewerScreen from "./screens/web_viewer";
 import BookingPage from "./screens/map";
-
+import HistoryPage from "./screens/history";
+import StartPage from "./screens/start";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const Stack = createNativeStackNavigator();
 
 const ProtectedRouting = () => {
-  const { user } = useContext(AuthContext);
+  const { user } = useContext(AuthContext)
+  const [device,setDevice]=useState(false)
+
+
+
+ useEffect(()=>{
+  const rememberDevice = async () => {
+    try {
+      const value = await AsyncStorage.getItem('register');
+        if (value == "true") {
+          setDevice(true)
+        }
+    } catch (e) {
+      Alert.alert(
+        'Oops! Something happened',
+        'This error occurred upon creating or installing the app. To resolve, kindly re-install the app.'
+      );
+    }
+  };
+
+  rememberDevice();
+ },[user])
+
+
+
+
+
+
+
+
 
   return (
     <Stack.Navigator
@@ -26,7 +57,7 @@ const ProtectedRouting = () => {
         headerShown: false,
       })}
     >
-      {!user?.accessToken ? (
+      {user?.accessToken || device ? (
         <>
           <Stack.Screen name="home" component={HomeScreen} />
           <Stack.Screen name="wallet" component={WalletScreen} />
@@ -35,11 +66,23 @@ const ProtectedRouting = () => {
           <Stack.Screen name="account" component={AccountScreen} />
           <Stack.Screen name="webview" component={WebViewerScreen} />
           <Stack.Screen name="booking" component={BookingPage} />
+          <Stack.Screen name="history" component={HistoryPage} />
         </>
       ) : (
-        <Stack.Screen name="auth" component={AuthScreen} />
+        <>
+        {
+          device ? ( //temporary solution to solve auth glitch
+            <Stack.Screen name="start" component={StartPage} />
+          ):(
+            <Stack.Screen name="auth" component={AuthScreen} />
+          )
+        }
+        
+        <Stack.Screen name="webview" component={WebViewerScreen} />
+        </>
+        
       )}
-      
+      {/* <Stack.Screen name="auth" component={AuthScreen} /> */}
     </Stack.Navigator>
   );
 };

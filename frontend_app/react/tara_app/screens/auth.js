@@ -1,6 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState,useContext } from "react";
 import {
   BackHandler,
   Image,
@@ -8,6 +8,8 @@ import {
   Text,
   TextInput,
   View,
+  Linking,
+  ScrollView
 } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
 import TaraLogoImage from "../assets/tara_icon.png";
@@ -17,11 +19,24 @@ import { TaraLogo } from "../components/CustomIcon";
 import IDScanner from "../components/IDScanner";
 import ParagraphText from "../components/ParagraphText";
 import QuickTipsBottomSheet from "../components/QuickTipsBottomSheet";
-import RateUsApp from "../components/RateUsApp";
 import { useToast } from "../components/ToastNotify";
+import { WebView } from "react-native-webview";
+import { Bigbox3 } from "../components/CustomTextbox";
+import ReportProblemScreen from "../components/ReportContainer";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import AuthProvider, { AuthContext } from "../context/authContext";
+
+
 
 const AuthScreen = () => {
   const [stage, setStage] = useState(0);
+  const navigation = useNavigation();
+
+  const seeHelp = () =>{
+    setStage(3);
+    return true;
+  }
+
 
   const handleBackPress = () => {
     if (stage === 2) {
@@ -44,24 +59,28 @@ const AuthScreen = () => {
   const renderScreen = () => {
     switch (stage) {
       case 1:
-        return <SignUpScreen back={() => setStage(0)} />;
+        return <SignUpScreen help={seeHelp} back={() => setStage(0)} />;
       case 2:
-        return <CreateAccountScreen back={() => setStage(0)} />;
+        return <CreateAccountScreen help={seeHelp} back={() => setStage(0)} />;
+      case 3:
+        return <ReportProblemScreen navigation={navigation}  close={(n) => setStage(n)} />;
       default:
-        return <MainAuthScreen setStage={(n) => setStage(n)} />;
+        return <MainAuthScreen help={seeHelp} setStage={(n) => setStage(n)} />;
     }
   };
 
   return renderScreen();
 };
 
-const MainAuthScreen = ({ setStage }) => {
-  const navigation = useNavigation();
+const MainAuthScreen = ({ help, setStage }) => {
+ 
   const toast = useToast();
 
   const showToast = () => {
     toast("success", "This is a success toast message.");
   };
+
+  
 
   return (
     <View className="w-full h-full bg-white relative">
@@ -69,7 +88,7 @@ const MainAuthScreen = ({ setStage }) => {
 
       <View className="h-full flex justify-between items-center px-6 py-10">
         <View className="w-full flex flex-row gap-x-3 items-center justify-end py-4">
-          <View className="p-1 bg-slate-200 rounded-lg">
+          <Pressable onPress={()=>Linking.openURL('https://taranapo.com')} className="p-1 bg-slate-200 rounded-lg">
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={20}
@@ -79,8 +98,8 @@ const MainAuthScreen = ({ setStage }) => {
             >
               <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm10 12a9.938 9.938 0 0 1-1.662 5.508l-1.192-1.193a.5.5 0 0 1-.146-.353V15a3 3 0 0 0-3-3h-3a1 1 0 0 1-1-1v-.5a.5.5 0 0 1 .5-.5A2.5 2.5 0 0 0 15 7.5v-1a.5.5 0 0 1 .5-.5h1.379a2.516 2.516 0 0 0 1.767-.732l.377-.377A9.969 9.969 0 0 1 22 12Zm-19.951.963 3.158 3.158A2.978 2.978 0 0 0 7.329 17H10a1 1 0 0 1 1 1v3.949a10.016 10.016 0 0 1-8.951-8.986ZM13 21.949V18a3 3 0 0 0-3-3H7.329a1 1 0 0 1-.708-.293l-4.458-4.458A9.978 9.978 0 0 1 17.456 3.63l-.224.224a.507.507 0 0 1-.353.146H15.5A2.5 2.5 0 0 0 13 6.5v1a.5.5 0 0 1-.5.5 2.5 2.5 0 0 0-2.5 2.5v.5a3 3 0 0 0 3 3h3a1 1 0 0 1 1 1v.962a2.516 2.516 0 0 0 .732 1.767l1.337 1.337A9.971 9.971 0 0 1 13 21.949Z" />
             </Svg>
-          </View>
-          <View className="p-1 bg-slate-200 rounded-lg">
+          </Pressable>
+          <Pressable onPress={()=>help()} className="p-1 bg-slate-200 rounded-lg">
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={20}
@@ -92,7 +111,7 @@ const MainAuthScreen = ({ setStage }) => {
               <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
               <Rect width={2} height={2} x={11} y={17} rx={1} />
             </Svg>
-          </View>
+          </Pressable>
         </View>
 
         <View className="mt-10 flex items-center">
@@ -127,10 +146,12 @@ const MainAuthScreen = ({ setStage }) => {
   );
 };
 
-const CreateAccountScreen = (props) => {
+const CreateAccountScreen = ({help,...props}) => {
   const [activeBottomSheet, setActiveBottomSheet] = useState(false);
   const [activeScanner, setActiveScanner] = useState(false);
   const [stage, setStage] = useState(0);
+ 
+
 
   const handleBackPress = () => {
     if (stage > 0) {
@@ -149,6 +170,7 @@ const CreateAccountScreen = (props) => {
     case 1:
       return (
         <SetUsernameScreen
+          sethelp={help}
           back={() => setStage(0)}
           nextPage={() => setStage(2)}
         />
@@ -172,7 +194,7 @@ const CreateAccountScreen = (props) => {
                   <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
                 </Svg>
               </Pressable>
-              <View className="p-1 bg-slate-200 rounded-lg">
+              <Pressable onPress={()=>help()} className="p-1 bg-slate-200 rounded-lg">
                 <Svg
                   xmlns="http://www.w3.org/2000/svg"
                   width={20}
@@ -184,17 +206,19 @@ const CreateAccountScreen = (props) => {
                   <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
                   <Rect width={2} height={2} x={11} y={17} rx={1} />
                 </Svg>
-              </View>
+              </Pressable>
             </View>
 
+
+            
             <View className="mt-10 flex items-center">
               <Image source={TaraLogoImage} className="w-32 h-8" />
               <ParagraphText fontSize="lg" padding="p-2" align="center">
-                The way how you{" "}
-                <Text className="text-blue-500 font-semibold">
-                  create an account
+              Secure your Tara experience! Register with a {" "}
+                <Text className="text-blue-600 font-semibold">
+                valid ID
                 </Text>{" "}
-                for us, is just provide an ID, and you’re good to go!
+                to unlock safe and reliable rides tailored just for you.
               </ParagraphText>
             </View>
             <View>
@@ -218,9 +242,11 @@ const CreateAccountScreen = (props) => {
 
               <ParagraphText align="center" fontSize="sm" padding="px-4">
                 Learn how we protect your personal{" "}
-                <Text className="text-blue-500 font-semibold">
+                
+                <Text onPress={()=>Linking.openURL("https://taranapo.com/data-protection/")} className="text-sm text-blue-500 font-semibold">
                   information here.
                 </Text>
+             
               </ParagraphText>
             </View>
           </View>
@@ -241,7 +267,7 @@ const CreateAccountScreen = (props) => {
   }
 };
 
-const SetUsernameScreen = (props) => {
+const SetUsernameScreen = ({sethelp, ...props}) => {
   const [username, setUsername] = useState("");
 
   return (
@@ -260,19 +286,7 @@ const SetUsernameScreen = (props) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-          <View className="p-1 bg-slate-200 rounded-lg">
-            <Svg
-              xmlns="http://www.w3.org/2000/svg"
-              width={20}
-              height={20}
-              viewBox="0 0 24 24"
-              fill="#374957"
-            >
-              <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm0 22a10 10 0 1 1 10-10 10.011 10.011 0 0 1-10 10Z" />
-              <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
-              <Rect width={2} height={2} x={11} y={17} rx={1} />
-            </Svg>
-          </View>
+     
         </View>
 
         <View className="w-full z-50">
@@ -311,7 +325,7 @@ const SetUsernameScreen = (props) => {
 
           <ParagraphText align="center" fontSize="sm" padding="px-4">
             Learn how we protect your personal{" "}
-            <Text className="text-blue-500 font-semibold">
+            <Text onPress={()=>Linking.openURL("https://taranapo.com/data-protection/")} className="text-blue-500 font-semibold">
               information here.
             </Text>
           </ParagraphText>
@@ -322,11 +336,28 @@ const SetUsernameScreen = (props) => {
 };
 
 const TermsAndConditionScreen = (props) => {
+  const [loaded,setIsLoading] = useState(false)
+  const { setUser } = useContext(AuthContext)
+
+  const saveDevice = async (value) => {
+    try {
+      await AsyncStorage.setItem('register', value);
+    } catch (e) {
+      // saving error
+    }
+  };
+
+  const initFirstApp = async () =>{
+    await saveDevice("true")
+    setUser({accessToken:true})
+  }
+
+  
   return (
     <View className="w-full h-full bg-white relative">
       <StatusBar style="dark" />
-      <View className="h-full  flex justify-between items-center px-6 py-10">
-        <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
+      <View className="h-full  flex justify-between items-center py-10">
+        <View className="px-6 w-full flex flex-row gap-x-3 items-center justify-between py-2">
           <Pressable onPress={props.back}>
             <Svg
               xmlns="http://www.w3.org/2000/svg"
@@ -338,33 +369,41 @@ const TermsAndConditionScreen = (props) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-          <View className="p-1 bg-slate-200 rounded-lg">
-            <Svg
-              xmlns="http://www.w3.org/2000/svg"
-              width={20}
-              height={20}
-              viewBox="0 0 24 24"
-              fill="#374957"
-            >
-              <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm0 22a10 10 0 1 1 10-10 10.011 10.011 0 0 1-10 10Z" />
-              <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
-              <Rect width={2} height={2} x={11} y={17} rx={1} />
-            </Svg>
-          </View>
+         
         </View>
 
-        <View className="w-full ">
+        <View className="w-full px-6">
           <Text className=" text-2xl text-black p-4 font-semibold">
             Terms and Conditions
           </Text>
         </View>
 
-        <View className="w-full flex gap-y-4 p-2">
-          <Button>I Accept and wish to proceed</Button>
+
+    
+        <View className="bg-white h-full w-screen px-4 py-2">
+          <WebView
+        style={{flex:1,backgroundColor:'white'}}
+        source={{ uri: 'https://kiefersdelivery.com/terms-and-conditions/'
+         }}
+        onLoadEnd={() => setIsLoading(true)}
+        onLoadStart={() => setIsLoading(false)}
+        javaScriptEnabled={true} 
+        cacheEnabled={false}  // Disable cache
+        domStorageEnabled={true}
+      />
+        </View>
+       
+
+        <View className="px-6 bg-white absolute bottom-0 w-full flex gap-y-4 p-2">
+        {
+          loaded && (
+            <Button onPress={()=>initFirstApp()}>I Accept and wish to proceed</Button>
+          )
+        }
 
           <ParagraphText align="center" fontSize="sm" padding="px-4">
             By clickng the proceed you are also agreeing to our{" "}
-            <Text className="text-blue-500 font-semibold">
+            <Text onPress={()=>Linking.openURL("https://taranapo.com/data-and-privacy/")} className="text-blue-500 font-semibold">
               Data and Privacy Policy
             </Text>{" "}
             as well.
@@ -377,7 +416,7 @@ const TermsAndConditionScreen = (props) => {
 
 // SignUp Page
 
-const SignUpScreen = (props) => {
+const SignUpScreen = ({help, ...props}) => {
   const [activeOTPScreen, setActiveOTPScreen] = useState(false);
   const [inputValue, setInputValue] = useState("");
 
@@ -415,7 +454,7 @@ const SignUpScreen = (props) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-          <View className="p-1 bg-slate-200 rounded-lg">
+          <Pressable onPress={()=>help()} className="p-1 bg-slate-200 rounded-lg">
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={20}
@@ -427,7 +466,7 @@ const SignUpScreen = (props) => {
               <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
               <Rect width={2} height={2} x={11} y={17} rx={1} />
             </Svg>
-          </View>
+          </Pressable>
         </View>
 
         <View className="w-full">
@@ -466,21 +505,35 @@ const SignUpScreen = (props) => {
 
           <ParagraphText align="center" fontSize="sm" padding="px-4">
             Learn how to recover your account{" "}
-            <Text className="text-blue-500 font-semibold">
+            <Text onPress={()=>Linking.openURL("https://taranapo.com/account-recovery/")} className="text-blue-500 font-semibold">
               effectively here.
             </Text>
           </ParagraphText>
         </View>
       </View>
 
-      {activeOTPScreen && <OTPScreen back={() => setActiveOTPScreen(false)} />}
+      {activeOTPScreen && <OTPScreen sethelp={help} back={() => setActiveOTPScreen(false)} />}
     </View>
   );
 };
 
-const OTPScreen = (props) => {
+const OTPScreen = ({sethelp, ...props}) => {
   const [inputValue, setInputValue] = useState("");
-  const [activeRateUs, setActiveRateUs] = useState(false);
+    const { setUser } = useContext(AuthContext)
+
+  const saveDevice = async (value) => {
+    try {
+      await AsyncStorage.setItem('register', value);
+    } catch (e) {
+      // saving error
+    }
+  };
+
+  const validateOTPCode = async () =>{
+    await saveDevice("true")
+    setUser({accessToken:true})
+  }
+
 
   return (
     <View className="w-full h-full bg-white absolute inset-0 z-50">
@@ -498,7 +551,7 @@ const OTPScreen = (props) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-          <View className="p-1 bg-slate-200 rounded-lg">
+          <Pressable onPress={()=>sethelp()} className="p-1 bg-slate-200 rounded-lg">
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={20}
@@ -510,7 +563,7 @@ const OTPScreen = (props) => {
               <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
               <Rect width={2} height={2} x={11} y={17} rx={1} />
             </Svg>
-          </View>
+          </Pressable>
         </View>
 
         <View className="w-full z-50">
@@ -548,97 +601,24 @@ const OTPScreen = (props) => {
         <View></View>
         <View></View>
         <View className="w-full flex gap-y-4 p-2">
-          <Button bgColor="bg-slate-300" textColor="text-neutral-700">
+          <Button bgColor="bg-slate-200" textColor="text-neutral-700">
             Request another in 2mins
           </Button>
-          <Button onPress={() => setActiveRateUs(true)}>Verify Code</Button>
+          <Button onPress={() => validateOTPCode()}>Verify Code</Button>
 
           <ParagraphText align="center" fontSize="sm" padding="px-4">
             Learn how to recover your account{" "}
-            <Text className="text-blue-500 font-semibold">
+            <Text onPress={()=>Linking.openURL("https://taranapo.com/account-recovery/")} className="text-blue-500 font-semibold">
               effectively here.
             </Text>
           </ParagraphText>
         </View>
       </View>
 
-      {activeRateUs && <RateUsApp close={() => setActiveRateUs(false)} />}
+    
     </View>
   );
 };
 
-const ReportProblemScreen = (props) => {
-  const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
-  return (
-    <View className="w-full h-full bg-white absolute inset-0 z-50">
-      <StatusBar style="dark" />
-      <View className="h-full flex justify-between items-center px-6 py-10">
-        <View className="w-full">
-          <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
-            <Pressable onPress={props.back}>
-              <Svg
-                xmlns="http://www.w3.org/2000/svg"
-                width={30}
-                height={30}
-                viewBox="0 0 24 24"
-                fill="#374957"
-              >
-                <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
-              </Svg>
-            </Pressable>
-
-            <Text className="text-center text-xl font-semibold">
-              Report a Problem
-            </Text>
-            <Text className="text-xl font-semibold opacity-0">hello</Text>
-          </View>
-
-          <View className="w-full z-50 py-10">
-            <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
-              <View className="p-2">
-                <TaraLogo size={40} />
-              </View>
-
-              <TextInput
-                className="w-full text-lg"
-                value={email}
-                onChangeText={setEmail}
-                placeholder="your@gmail.com"
-              />
-            </View>
-
-            <ParagraphText
-              align="center"
-              fontSize="sm"
-              padding="py-4 px-6"
-              textColor="text-neutral-700"
-            >
-              We need your email so we can provide a response there.
-            </ParagraphText>
-
-            <View className="w-full border border-slate-400 p-2 rounded-2xl">
-              <TextInput
-                className="w-full min-h-24 text-lg"
-                multiline
-                numberOfLines={4}
-                value={message}
-                onChangeText={setMessage}
-                placeholder="Describe your concern and our them will provide an assistance once we received your report"
-              />
-            </View>
-          </View>
-        </View>
-
-        <View className="w-full flex gap-y-4 p-2">
-          <Button bgColor="bg-slate-300" textColor="text-neutral-700">
-            Talk to agent
-          </Button>
-          <Button>Send</Button>
-        </View>
-      </View>
-    </View>
-  );
-};
 
 export default AuthScreen;

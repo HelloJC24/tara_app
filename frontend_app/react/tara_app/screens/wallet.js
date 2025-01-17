@@ -1,8 +1,9 @@
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
+import React, { useState, useRef} from "react";
 import {
   FlatList,
   I18nManager,
+  Linking,
   Pressable,
   Text,
   TextInput,
@@ -11,12 +12,31 @@ import {
 } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
 import Button from "../components/Button";
-import { TaraLogo, TaraWalletIcon } from "../components/CustomIcon";
+import { TaraLogo, TaraWalletIcon,GCashIcon, TaraCard, TaraCoupon,MayaIcon,TaraBank,TaraBlackQR } from "../components/CustomIcon";
 import ParagraphText from "../components/ParagraphText";
+import ReportProblemScreen from "../components/ReportContainer";
+import BottomSheet from "@devvie/bottom-sheet";
+import QRCodeStyled from 'react-native-qrcode-styled';
 
-const WalletScreen = ({ navigation }) => {
+const WalletScreen = ({navigation}) => {
   const [activeTopup, setActiveTopup] = useState(false);
   const [activeSendOrTransfer, setActiveSendOrTransfer] = useState(false);
+  const [help, setHelp] = useState(false);
+
+  const LiveReport = () =>{
+    navigation.navigate('webview', {
+     track: 'user',
+     url: "https://taranapo.com/report/"
+     });
+ }
+
+ const openQR = () =>{
+  navigation.navigate('qrcode', {
+    mode: 'STR',
+    });
+  }
+
+
   const [walletTransactions, setWalletTransaction] = useState([
     {
       id: "1",
@@ -38,9 +58,9 @@ const WalletScreen = ({ navigation }) => {
     },
     {
       id: "4",
-      type: "ride",
+      type: "credit",
       bookingId: "T-AR65ASD54",
-      amount: "28.00",
+      amount: "8.00",
     },
     {
       id: "5",
@@ -62,7 +82,7 @@ const WalletScreen = ({ navigation }) => {
     },
     {
       id: "8",
-      type: "ride",
+      type: "credit",
       bookingId: "T-AR65ASD54",
       amount: "28.00",
     },
@@ -78,14 +98,35 @@ const WalletScreen = ({ navigation }) => {
       bookingId: "T-AR65ASD54",
       amount: "28.00",
     },
+    {
+      id: "11",
+      type: "ride",
+      bookingId: "T-AR65ASD54",
+      amount: "28.00",
+    },
+    {
+      id: "12",
+      type: "ride",
+      bookingId: "T-AR65ASD54",
+      amount: "28.00",
+    },
+    {
+      id: "13",
+      type: "credit",
+      bookingId: "T-AR65ASD54",
+      amount: "19.00",
+    },
   ]);
+
+
+  
 
   return (
     <View className="w-full h-full bg-white relative">
       <StatusBar style="dark" />
       <View className=" px-6 pt-10  border-b-[10px] border-slate-200">
         <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
-          <Pressable onPress={navigation.goBack()}>
+          <Pressable onPress={()=>navigation.goBack()}>
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={30}
@@ -96,7 +137,7 @@ const WalletScreen = ({ navigation }) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-          <View className="p-1 bg-slate-200 rounded-lg">
+          <Pressable onPress={()=>setHelp(true)} className="p-1 bg-slate-200 rounded-lg">
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={20}
@@ -108,7 +149,7 @@ const WalletScreen = ({ navigation }) => {
               <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
               <Rect width={2} height={2} x={11} y={17} rx={1} />
             </Svg>
-          </View>
+          </Pressable>
         </View>
 
         <View className="">
@@ -121,8 +162,8 @@ const WalletScreen = ({ navigation }) => {
             </View>
 
             <View>
-              <Text className="text-2xl font-bold">₱128.00</Text>
-              <Text className="text-base font-semibold">Available balance</Text>
+              <Text className="text-2xl font-bold text-center">&#8369;128.00</Text>
+              <Text className="text-base font-normal text-center">Available balance</Text>
             </View>
 
             <View></View>
@@ -181,12 +222,15 @@ const WalletScreen = ({ navigation }) => {
         </Text>
 
         <FlatList
+          className="mb-[350px]"
           data={walletTransactions}
           renderItem={({ item, index }) => (
             <TransactionItem
               key={item.id}
               bookingId={item.bookingId}
               amount={item.amount}
+              type={item.type}
+              navigation={navigation}
             />
           )}
           keyExtractor={(item) => item.id}
@@ -212,24 +256,43 @@ const WalletScreen = ({ navigation }) => {
         </ScrollView> */}
       </View>
 
-      {activeTopup && <TopupScreen close={() => setActiveTopup(false)} />}
+      {activeTopup && <TopupScreen navigation={navigation} close={() => setActiveTopup(false)} />}
       {activeSendOrTransfer && (
-        <SendOrTransferScreen close={() => setActiveSendOrTransfer(false)} />
+        <SendOrTransferScreen openQR={openQR} close={() => setActiveSendOrTransfer(false)} />
       )}
+      {help && <ReportProblemScreen navigation={navigation} close={() => setHelp(false)} />}
     </View>
   );
 };
 
-const TransactionItem = ({ bookingId, amount }) => {
+const TransactionItem = ({ navigation, bookingId, amount, type }) => {
+
+
+  const OpenReceipt = (bi) =>{
+    navigation.navigate('webview', {
+     track: 'user',
+     url: `https://taranapo.com/invoice/?id=${bi}`
+     });
+ }
+
+
   return (
-    <View className="w-full border-b border-slate-200 flex flex-row gap-x-4 items-end justify-between py-4">
+    <Pressable onPress={()=>OpenReceipt(bookingId)} className="w-full border-b border-slate-200 flex flex-row gap-x-4 items-end justify-between py-4">
       <View className="">
-        <Text className="text-sm">Ride</Text>
-        <Text className="text-basee">Booking ID: {bookingId}</Text>
+        <Text className="text-sm font-medium">Ride</Text>
+        <Text className="text-base text-gray-500">Booking ID: {bookingId}</Text>
       </View>
 
-      <Text className="font-bold text-base">₱{amount}</Text>
-    </View>
+      {
+        type == 'ride' ? (
+      <Text className="font-bold text-base">-&#8369;{amount}</Text>
+        ): type == 'credit' ? (
+      <Text className="font-bold text-base text-green-500">+&#8369;{amount}</Text>
+        ):(
+          <Text className="font-bold text-base">&#8369;{amount}</Text>
+        )
+      }
+    </Pressable>
   );
 };
 
@@ -258,7 +321,101 @@ const ToggleButton = () => {
   );
 };
 
-const TopupScreen = ({ close }) => {
+const PaymentMethods = ({navigation,provider,status,endpoint}) =>{
+
+
+  const openPayment = (mop) =>{
+    navigation.navigate('webview', {
+     track: "payment",
+     url: `https://taranapo.com/bacungan/payments/${mop}/?taraid=${"dfd"}`
+      });
+    }
+
+
+  return (
+    <Pressable onPress={()=>openPayment(endpoint)} className={`flex flex-row justify-between items-center gap-x-4 items-center border-b border-slate-200 py-4`}>
+      <View className="flex-row justify-start items-center gap-x-2">
+    <View>
+      {
+        provider == 'gcash' ? (
+          <GCashIcon size={30} />
+        ): provider == 'maya' ? (
+          <MayaIcon size={30}/>
+        ): provider == 'card' ? (
+          <TaraCard size={28} />
+        ): provider == 'bank' ? (
+          <TaraBank size={28} />
+        ): provider == 'coupon' ? (
+          <TaraCoupon size={28} />
+        ):(
+          <TaraLogo size={30} />
+        )
+      }
+    </View>
+    <View>
+      <Text className="text-xl text-blue-500">{endpoint}</Text>
+    </View>
+    </View>
+    {
+      status ? (
+        <View>
+    <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<Path d="M15.3998 9.88006L10.8098 5.29006C10.6225 5.10381 10.369 4.99927 10.1048 4.99927C9.84065 4.99927 9.5872 5.10381 9.39983 5.29006C9.3061 5.38302 9.23171 5.49362 9.18094 5.61548C9.13017 5.73734 9.10403 5.86805 9.10403 6.00006C9.10403 6.13207 9.13017 6.26278 9.18094 6.38464C9.23171 6.5065 9.3061 6.6171 9.39983 6.71006L13.9998 11.2901C14.0936 11.383 14.168 11.4936 14.2187 11.6155C14.2695 11.7373 14.2956 11.868 14.2956 12.0001C14.2956 12.1321 14.2695 12.2628 14.2187 12.3846C14.168 12.5065 14.0936 12.6171 13.9998 12.7101L9.39983 17.2901C9.21153 17.477 9.10521 17.7312 9.10428 17.9965C9.10334 18.2619 9.20786 18.5168 9.39483 18.7051C9.58181 18.8934 9.83593 18.9997 10.1013 19.0006C10.3667 19.0016 10.6215 18.897 10.8098 18.7101L15.3998 14.1201C15.9616 13.5576 16.2772 12.7951 16.2772 12.0001C16.2772 11.2051 15.9616 10.4426 15.3998 9.88006Z" fill="#374957"/>
+</Svg>
+    </View>
+      ):(
+        <View className="bg-slate-200 px-2 py-1.5 rounded-lg">
+          <Text className="text-sm text-gray-700">Inactive</Text>
+        </View>
+      )
+    }
+
+  </Pressable>
+  )
+}
+
+
+const TopupScreen = ({navigation, close }) => {
+
+  const [modeofPayments, selectModeofPayment] = useState([
+    {
+      id: "1",
+      provider: "gcash",
+      endpoint: "Gcash",
+      status: true,
+    },
+    {
+      id: "2",
+      provider: "tarapay",
+      endpoint: "Tara Pay",
+      status: false,
+    },
+    {
+      id: "3",
+      provider: "card",
+      endpoint: "Credit/Debit Card",
+      status: true,
+    }, {
+      id: "4",
+      provider: "coupon",
+      endpoint: "Coupon",
+      status: true,
+    },
+    {
+      id: "5",
+      provider: "maya",
+      endpoint: "Maya",
+      status: true,
+    },
+    {
+      id: "6",
+      provider: "bank",
+      endpoint: "Bank Transfer",
+      status: true,
+    }
+  ]);
+
+
   const [amount, setAmount] = useState("");
   return (
     <View className="w-full h-screen bg-white absolute inset-0 z-50">
@@ -289,7 +446,8 @@ const TopupScreen = ({ close }) => {
                 className="flex-1 text-lg text-blue-500"
                 value={amount}
                 onChangeText={setAmount}
-                placeholder="Enter amount"
+                placeholder="Enter top-up amount"
+                keyboardType="numeric"
               />
             </View>
 
@@ -301,48 +459,23 @@ const TopupScreen = ({ close }) => {
             </View>
 
             <View>
-              <View className="flex flex-row gap-x-4 items-center border-b border-slate-200 py-4">
-                <View>
-                  <TaraLogo size={30} />
-                </View>
-                <View>
-                  <Text className="text-xl text-blue-500">GCash</Text>
-                </View>
-              </View>
-              <View className="flex flex-row gap-x-4 items-center border-b border-slate-200 py-4">
-                <View>
-                  <TaraLogo size={30} />
-                </View>
-                <View>
-                  <Text className="text-xl text-blue-500">TaraPay</Text>
-                </View>
-              </View>
-              <View className="flex flex-row gap-x-4 items-center border-b border-slate-200 py-4">
-                <View>
-                  <TaraLogo size={30} />
-                </View>
-                <View>
-                  <Text className="text-xl text-blue-500">
-                    Credit/debit card
-                  </Text>
-                </View>
-              </View>
-              <View className="flex flex-row gap-x-4 items-center border-b border-slate-200 py-4">
-                <View>
-                  <TaraLogo size={30} />
-                </View>
-                <View>
-                  <Text className="text-xl text-blue-500">Coupon Redeemer</Text>
-                </View>
-              </View>
-              <View className="flex flex-row gap-x-4 items-center border-b border-slate-200 py-4">
-                <View>
-                  <TaraLogo size={30} />
-                </View>
-                <View>
-                  <Text className="text-xl text-blue-500">Maya</Text>
-                </View>
-              </View>
+
+            <FlatList
+              data={modeofPayments}
+              renderItem={({ item, index }) => (
+                <PaymentMethods
+                  key={item.id}
+                  provider={item.provider}
+                  endpoint={item.endpoint}
+                  status={item.status}
+                  navigation={navigation}
+                />
+              )}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+            />
+
+
             </View>
           </View>
         </View>
@@ -361,10 +494,11 @@ const TopupScreen = ({ close }) => {
   );
 };
 
-const SendOrTransferScreen = ({ close }) => {
+const SendOrTransferScreen = ({ openQR,close }) => {
   const [amount, setAmount] = useState("");
   const [input, setInput] = useState("");
-
+ const sheetRef = useRef(null);
+ const [userMe,setUSERME] = useState("1224")
   return (
     <View className="w-full h-screen bg-white absolute inset-0 z-50">
       <StatusBar style="dark" />
@@ -395,20 +529,38 @@ const SendOrTransferScreen = ({ close }) => {
               <TextInput
                 className="flex-1 text-lg text-blue-500"
                 value={amount}
+                keyboardType="numeric"
                 onChangeText={setAmount}
                 placeholder="Enter amount"
               />
             </View>
 
             <Text className="text-sm py-4">
-              Available Balance: (<Text className="font-bold">₱128.00</Text>)
+              Available Balance: (<Text className="font-bold">&#8369;128.00</Text>)
             </Text>
           </View>
         </View>
       </View>
 
       <View className="w-full px-6 py-4">
-        <Text className="text-lg font-semibold pb-4">Recepient: </Text>
+<View className="flex-row justify-between items-center pb-4">
+  <Text className="text-lg font-semibold w-48 ">Recipient: </Text>
+<TouchableOpacity onPress={()=>sheetRef.current.open()}>
+<View className="flex-row justify-center items-center">
+<TaraBlackQR size={25} color="#404040" /> 
+<Svg
+xmlns="http://www.w3.org/2000/svg"
+width={28}
+height={28}
+viewBox="0 0 24 24"
+fill="#3b82f6"
+>
+<Path d="M15.4,9.88,10.81,5.29a1,1,0,0,0-1.41,0,1,1,0,0,0,0,1.42L14,11.29a1,1,0,0,1,0,1.42L9.4,17.29a1,1,0,0,0,1.41,1.42l4.59-4.59A3,3,0,0,0,15.4,9.88Z"/>
+</Svg>
+</View>
+</TouchableOpacity> 
+ </View>
+
         <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
           <View className="p-2">
             <TaraLogo size={40} />
@@ -418,7 +570,7 @@ const SendOrTransferScreen = ({ close }) => {
             type="text"
             value={input}
             onChangeText={setInput}
-            placeholder=""
+            placeholder="Email or phone number"
           />
         </View>
         <ParagraphText
@@ -427,7 +579,7 @@ const SendOrTransferScreen = ({ close }) => {
           padding="py-1"
         >
           Make sure they linked their phone number or email address.
-        </ParagraphText>{" "}
+        </ParagraphText>
       </View>
 
       <View className="w-full flex gap-y-4 px-6 py-10">
@@ -439,12 +591,59 @@ const SendOrTransferScreen = ({ close }) => {
         >
           By clicking “Send”, you confirm that all details are correct and that
           you understand our{" "}
-          <Text className="text-blue-500 font-semibold">Refund Policy.</Text>
+          <Text onPress={()=>Linking.openURL("https://taranapo.com/refund-policy/")} className="text-blue-500 font-semibold">Refund Policy.</Text>
         </ParagraphText>
         <Button>Send</Button>
       </View>
+      <BottomSheet
+    animationType="false"
+    ref={sheetRef}
+    containerHeight={900}
+    height={350}
+    hideDragHandle={true}
+    style={{ backgroundColor: "#fff",zIndex:999 }}
+  >
+      <View className="p-4">
+      <View className="py-2.5 flex-row justify-center items-center">
+      <QRCodeStyled
+           data={userMe}
+           padding={10}
+           pieceSize={5}
+           pieceCornerType='rounded'
+           color={'#020617'}
+           pieceScale={1.02}
+           pieceLiquidRadius={3}
+           errorCorrectionLevel={'H'}
+           innerEyesOptions={{
+             borderRadius: 4,
+             color: '#404040',
+           }}
+           outerEyesOptions={{
+             borderRadius: 12,
+             color: '#ffa114',
+           }}
+           logo={{
+             href: require('../assets/tara_app.png'),
+             padding: 4,
+             scale: 0.8,
+             hidePieces: true
+           }}
+      />
+      </View>
+      <Text className="text-center text-sm px-6">This is your QR code. Share it with anyone who wants to send you a transfer.</Text>
+      <Text className="text-center py-4 font-medium">OR</Text>
+      <View>
+      <Button onPress={()=>openQR()}>Scan someone QR</Button>
+      <Text className="text-center text-sm px-6 py-2 text-gray-500">Scan someone's QR code to make a transfer.</Text>
+      </View>
+        </View>
+        </BottomSheet>
     </View>
+   
   );
 };
+
+
+
 
 export default WalletScreen;
