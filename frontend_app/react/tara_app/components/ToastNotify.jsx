@@ -74,7 +74,7 @@ const ToastNotify = ({ status, msg }) => {
       className="mt-2 rounded-2xl shadow-xl shadow-black flex flex-row gap-x-4 items-center p-4 bg-white z-[100]"
     >
       <ToastIcon status={status} />
-      <Text className="flex-1 text-base">{msg}</Text>
+      <Text className="flex-1 text-base font-medium">{msg}</Text>
     </Animated.View>
   );
 };

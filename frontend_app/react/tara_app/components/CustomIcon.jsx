@@ -19,6 +19,8 @@ import TaraTicket from "../assets/custom-svg/ticket.svg"
 import IconMaya from "../assets/custom-svg/maya.svg"
 import TaraBankIcon from "../assets/custom-svg/bank.svg"
 import TaraBlackQRIcon from "../assets/custom-svg/mamba.svg"
+import TaraSpeed from "../assets/custom-svg/speed-clock.svg"
+import TaraMarkerTime from "../assets/custom-svg/marker-time.svg"
 
 export const TaraWalletIcon = (props) => {
   return (
@@ -143,6 +145,18 @@ export const TaraBank = (props) => {
 export const TaraBlackQR = (props) => {
   return (
     <TaraBlackQRIcon width={props.size} height={props.size} fill={props.color} />
+  );
+}
+
+export const TaraSpeedClock = (props) => {
+  return (
+    <TaraSpeed width={props.size} height={props.size} fill={props.color} />
+  );
+}
+
+export const TaraKilometer = (props) => {
+  return (
+    <TaraMarkerTime width={props.size} height={props.size} fill={props.color} />
   );
 }
 

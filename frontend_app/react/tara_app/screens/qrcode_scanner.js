@@ -1,19 +1,89 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { StatusBar } from "expo-status-bar";
-import React, { useRef, useState } from "react";
-import { Image, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Image, Text, View, Animated } from "react-native";
 import AppIcon from "../assets/splash-icon.png";
 import Button from "../components/Button";
-import { SearchingGraphic } from "../components/CustomGraphic";
+import { SearchingGraphic,TaraCamPermission } from "../components/CustomGraphic";
 import LottieView from 'lottie-react-native';
+import ParagraphText from "../components/ParagraphText";
 
 
-const QrCodeScannerScreen = () => {
+
+const QrCodeScannerScreen = ({route}) => {
   const [permission, requestPermission] = useCameraPermissions();
   const [imageUri, setImageUri] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isRiderFound, setIsRiderFound] = useState(true);
+  const [isRiderFound, setIsRiderFound] = useState(false);
   const cameraRef = useRef(null);
+  const [hasPermission, setHasPermission] = useState(false);
+  const [scanned, setScanned] = useState(false);
+  const [qrData, setQrData] = useState(null);
+  const [ScanStatus,setScanStatus] = useState("Looking for a QR..")
+  const [cameraAnimate,setCamAnimate] = useState(false)
+  const [scanMode,setScanMode] = useState('');
+  const scaleValue = useRef(new Animated.Value(1)).current; 
+
+
+  //STF - referral scan
+  //STBR - scan rider
+  //STR - scan to read payment
+  //STB - scan booking
+
+  useEffect(()=>{
+    if(route.params){
+    const {mode,bookingID} = route.params;
+      setScanMode(mode)
+    }
+
+    if (!permission?.granted) {
+      setHasPermission(true)
+    }else{
+      setHasPermission(false)
+    }
+
+  },[route.params,permission])
+
+
+
+
+
+  // Zoom In Animation
+  const zoomIn = () => {
+    Animated.timing(scaleValue, {
+      toValue: 1.5, // Zoom in to 1.5x size
+      duration: 300, // Duration in milliseconds
+      useNativeDriver: true, // Use native driver for better performance
+    }).start();
+  };
+
+  // Zoom Out Animation
+  const zoomOut = () => {
+    Animated.timing(scaleValue, {
+      toValue: 1, // Back to original size
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+
+  const handleBarCodeScanned = (e) => {
+    const { type, data } = e;
+    if(type == 'qr'){
+      setScanStatus("QR code found!")
+      zoomIn();
+      setCamAnimate(true)
+    }else{
+      setScanStatus("Where is it? QR?")
+      setCamAnimate(false)
+      zoomOut();
+    }
+    console.log(data)
+    //call API
+  };
+
+
+
 
   return (
     <View className="w-full h-full absolute inset-0">
@@ -21,11 +91,10 @@ const QrCodeScannerScreen = () => {
       <CameraView
         ref={cameraRef}
         facing="back"
-        // ratio="16:9"
-        // pictureSize="1080x1920"
         autofocus={true}
         focusable={true}
-        onCameraReady={() => {}}
+        onCameraReady={() => {setScanStatus("Looking for a QR..")}}
+        onBarcodeScanned={(e)=>handleBarCodeScanned(e)}
         className="w-full relative p-4"
       >
         <View
@@ -34,20 +103,43 @@ const QrCodeScannerScreen = () => {
           }`}
         >
           <Text className="text-center text-3xl font-semibold text-white">
-            Scanning
+            {ScanStatus}
           </Text>
-          <View className="w-full h-[400px] rounded-xl relative z-30">
+          <Animated.View
+        style={[
+          {
+            transform: [{ scale: scaleValue }], // Apply scale transformation
+          },
+        ]}
+      >
+          <View className={`${cameraAnimate ? 'w-[250px] h-[250px]' : 'w-[320px] h-[320px]'} rounded-xl relative z-30`}>
             <View className="absolute top-10 left-4 w-8 h-8 border-t-4 border-l-4 rounded-tl-xl border-white" />
             <View className="absolute top-10 right-4 w-8 h-8 border-t-4 border-r-4 rounded-tr-xl border-white" />
             <View className="absolute bottom-10 left-4 w-8 h-8 border-b-4 border-l-4 rounded-bl-xl border-white" />
             <View className="absolute bottom-10 right-4 w-8 h-8 border-b-4 border-r-4 rounded-br-xl border-white" />
           </View>
+          </Animated.View>
 
-          {isRiderFound ? (
+          {hasPermission && <AskCameraPermission onRequestPermission={requestPermission} />}
+
+          {isRiderFound && (
             <RiderFoundModal close={() => setIsRiderFound(false)} />
-          ) : (
-            <ScanRiderModal />
           )}
+
+          {
+            !hasPermission && (
+            scanMode == 'STBR' ? (
+              <ScanRiderModal />
+            ): scanMode == 'STR' ? (
+            <ScanPayModal />
+            ):(
+              <ScanFriendModal />
+            )
+          )
+          }
+
+         
+     
         </View>
       </CameraView>
     </View>
@@ -58,19 +150,97 @@ const ScanRiderModal = () => {
   return (
     <View className="w-full absolute bottom-8 rounded-xl shadow-xl shadow-black flex flex-row gap-x-4 items-center p-3 bg-white z-[100]">
       <LottieView
-                            source={require('../assets/animation/QR.json')}
+                            source={require('../assets/animation/tara.json')}
                             autoPlay
                             loop
                             width={60}
                             height={60}
                         />
       <Text className="flex-1 text-sm">
-        Scan a rider to book, so that you still have records for the
-        transactions, safe tracking and cashback!
+      Scan a rider's QR code to book, and they will be your assigned rider.
       </Text>
     </View>
   );
 };
+
+const ScanFriendModal = () => {
+  return (
+    <View className="w-full absolute bottom-8 rounded-xl shadow-xl shadow-black flex flex-row gap-x-4 items-center p-3 bg-white z-[100]">
+      <LottieView
+                            source={require('../assets/animation/tara.json')}
+                            autoPlay
+                            loop
+                            width={60}
+                            height={60}
+                        />
+      <Text className="flex-1 text-sm">
+      Scan your friend's QR code to top up your wallet. The more scan the more earnings.
+      </Text>
+    </View>
+  );
+};
+
+
+const ScanPayModal = () => {
+  return (
+    <View className="w-full absolute bottom-8 rounded-xl shadow-xl shadow-black flex flex-row gap-x-4 items-center p-3 bg-white z-[100]">
+      <LottieView
+                            source={require('../assets/animation/tara.json')}
+                            autoPlay
+                            loop
+                            width={60}
+                            height={60}
+                        />
+      <Text className="flex-1 text-sm">
+      Scan your friend's QR code to transfer. This will make it more easy than typing your friend ID.
+      </Text>
+    </View>
+  );
+};
+
+
+const AskCameraPermission = ({onRequestPermission}) =>{
+  return (
+    <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
+      <View
+        className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
+      flex gap-y-4"
+      >
+       
+
+        <View className="relative w-full flex justify-center items-center p-4">
+          <TaraCamPermission size={200} />
+        </View>
+
+        <Text className="text-center text-2xl font-bold">
+          Camera Permission
+        </Text>
+
+        <ParagraphText
+          align="center"
+          fontSize="sm"
+          textColor="text-neutral-700"
+          padding="px-2"
+        >
+          We need your camera permission for identification card.
+        </ParagraphText>
+
+
+        <View className="w-full flex gap-y-4">
+          
+          <Button
+          onPress={()=>onRequestPermission()}
+            bgColor="bg-blue-500"
+            textColor="text-white"
+          >
+            Enable Camera
+          </Button>
+        </View>
+      </View>
+    </View>
+  )
+}
+
 
 const RiderFoundModal = ({ close }) => {
   return (

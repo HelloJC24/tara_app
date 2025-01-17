@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
+import React, { useState, useRef} from "react";
 import {
   FlatList,
   I18nManager,
@@ -15,6 +15,8 @@ import Button from "../components/Button";
 import { TaraLogo, TaraWalletIcon,GCashIcon, TaraCard, TaraCoupon,MayaIcon,TaraBank,TaraBlackQR } from "../components/CustomIcon";
 import ParagraphText from "../components/ParagraphText";
 import ReportProblemScreen from "../components/ReportContainer";
+import BottomSheet from "@devvie/bottom-sheet";
+import QRCodeStyled from 'react-native-qrcode-styled';
 
 const WalletScreen = ({navigation}) => {
   const [activeTopup, setActiveTopup] = useState(false);
@@ -27,6 +29,13 @@ const WalletScreen = ({navigation}) => {
      url: "https://taranapo.com/report/"
      });
  }
+
+ const openQR = () =>{
+  navigation.navigate('qrcode', {
+    mode: 'STR',
+    });
+  }
+
 
   const [walletTransactions, setWalletTransaction] = useState([
     {
@@ -247,9 +256,9 @@ const WalletScreen = ({navigation}) => {
         </ScrollView> */}
       </View>
 
-      {activeTopup && <TopupScreen close={() => setActiveTopup(false)} />}
+      {activeTopup && <TopupScreen navigation={navigation} close={() => setActiveTopup(false)} />}
       {activeSendOrTransfer && (
-        <SendOrTransferScreen close={() => setActiveSendOrTransfer(false)} />
+        <SendOrTransferScreen openQR={openQR} close={() => setActiveSendOrTransfer(false)} />
       )}
       {help && <ReportProblemScreen navigation={navigation} close={() => setHelp(false)} />}
     </View>
@@ -312,9 +321,19 @@ const ToggleButton = () => {
   );
 };
 
-const PaymentMethods = ({provider,status,endpoint}) =>{
+const PaymentMethods = ({navigation,provider,status,endpoint}) =>{
+
+
+  const openPayment = (mop) =>{
+    navigation.navigate('webview', {
+     track: "payment",
+     url: `https://taranapo.com/bacungan/payments/${mop}/?taraid=${"dfd"}`
+      });
+    }
+
+
   return (
-    <Pressable className={`flex flex-row justify-between items-center gap-x-4 items-center border-b border-slate-200 py-4`}>
+    <Pressable onPress={()=>openPayment(endpoint)} className={`flex flex-row justify-between items-center gap-x-4 items-center border-b border-slate-200 py-4`}>
       <View className="flex-row justify-start items-center gap-x-2">
     <View>
       {
@@ -356,7 +375,7 @@ const PaymentMethods = ({provider,status,endpoint}) =>{
 }
 
 
-const TopupScreen = ({ close }) => {
+const TopupScreen = ({navigation, close }) => {
 
   const [modeofPayments, selectModeofPayment] = useState([
     {
@@ -449,6 +468,7 @@ const TopupScreen = ({ close }) => {
                   provider={item.provider}
                   endpoint={item.endpoint}
                   status={item.status}
+                  navigation={navigation}
                 />
               )}
               keyExtractor={(item) => item.id}
@@ -474,10 +494,11 @@ const TopupScreen = ({ close }) => {
   );
 };
 
-const SendOrTransferScreen = ({ close }) => {
+const SendOrTransferScreen = ({ openQR,close }) => {
   const [amount, setAmount] = useState("");
   const [input, setInput] = useState("");
-
+ const sheetRef = useRef(null);
+ const [userMe,setUSERME] = useState("1224")
   return (
     <View className="w-full h-screen bg-white absolute inset-0 z-50">
       <StatusBar style="dark" />
@@ -524,7 +545,7 @@ const SendOrTransferScreen = ({ close }) => {
       <View className="w-full px-6 py-4">
 <View className="flex-row justify-between items-center pb-4">
   <Text className="text-lg font-semibold w-48 ">Recipient: </Text>
-<TouchableOpacity>
+<TouchableOpacity onPress={()=>sheetRef.current.open()}>
 <View className="flex-row justify-center items-center">
 <TaraBlackQR size={25} color="#404040" /> 
 <Svg
@@ -574,7 +595,51 @@ fill="#3b82f6"
         </ParagraphText>
         <Button>Send</Button>
       </View>
+      <BottomSheet
+    animationType="false"
+    ref={sheetRef}
+    containerHeight={900}
+    height={350}
+    hideDragHandle={true}
+    style={{ backgroundColor: "#fff",zIndex:999 }}
+  >
+      <View className="p-4">
+      <View className="py-2.5 flex-row justify-center items-center">
+      <QRCodeStyled
+           data={userMe}
+           padding={10}
+           pieceSize={5}
+           pieceCornerType='rounded'
+           color={'#020617'}
+           pieceScale={1.02}
+           pieceLiquidRadius={3}
+           errorCorrectionLevel={'H'}
+           innerEyesOptions={{
+             borderRadius: 4,
+             color: '#404040',
+           }}
+           outerEyesOptions={{
+             borderRadius: 12,
+             color: '#ffa114',
+           }}
+           logo={{
+             href: require('../assets/tara_app.png'),
+             padding: 4,
+             scale: 0.8,
+             hidePieces: true
+           }}
+      />
+      </View>
+      <Text className="text-center text-sm px-6">This is your QR code. Share it with anyone who wants to send you a transfer.</Text>
+      <Text className="text-center py-4 font-medium">OR</Text>
+      <View>
+      <Button onPress={()=>openQR()}>Scan someone QR</Button>
+      <Text className="text-center text-sm px-6 py-2 text-gray-500">Scan someone's QR code to make a transfer.</Text>
+      </View>
+        </View>
+        </BottomSheet>
     </View>
+   
   );
 };
 

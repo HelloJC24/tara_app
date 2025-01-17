@@ -5,12 +5,21 @@ import Svg, { Circle, Path, Rect } from "react-native-svg";
 
 const BottomNavBar = () => {
   const navigation = useNavigation();
+
+const openQR = () =>{
+  navigation.navigate('qrcode', {
+    mode: 'STBR',
+    });
+}
+
+
+
   return (
     <View
       className="w-full absolute bottom-8 left-6 border-t border-x border-slate-100 bg-white p-5 shadow-xl shadow-neutral-500 rounded-3xl
     flex flex-row items-center justify-between"
     >
-      <View className="flex gap-y-1 justify-center items-center">
+      <TouchableOpacity onPress={()=>navigation.navigate('history')} className="flex gap-y-1 justify-center items-center">
         <Svg
           xmlns="http://www.w3.org/2000/svg"
           width={25}
@@ -24,10 +33,10 @@ const BottomNavBar = () => {
         </Svg>
 
         <Text className="text-sm text-slate-500">History</Text>
-      </View>
+      </TouchableOpacity>
 
       <TouchableOpacity
-        onPress={() => navigation.navigate("qrcode")}
+        onPress={() => openQR()}
         className="flex gap-y-1 justify-center items-center"
       >
         <Svg

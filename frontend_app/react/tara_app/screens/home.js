@@ -8,7 +8,7 @@ import BottomNavBar from "../components/BottomNavBar";
 import Button from "../components/Button";
 import ParagraphText from "../components/ParagraphText";
 import { TaraWalletIcon, TaraMotor, TaraCar, TaraVan, TaraGift } from "../components/CustomIcon";
-import { InviteGraphic } from "../components/CustomGraphic";
+import { InviteGraphic, TaraPermission } from "../components/CustomGraphic";
 import QRCodeStyled from 'react-native-qrcode-styled';
 import RateUsApp from "../components/RateUsApp";
 import * as Location from 'expo-location';
@@ -19,6 +19,7 @@ const HomeScreen = ({ navigation }) => {
   const [rewardsAvailable, SetRewards] = useState(true)
   const [userID,setUserID] = useState("54613")
   const [activeRateUs, setActiveRateUs] = useState(true);
+  const [locationPermission,setPermissionAsk] = useState(false);
   const [location, setLocation] = useState([])
 
   const taraBook = (vehicle) =>{
@@ -37,11 +38,19 @@ const HomeScreen = ({ navigation }) => {
  }
 
 
+ const openQR = () =>{
+  navigation.navigate('qrcode', {
+    mode: 'STF',
+    });
+  }
+
+
 
  useEffect(() => {
   async function getCurrentLocation() {
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
+      setPermissionAsk(true);
       Alert.alert(
         'Permission Denied',
         'We cannot proceed performing our services without location access.',
@@ -53,16 +62,24 @@ const HomeScreen = ({ navigation }) => {
         ],
       );
       return;
+    }else{
+      setPermissionAsk(false);
     }
 
     const location = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.High,
     });
-    setLocation(location);
+    
+    if(location.mocked){
+      setPermissionAsk(false);
+    }else{
+      setLocation(location);
+    }
+    
   }
 
   getCurrentLocation();
-}, []);
+}, [locationPermission]);
 
   return (
     <View className="w-full h-full bg-white relative">
@@ -169,6 +186,23 @@ const HomeScreen = ({ navigation }) => {
           </Text>
 
           <View className="w-full flex flex-row justify-between items-center py-2 px-4">
+
+            {
+              location.length == 0 ? (
+
+            <Pressable onPress={()=>setPermissionAsk(true)} className="flex gap-y-1">
+              <View className="opacity-50 flex justify-center items-center pt-2 w-20 h-20 bg-slate-200 rounded-full">
+                <TaraMotor size="55" />
+              </View>
+              <Text className="text-base text-center text-gray-200">
+                TaraRide
+              </Text>
+            </Pressable>
+
+
+              ):(
+
+
             <Pressable onPress={()=>taraBook(2)} className="flex gap-y-1">
               <View className="flex justify-center items-center pt-2 w-20 h-20 bg-slate-200 rounded-full">
                 <TaraMotor size="55" />
@@ -178,16 +212,48 @@ const HomeScreen = ({ navigation }) => {
               </Text>
             </Pressable>
 
-            <Pressable onPress={()=>taraBook(4)} className="flex gap-y-1">
-              <View className="flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
-              <TaraCar size="65" />
-              </View>
-              <Text className="text-base text-center text-blue-500">
-                TaraCar
-              </Text>
-            </Pressable>
+            )
+            }
 
-            <Pressable onPress={()=>taraBook(5)} className="flex gap-y-1">
+
+
+              {
+                location.length == 0 ? (
+                  <Pressable onPress={()=>setPermissionAsk(true)}>
+                  <View className="opacity-50 flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
+                  <TaraCar size="65" />
+                  </View>
+                  <Text className="text-base text-center text-gray-200">
+                    TaraCar
+                  </Text>
+                </Pressable> 
+                ):(
+                      <Pressable onPress={()=>taraBook(4)} className="flex gap-y-1">
+                            <View className="flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
+                            <TaraCar size="65" />
+                            </View>
+                            <Text className="text-base text-center text-blue-500">
+                              TaraCar
+                            </Text>
+                          </Pressable>
+
+              )
+              }
+                
+
+        {
+          location.length == 0 ? (
+            <Pressable onPress={()=>setPermissionAsk(true)}>
+            <View className="opacity-50 flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
+            <TaraVan size="65" />
+            </View>
+            <Text className="text-base text-center text-gray-200">
+              TaraVan
+            </Text>
+          </Pressable>
+          ):(
+
+      <Pressable onPress={()=>taraBook(5)} className="flex gap-y-1">
               <View className="flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
               <TaraVan size="65" />
               </View>
@@ -195,6 +261,14 @@ const HomeScreen = ({ navigation }) => {
                 TaraVan
               </Text>
             </Pressable>
+
+          )
+          }
+                
+
+
+
+
           </View>
         </View>
 
@@ -203,9 +277,12 @@ const HomeScreen = ({ navigation }) => {
       {/* <ExistingBooking /> */}
 
       {activeScanFriend && (
-        <FriendsWithBenefits QR={userID} close={() => setActiveScanFriend(false)} />
+        <FriendsWithBenefits openQR={openQR} QR={userID} close={() => setActiveScanFriend(false)} />
       )}
        {activeRateUs && <RateUsApp close={() => setActiveRateUs(false)} />}
+
+      {locationPermission && ( <AllowLocationPrompt close={()=>setPermissionAsk(false)} />)}
+       
     </View>
   );
 };
@@ -260,7 +337,7 @@ const ExistingBooking = () => {
   );
 };
 
-const FriendsWithBenefits = ({QR, close }) => {
+const FriendsWithBenefits = ({openQR,QR, close }) => {
   return (
     <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
       <View
@@ -284,13 +361,20 @@ const FriendsWithBenefits = ({QR, close }) => {
   pieceScale={1.02}
   pieceLiquidRadius={3}
   logo={{
-    uri: Image.resolveAssetSource(require('../assets/icon.png')).uri,
-    scale: 0.2,
-    padding: 10, 
-    hidePieces: true,
+    href: require('../assets/tara_app.png'),
+    padding: 4,
+    scale: 1,
+    hidePieces: true
   }}
-  outerEyeStyle={{ borderRadius: 50 }}
-  innerEyeStyle={{ borderRadius: 50 }}
+  errorCorrectionLevel={'H'}
+  innerEyesOptions={{
+    borderRadius: 4,
+    color: '#404040',
+  }}
+  outerEyesOptions={{
+    borderRadius: 12,
+    color: '#ffa114',
+  }}
 />
 </View>
         </View>
@@ -310,7 +394,7 @@ const FriendsWithBenefits = ({QR, close }) => {
         </Text>
 
         <View className="w-full flex gap-y-4">
-          <Button>Scan a friend</Button>
+          <Button onPress={()=>openQR()}>Scan a friend</Button>
           <Button
             onPress={close}
             bgColor="bg-slate-200"
@@ -323,5 +407,48 @@ const FriendsWithBenefits = ({QR, close }) => {
     </View>
   );
 };
+
+const AllowLocationPrompt = ({ close }) => {
+  return (
+    <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
+      <View
+        className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
+      flex gap-y-4"
+      >
+       
+
+        <View className="relative w-full flex justify-center items-center p-4">
+          <TaraPermission size={200} />
+        </View>
+
+        <Text className="text-center text-2xl font-bold">
+          Location Permission
+        </Text>
+
+        <ParagraphText
+          align="center"
+          fontSize="sm"
+          textColor="text-neutral-700"
+          padding="px-2"
+        >
+          We need your precise location for a better experience.
+        </ParagraphText>
+
+
+        <View className="w-full flex gap-y-4">
+          
+          <Button
+            onPress={close}
+            bgColor="bg-slate-200"
+            textColor="text-neutral-700"
+          >
+            Close
+          </Button>
+        </View>
+      </View>
+    </View>
+  );
+};
+
 
 export default HomeScreen;

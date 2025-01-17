@@ -16,7 +16,7 @@ import AppLogo from "../assets/splash-icon.png";
 import Button from "./Button";
 import ParagraphText from "./ParagraphText";
 import { useToast } from "./ToastNotify";
-import { UptimeGraphic } from "./CustomGraphic";
+import { UptimeGraphic,TaraCamPermission } from "./CustomGraphic";
 
 const IDScanner = (props) => {
   const [permission, requestPermission] = useCameraPermissions();
@@ -24,6 +24,7 @@ const IDScanner = (props) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
   const toast = useToast();
+  const [hasPermission, setHasPermission] = useState(false);
 
   const cameraRef = useRef(null);
 
@@ -32,24 +33,29 @@ const IDScanner = (props) => {
     return true;
   };
   useEffect(() => {
+
+    if (!permission?.granted) {
+      setHasPermission(true)
+    }else{
+      setHasPermission(false)
+    }
+
     BackHandler.addEventListener("hardwareBackPress", handleBackPress);
     return () => {
       BackHandler.removeEventListener("hardwareBackPress", handleBackPress);
     };
-  }, [props.close]);
+
+   
+
+  }, [props.close,permission]);
 
   if (!permission) {
     return null;
   }
 
-  // if (!permission?.granted) {
-  //   return (
-  //     <AccessPermission
-  //       onClose={props.close}
-  //       onRequestPermission={requestPermission}
-  //     />
-  //   );
-  // }
+
+
+
 
   const handleImageCapture = async () => {
     try {
@@ -156,6 +162,7 @@ const IDScanner = (props) => {
       </View>
 
       {isLoading && <ProcessingPhoto close={props.close} />}
+      { hasPermission && <AskCameraPermission onRequestPermission={requestPermission} />}
     </View>
   );
 };
@@ -263,5 +270,47 @@ const ErrorProcessingPhoto = (props) => {
     </View>
   );
 };
+
+const AskCameraPermission = ({onRequestPermission}) =>{
+  return (
+    <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
+      <View
+        className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
+      flex gap-y-4"
+      >
+       
+
+        <View className="relative w-full flex justify-center items-center p-4">
+          <TaraCamPermission size={200} />
+        </View>
+
+        <Text className="text-center text-2xl font-bold">
+          Camera Permission
+        </Text>
+
+        <ParagraphText
+          align="center"
+          fontSize="sm"
+          textColor="text-neutral-700"
+          padding="px-2"
+        >
+          We need your camera permission for identification card.
+        </ParagraphText>
+
+
+        <View className="w-full flex gap-y-4">
+          
+          <Button
+          onPress={()=>onRequestPermission()}
+            bgColor="bg-blue-500"
+            textColor="text-white"
+          >
+            Enable Camera
+          </Button>
+        </View>
+      </View>
+    </View>
+  )
+}
 
 export default IDScanner;

@@ -21,6 +21,7 @@ const appVersion = appJson.expo.version;
 import ReportProblemScreen from "../components/ReportContainer";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AuthProvider, { AuthContext } from "../context/authContext";
+import { useToast } from "../components/ToastNotify";
 
 const AccountScreen = ({ route, navigation }) => {
   const [activeEditUsername, setActiveEditUsername] = useState(false);
@@ -34,6 +35,12 @@ const AccountScreen = ({ route, navigation }) => {
   const [userName,setUserName] = useState("John Charlie Ubay Saclet");
   const [userID,setUSERID] = useState(121212)
   const { setUser } = useContext(AuthContext)
+  const toast = useToast();
+
+  const showToast = () => {
+    toast("success", "You have been logged out successfully..");
+  };
+
 
   useEffect(()=>{
     if(route.params){
@@ -62,8 +69,9 @@ const logOut = () =>{
         text: 'Logout',
         onPress: async () => {
          //connect to logout 
-         await AsyncStorage.removeItem('register');
          setUser({accessToken:false})
+         await AsyncStorage.removeItem('register');
+         showToast()
         },
       }
       

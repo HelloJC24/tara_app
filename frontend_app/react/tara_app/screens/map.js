@@ -25,7 +25,9 @@ TaraVan
 import { LocationCard } from "../components/Cards";
 import {Slider} from '@miblanchard/react-native-slider';
 import axios from 'axios';
-
+import * as Location from 'expo-location';
+import { useToast } from "../components/ToastNotify";
+import QRCodeStyled from 'react-native-qrcode-styled';
 
 const BookingPage = ({route,navigation}) =>{
  const sheetRef = useRef(null);
@@ -58,46 +60,84 @@ const BookingPage = ({route,navigation}) =>{
  const [pickcar4,selectCard4] = useState(false)
  const [pickcard6,selectCar6] = useState(false)
  const [pickVan,selectVan] = useState(false)
+ const [activemotor,selectActiveMotor] = useState(true)
+ const [activecar4,selectActiveCard4] = useState(true)
+ const [activecard6,selectActiveCar6] = useState(true)
+ const [activeVan,selectActiveVan] = useState(true)
  const [myLocation,setMyLocation] = useState([])
  const webViewRef = useRef(null);
  const [webLoad,setWebLoad] = useState(false)
+const [locationPermission,setPermissionAsk] = useState(false);
+const [location, setLocation] = useState([])
+const [showCurrentLocation,setCurrentLocation] = useState(false);
+const toast = useToast();
+const [slideGuide,setSlideGuide] = useState(true);
+const [generateQR,setGenerateQR] = useState(false)
 
-  useEffect(()=>{
-    const {wheels,start} = route.params;
-    if(route.params){
-        addVehicle(wheels)
-        setMyLocation(`${start.coords.latitude}>>>${start.coords.longitude}`)
-        //setVehicle(wheels)
-  }
-  },[route])
-
-
-
-  useEffect(()=>{
-    const calculateMetric = async ()=>{
-        const fareAPI = await axios.get(
-            `https://onthewaypo.com/OTW/api/metrics/`,
-            {
-              params: {
-                from: pickupCoordinates,
-                to:dropCoordinates
-              },
-            }
-          );
-
-          //console.log(fareAPI.data)
-          if(fareAPI.data){
-            setFareAPIResponse(fareAPI.data.data)
-            setCalculated(true)
-            setFareRate(fareAPI.data.data.amount)
-          }
-    }
-
-    calculateMetric();
-
-  },[dropName,dropCoordinates])
+const showToast = (type,msg) => {
+toast(type, msg);
+};
 
 
+useEffect(()=>{
+const {wheels,start} = route.params;
+if(route.params){
+addVehicle(wheels)
+setMyLocation(`${start.coords.latitude}>>>${start.coords.longitude}`)
+//setVehicle(wheels)
+//disabling vehicles
+switch (wheels) {
+    case 2:
+        return selectActiveVan(false)
+    case 5:
+        return selectActiveMotor(false)
+}
+
+}
+},[route])
+
+
+
+useEffect(()=>{
+const calculateMetric = async ()=>{
+const fareAPI = await axios.get(
+`https://onthewaypo.com/OTW/api/metrics/`,
+{
+    params: {
+    from: pickupCoordinates,
+    to:dropCoordinates
+    },
+}
+);
+
+//console.log(fareAPI.data)
+if(fareAPI.data){
+setFareAPIResponse(fareAPI.data.data)
+setCalculated(true)
+setFareRate(fareAPI.data.data.amount)
+}
+}
+
+calculateMetric();
+
+},[dropName,dropCoordinates])
+
+const myPinLocation = async () =>{
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+        if(location.mocked){
+            //exit
+        }else{
+            setLocation(location);
+            setCurrentLocation(true);
+            //replace start
+            setMyLocation(`${location.coords.latitude}>>>${location.coords.longitude}`)
+            //provide name in the pickup
+        }
+        
+        
+}
 
 const switchLocations = () =>{
     setPickupCoordinates(dropCoordinates)
@@ -126,6 +166,9 @@ const addVehicle = (vh) =>{
 
 }
 
+const RequestVehicle = () =>{
+    showToast("try_again","This is vehicle is not available.");
+}
 
 const goSearchRider = async () =>{
 //connect to API
@@ -139,6 +182,7 @@ const cancelSearch = () =>{
 const selectCurrentLocation = () =>{
     sheetRef.current?.close();
     setSuggest(false);
+    myPinLocation();
     //run location permission
 }
 
@@ -151,6 +195,7 @@ const selectPinMap = () =>{
 const viewRiders = () =>{
     setSuggest(false);
     setViewRiders(true)
+    showToast("try_again","Viewing nearby drivers..");
     //run api
 }
 
@@ -205,9 +250,11 @@ const openChat = () =>{
 }
 
 const QRBooking = () =>{
-navigation.navigate('qrcode', {
-bookingID: bookingID
-});
+    if(generateQR){
+        setGenerateQR(false)
+    }else{
+        setGenerateQR(true)
+    }
 }
 
 const handleWebViewMessage = (event) => {
@@ -226,7 +273,9 @@ useEffect(()=>{
         start: pickupCoordinates,
         end: dropCoordinates,
         vehicle: 0,
+        viewriders: viewRiderMap,
         stop: 0,
+        meme: showCurrentLocation,
         timestamp: new Date().toISOString()
     });
     // console.log(jsonData)
@@ -234,7 +283,16 @@ useEffect(()=>{
         document.dispatchEvent(new MessageEvent('message', { data: '${jsonData}' }));
         true; // Suppress warnings
     `);
-},[webViewRef,webLoad,searching,setSearching,calculated,setCalculated])
+},[webViewRef,
+    webLoad,
+    searching,
+    setSearching,
+    calculated,
+    setCalculated,
+    viewRiderMap,
+    setViewRiders,
+    showCurrentLocation,
+    setCurrentLocation])
 
 
   //ANIMATIOn
@@ -342,6 +400,8 @@ const styles = StyleSheet.create({
         width:100
       }
   });
+
+
 
 
   
@@ -533,7 +593,7 @@ onMessage={handleWebViewMessage}
 className="bg-white"
 onLoad={()=>setWebLoad(true)}
 onTouchStart={()=>setMinizeView(true)}
-cacheEnabled={true}
+cacheEnabled={false}
 
 />
 
@@ -896,6 +956,9 @@ className="z-50"
 <View className="p-2.5 w-full flex-row flex-wrap gap-x-6 gap-y-4
 ">
 
+
+{
+    activemotor ? (
 <TouchableOpacity onPress={()=>addVehicle(2)}  className="w-44 flex-row justify-start items-center gap-x-2">
     {
         pickmotor ? (
@@ -910,11 +973,25 @@ className="z-50"
     <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
     <TaraMotor size="28" />
     </View>
-    <Text className="text-lg font-medium text-gray-800">MotorTaxi</Text>
+    <Text className="text-sm font-medium text-gray-800">MotorTaxi</Text>
 </TouchableOpacity>
+    ):(
+<TouchableOpacity onPress={()=>RequestVehicle(2)}  className="opacity-50 w-44 flex-row justify-start items-center gap-x-2">
+    <View className="border border-gray-300 rounded-lg h-6 w-6 flex-row justify-center items-center">
+    </View>   
+    <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
+    <TaraMotor size="28" />
+    </View>
+    <Text className="text-sm font-medium text-gray-800">MotorTaxi</Text>
+</TouchableOpacity>
+    )
+}
 
 
-<TouchableOpacity onPress={()=>addVehicle(4)}  className="w-44 flex-row justify-start items-center gap-x-2">
+
+{
+    activecar4 ? (
+        <TouchableOpacity onPress={()=>addVehicle(4)}  className="w-44 flex-row justify-start items-center gap-x-2">
 {
         pickcar4 ? (
             <View className="border border-blue-500 rounded-lg h-6 w-6 flex-row justify-center items-center">
@@ -928,11 +1005,23 @@ className="z-50"
     <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
     <TaraCar size="28" />
     </View>
-    <Text className="text-lg font-medium text-gray-800">4 seat- Car</Text>
+    <Text className="text-sm font-medium text-gray-800">4 seater- Car</Text>
 </TouchableOpacity>
+    ):(
+    <TouchableOpacity onPress={()=>RequestVehicle(4)}  className="opacity-50 w-44 flex-row justify-start items-center gap-x-2">
+    <View className="border border-gray-300 rounded-lg h-6 w-6 flex-row justify-center items-center">
+    </View>   
+    <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
+    <TaraCar size="28" />
+    </View>
+    <Text className="text-sm font-medium text-gray-800">4 seater- Car</Text>
+</TouchableOpacity>
+    )
+}
 
 
-
+{
+    activecard6 ? (
 <TouchableOpacity onPress={()=>addVehicle(4.5)}  className="w-44 flex-row justify-start items-center gap-x-2">
 {
         pickcard6 ? (
@@ -947,10 +1036,25 @@ className="z-50"
     <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
     <TaraCar size="28" />
     </View>
-    <Text className="text-lg font-medium text-gray-800">6 seat - Car</Text>
+    <Text className="text-sm font-medium text-gray-800">6 seater - Car</Text>
 </TouchableOpacity>
+    ):(
+<TouchableOpacity onPress={()=>RequestVehicle(4.5)}  className="opacity-50 w-44 flex-row justify-start items-center gap-x-2">
+            <View className="border border-gray-300 rounded-lg h-6 w-6 flex-row justify-center items-center">
+    </View>   
+    <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
+    <TaraCar size="28" />
+    </View>
+    <Text className="text-sm font-medium text-gray-800">6 seater - Car</Text>
+</TouchableOpacity>
+    )
+}
 
 
+
+
+{
+    activeVan ? (
 <TouchableOpacity onPress={()=>addVehicle(5)} className="w-44 flex-row justify-start items-center gap-x-2">
 {
         pickVan ? (
@@ -965,8 +1069,21 @@ className="z-50"
     <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
     <TaraVan size="28" />
     </View>
-    <Text className="text-lg font-medium text-gray-800">Van Exp</Text>
+    <Text className="text-sm font-medium text-gray-800">Van Express</Text>
 </TouchableOpacity>
+    ):(
+        <TouchableOpacity onPress={()=>RequestVehicle(5)} className="opacity-50 w-44 flex-row justify-start items-center gap-x-2">
+            <View className="border border-gray-300 rounded-lg h-6 w-6 flex-row justify-center items-center">
+    </View>   
+    <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
+    <TaraVan size="28" />
+    </View>
+    <Text className="text-sm font-medium text-gray-800">Van Express</Text>
+</TouchableOpacity>
+    )
+}
+
+
 
 
 
@@ -978,7 +1095,26 @@ className="z-50"
 
 {
     calculated &&  minimizeView == false && searching == false && rider == false && (
-        <View className="mx-2.5 mb-2.5">
+        <View className="mx-2.5 mb-2.5 relative">
+
+{
+    slideGuide && offerCom && (
+        <>
+        <Pressable onPress={()=>setSlideGuide(false)} className="h-full w-full bg-gray-100 rounded-xl absolute z-30 opacity-50"></Pressable>
+<Pressable onPress={()=>setSlideGuide(false)} className="inset-0 z-40 flex-row justify-center w-full h-full absolute top-16 -left-10">
+    <LottieView
+    source={require('../assets/animation/slide.json')}
+    autoPlay
+    loop
+    width={100}
+    height={80}
+    />
+</Pressable>
+</>
+    )
+}
+
+
     <View className="bg-white rounded-xl p-2 border border-gray-200 shadow-lg">
 <View className="p-2">
 
@@ -1021,7 +1157,7 @@ fill="#3b82f6">
 
 {
     offerCom && (
-<View>
+<View className="relative">
     <Slider
     animateTransitions
     renderAboveThumbComponent={renderAboveThumbComponent}
@@ -1032,6 +1168,8 @@ fill="#3b82f6">
     onValueChange={handleValueChange}
     onSlidingComplete={handleSlidingComplete}
     step={3} />
+
+
 
 
 <View className="flex-row justify-between items-center w-full">
@@ -1106,6 +1244,12 @@ fill="#22c55e"
 
     </View>
         </View>
+
+
+
+
+
+
         </View>
     )
 }
@@ -1562,7 +1706,7 @@ Confirm
 </BottomSheet>
 
 
-
+{generateQR && <GenerateQRBooking QR={"sdds"} close={setGenerateQR} />}
 
 </>
 
@@ -1573,6 +1717,64 @@ Confirm
 
 };
 
+
+const GenerateQRBooking = ({QR, close }) => {
+    return (
+      <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
+        <View
+          className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
+        flex gap-y-4"
+        >
+          <Text className="text-center text-2xl font-bold">
+            QR - Quick Rider
+          </Text>
+  {/* before generating check the vehicle type */}
+          <View className="relative w-full flex justify-center items-center p-4">
+  <View className="relative">
+  <QRCodeStyled
+    data={QR}
+    style={{backgroundColor: 'transparent'}}
+    padding={10}
+    pieceSize={5}
+    pieceCornerType='rounded'
+    color={'#020617'}
+    pieceScale={1.02}
+    pieceLiquidRadius={3}
+    logo={{
+      href: require('../assets/tara_app.png'),
+      padding: 4,
+      scale: 1,
+      hidePieces: true
+    }}
+    errorCorrectionLevel={'H'}
+    innerEyesOptions={{
+      borderRadius: 4,
+      color: '#404040',
+    }}
+    outerEyesOptions={{
+      borderRadius: 12,
+      color: '#ffa114',
+    }}
+  />
+  </View>
+          </View>
+  
+          <Text className="text-center">If a nearby rider is in front of you, let them scan this QR to become your assigned driver. It saves time!</Text>
+  
+          
+          <View className="w-full flex gap-y-4">
+            <Button
+            onPress={()=>close(false)}
+              bgColor="bg-slate-200"
+              textColor="text-neutral-700"
+            >
+              Close
+            </Button>
+          </View>
+        </View>
+      </View>
+    );
+  };
 
 
 export default BookingPage;

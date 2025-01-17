@@ -6,6 +6,8 @@ import IDImage from "../assets/graphic/id.svg"
 import TipImage from "../assets/graphic/tip.svg"
 import UptimeImage from "../assets/graphic/uptime.svg"
 import SelectTara from "../assets/graphic/tarasafeselect.svg"
+import AskLocation from "../assets/graphic/location-permi.svg"
+import AskCamera from "../assets/graphic/camera-permission.svg"
 
 
 export const InviteGraphic = (props) => {
@@ -55,5 +57,18 @@ export const UptimeGraphic = (props) => {
 export const TaraSafeGraphic = (props) => {
 return (
     <SelectTara width={props.size} height={props.size} fill={props.color} />
+);
+}
+
+export const TaraPermission = (props) => {
+    return (
+        <AskLocation width={props.size} height={props.size} fill={props.color} />
+    );
+    }
+
+
+export const TaraCamPermission = (props) => {
+return (
+<AskCamera width={props.size} height={props.size} fill={props.color} />
 );
 }
