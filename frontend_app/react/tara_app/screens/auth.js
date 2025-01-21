@@ -1,17 +1,18 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useState,useContext } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import {
   BackHandler,
   Image,
+  Linking,
   Pressable,
   Text,
   TextInput,
   View,
-  Linking,
-  ScrollView
 } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
+import { WebView } from "react-native-webview";
 import TaraLogoImage from "../assets/tara_icon.png";
 import Button from "../components/Button";
 import { IDGraphic, WelcomeGraphic } from "../components/CustomGraphic";
@@ -19,24 +20,19 @@ import { TaraLogo } from "../components/CustomIcon";
 import IDScanner from "../components/IDScanner";
 import ParagraphText from "../components/ParagraphText";
 import QuickTipsBottomSheet from "../components/QuickTipsBottomSheet";
-import { useToast } from "../components/ToastNotify";
-import { WebView } from "react-native-webview";
-import { Bigbox3 } from "../components/CustomTextbox";
 import ReportProblemScreen from "../components/ReportContainer";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import AuthProvider, { AuthContext } from "../context/authContext";
-
-
+import { useToast } from "../components/ToastNotify";
+import { createAccount } from "../config/hooks";
+import { AuthContext } from "../context/authContext";
 
 const AuthScreen = () => {
   const [stage, setStage] = useState(0);
   const navigation = useNavigation();
 
-  const seeHelp = () =>{
+  const seeHelp = () => {
     setStage(3);
     return true;
-  }
-
+  };
 
   const handleBackPress = () => {
     if (stage === 2) {
@@ -63,7 +59,12 @@ const AuthScreen = () => {
       case 2:
         return <CreateAccountScreen help={seeHelp} back={() => setStage(0)} />;
       case 3:
-        return <ReportProblemScreen navigation={navigation}  close={(n) => setStage(n)} />;
+        return (
+          <ReportProblemScreen
+            navigation={navigation}
+            close={(n) => setStage(n)}
+          />
+        );
       default:
         return <MainAuthScreen help={seeHelp} setStage={(n) => setStage(n)} />;
     }
@@ -73,14 +74,11 @@ const AuthScreen = () => {
 };
 
 const MainAuthScreen = ({ help, setStage }) => {
- 
   const toast = useToast();
 
   const showToast = () => {
     toast("success", "This is a success toast message.");
   };
-
-  
 
   return (
     <View className="w-full h-full bg-white relative">
@@ -88,7 +86,10 @@ const MainAuthScreen = ({ help, setStage }) => {
 
       <View className="h-full flex justify-between items-center px-6 py-10">
         <View className="w-full flex flex-row gap-x-3 items-center justify-end py-4">
-          <Pressable onPress={()=>Linking.openURL('https://taranapo.com')} className="p-1 bg-slate-200 rounded-lg">
+          <Pressable
+            onPress={() => Linking.openURL("https://taranapo.com")}
+            className="p-1 bg-slate-200 rounded-lg"
+          >
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={20}
@@ -99,7 +100,10 @@ const MainAuthScreen = ({ help, setStage }) => {
               <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm10 12a9.938 9.938 0 0 1-1.662 5.508l-1.192-1.193a.5.5 0 0 1-.146-.353V15a3 3 0 0 0-3-3h-3a1 1 0 0 1-1-1v-.5a.5.5 0 0 1 .5-.5A2.5 2.5 0 0 0 15 7.5v-1a.5.5 0 0 1 .5-.5h1.379a2.516 2.516 0 0 0 1.767-.732l.377-.377A9.969 9.969 0 0 1 22 12Zm-19.951.963 3.158 3.158A2.978 2.978 0 0 0 7.329 17H10a1 1 0 0 1 1 1v3.949a10.016 10.016 0 0 1-8.951-8.986ZM13 21.949V18a3 3 0 0 0-3-3H7.329a1 1 0 0 1-.708-.293l-4.458-4.458A9.978 9.978 0 0 1 17.456 3.63l-.224.224a.507.507 0 0 1-.353.146H15.5A2.5 2.5 0 0 0 13 6.5v1a.5.5 0 0 1-.5.5 2.5 2.5 0 0 0-2.5 2.5v.5a3 3 0 0 0 3 3h3a1 1 0 0 1 1 1v.962a2.516 2.516 0 0 0 .732 1.767l1.337 1.337A9.971 9.971 0 0 1 13 21.949Z" />
             </Svg>
           </Pressable>
-          <Pressable onPress={()=>help()} className="p-1 bg-slate-200 rounded-lg">
+          <Pressable
+            onPress={() => help()}
+            className="p-1 bg-slate-200 rounded-lg"
+          >
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={20}
@@ -146,12 +150,11 @@ const MainAuthScreen = ({ help, setStage }) => {
   );
 };
 
-const CreateAccountScreen = ({help,...props}) => {
+const CreateAccountScreen = ({ help, ...props }) => {
   const [activeBottomSheet, setActiveBottomSheet] = useState(false);
   const [activeScanner, setActiveScanner] = useState(false);
   const [stage, setStage] = useState(0);
- 
-
+  const [scannedUsername, setScannedUsername] = useState("");
 
   const handleBackPress = () => {
     if (stage > 0) {
@@ -171,12 +174,19 @@ const CreateAccountScreen = ({help,...props}) => {
       return (
         <SetUsernameScreen
           sethelp={help}
+          scannedUsername={scannedUsername}
+          setScannedUsername={(value) => setScannedUsername(value)}
           back={() => setStage(0)}
           nextPage={() => setStage(2)}
         />
       );
     case 2:
-      return <TermsAndConditionScreen back={() => setStage(1)} />;
+      return (
+        <TermsAndConditionScreen
+          scannedUsername={scannedUsername}
+          back={() => setStage(1)}
+        />
+      );
     default:
       return (
         <View className="w-full h-full bg-white relative">
@@ -194,7 +204,10 @@ const CreateAccountScreen = ({help,...props}) => {
                   <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
                 </Svg>
               </Pressable>
-              <Pressable onPress={()=>help()} className="p-1 bg-slate-200 rounded-lg">
+              <Pressable
+                onPress={() => help()}
+                className="p-1 bg-slate-200 rounded-lg"
+              >
                 <Svg
                   xmlns="http://www.w3.org/2000/svg"
                   width={20}
@@ -209,16 +222,12 @@ const CreateAccountScreen = ({help,...props}) => {
               </Pressable>
             </View>
 
-
-            
             <View className="mt-10 flex items-center">
               <Image source={TaraLogoImage} className="w-32 h-8" />
               <ParagraphText fontSize="lg" padding="p-2" align="center">
-              Secure your Tara experience! Register with a {" "}
-                <Text className="text-blue-600 font-semibold">
-                valid ID
-                </Text>{" "}
-                to unlock safe and reliable rides tailored just for you.
+                Secure your Tara experience! Register with a{" "}
+                <Text className="text-blue-600 font-semibold">valid ID</Text> to
+                unlock safe and reliable rides tailored just for you.
               </ParagraphText>
             </View>
             <View>
@@ -242,11 +251,14 @@ const CreateAccountScreen = ({help,...props}) => {
 
               <ParagraphText align="center" fontSize="sm" padding="px-4">
                 Learn how we protect your personal{" "}
-                
-                <Text onPress={()=>Linking.openURL("https://taranapo.com/data-protection/")} className="text-sm text-blue-500 font-semibold">
+                <Text
+                  onPress={() =>
+                    Linking.openURL("https://taranapo.com/data-protection/")
+                  }
+                  className="text-sm text-blue-500 font-semibold"
+                >
                   information here.
                 </Text>
-             
               </ParagraphText>
             </View>
           </View>
@@ -258,6 +270,7 @@ const CreateAccountScreen = ({help,...props}) => {
 
           {activeScanner && (
             <IDScanner
+              setScannedUsername={(value) => setScannedUsername(value)}
               close={() => setActiveScanner(false)}
               nextPage={() => setStage(1)}
             />
@@ -267,8 +280,24 @@ const CreateAccountScreen = ({help,...props}) => {
   }
 };
 
-const SetUsernameScreen = ({sethelp, ...props}) => {
-  const [username, setUsername] = useState("");
+const SetUsernameScreen = ({ sethelp, ...props }) => {
+  const [username, setUsername] = useState(props.scannedUsername);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const toast = useToast();
+
+  const onSubmit = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      console.log("fake submmiting...");
+      toast("success", "User created successfully");
+
+      // set the new custom username
+      props.setScannedUsername(username);
+      setIsLoading(false);
+      props.nextPage();
+    }, 3000);
+  };
 
   return (
     <View className="w-full h-full bg-white relative">
@@ -286,7 +315,6 @@ const SetUsernameScreen = ({sethelp, ...props}) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-     
         </View>
 
         <View className="w-full z-50">
@@ -300,7 +328,7 @@ const SetUsernameScreen = ({sethelp, ...props}) => {
             </View>
 
             <TextInput
-              className="w-full text-lg text-blue-500"
+              className="flex-1 w-full text-lg text-blue-500"
               value={username}
               onChangeText={setUsername}
               placeholder=""
@@ -321,11 +349,18 @@ const SetUsernameScreen = ({sethelp, ...props}) => {
         <View></View>
 
         <View className="w-full flex gap-y-4 p-2">
-          <Button onPress={props.nextPage}>Create Account</Button>
+          <Button onPress={onSubmit}>
+            {isLoading ? "Creating account..." : "Create Account"}
+          </Button>
 
           <ParagraphText align="center" fontSize="sm" padding="px-4">
             Learn how we protect your personal{" "}
-            <Text onPress={()=>Linking.openURL("https://taranapo.com/data-protection/")} className="text-blue-500 font-semibold">
+            <Text
+              onPress={() =>
+                Linking.openURL("https://taranapo.com/data-protection/")
+              }
+              className="text-blue-500 font-semibold"
+            >
               information here.
             </Text>
           </ParagraphText>
@@ -335,24 +370,44 @@ const SetUsernameScreen = ({sethelp, ...props}) => {
   );
 };
 
-const TermsAndConditionScreen = (props) => {
-  const [loaded,setIsLoading] = useState(false)
-  const { setUser } = useContext(AuthContext)
+const TermsAndConditionScreen = ({ scannedUsername, ...props }) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const toast = useToast();
+
+  const { setUser } = useContext(AuthContext);
 
   const saveDevice = async (value) => {
     try {
-      await AsyncStorage.setItem('register', value);
+      await AsyncStorage.setItem("register", value);
     } catch (e) {
       // saving error
     }
   };
 
-  const initFirstApp = async () =>{
-    await saveDevice("true")
-    setUser({accessToken:true})
-  }
+  const initFirstApp = async () => {
+    await saveDevice("true");
+  };
 
-  
+  const registerAccount = async () => {
+    try {
+      setIsSubmitting(true);
+      console.log(scannedUsername);
+      const res = await createAccount(scannedUsername);
+      console.log("Create user res: ", res.data);
+      if (res.status === "success") {
+        setUser({ userId: res.data?.UserID });
+        initFirstApp();
+
+        setIsSubmitting(false);
+      }
+    } catch (error) {
+      console.error(error);
+      setIsSubmitting(false);
+      toast("error", "Something went wrong, try again!");
+    }
+  };
+
   return (
     <View className="w-full h-full bg-white relative">
       <StatusBar style="dark" />
@@ -369,41 +424,41 @@ const TermsAndConditionScreen = (props) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-         
         </View>
 
-        <View className="w-full px-6">
+        {/* <View className="w-full px-6">
           <Text className=" text-2xl text-black p-4 font-semibold">
             Terms and Conditions
           </Text>
-        </View>
+        </View> */}
 
-
-    
-        <View className="bg-white h-full w-screen px-4 py-2">
+        <View className="bg-white h-full w-screen pb-10">
           <WebView
-        style={{flex:1,backgroundColor:'white'}}
-        source={{ uri: 'https://kiefersdelivery.com/terms-and-conditions/'
-         }}
-        onLoadEnd={() => setIsLoading(true)}
-        onLoadStart={() => setIsLoading(false)}
-        javaScriptEnabled={true} 
-        cacheEnabled={false}  // Disable cache
-        domStorageEnabled={true}
-      />
+            style={{ flex: 1, backgroundColor: "white" }}
+            source={{
+              uri: "https://taranapo.com/terms-and-conditions/",
+            }}
+            onLoadEnd={() => setIsLoading(true)}
+            onLoadStart={() => setIsLoading(false)}
+            javaScriptEnabled={true}
+            cacheEnabled={false} // Disable cache
+            domStorageEnabled={true}
+          />
         </View>
-       
 
-        <View className="px-6 bg-white absolute bottom-0 w-full flex gap-y-4 p-2">
-        {
-          loaded && (
-            <Button onPress={()=>initFirstApp()}>I Accept and wish to proceed</Button>
-          )
-        }
+        <View className="p-6 bg-white absolute bottom-0 w-full flex gap-y-4">
+          <Button onPress={registerAccount}>
+            {isSubmitting ? "Submitting..." : "I Accept and wish to proceed"}
+          </Button>
 
           <ParagraphText align="center" fontSize="sm" padding="px-4">
             By clickng the proceed you are also agreeing to our{" "}
-            <Text onPress={()=>Linking.openURL("https://taranapo.com/data-and-privacy/")} className="text-blue-500 font-semibold">
+            <Text
+              onPress={() =>
+                Linking.openURL("https://taranapo.com/data-and-privacy/")
+              }
+              className="text-blue-500 font-semibold"
+            >
               Data and Privacy Policy
             </Text>{" "}
             as well.
@@ -416,7 +471,7 @@ const TermsAndConditionScreen = (props) => {
 
 // SignUp Page
 
-const SignUpScreen = ({help, ...props}) => {
+const SignUpScreen = ({ help, ...props }) => {
   const [activeOTPScreen, setActiveOTPScreen] = useState(false);
   const [inputValue, setInputValue] = useState("");
 
@@ -454,7 +509,10 @@ const SignUpScreen = ({help, ...props}) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-          <Pressable onPress={()=>help()} className="p-1 bg-slate-200 rounded-lg">
+          <Pressable
+            onPress={() => help()}
+            className="p-1 bg-slate-200 rounded-lg"
+          >
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={20}
@@ -480,7 +538,7 @@ const SignUpScreen = ({help, ...props}) => {
             </View>
 
             <TextInput
-              className="w-full text-lg"
+              className="flex-1 w-full text-lg"
               value={inputValue}
               onChangeText={setInputValue}
               placeholder="Email or phone number"
@@ -505,35 +563,41 @@ const SignUpScreen = ({help, ...props}) => {
 
           <ParagraphText align="center" fontSize="sm" padding="px-4">
             Learn how to recover your account{" "}
-            <Text onPress={()=>Linking.openURL("https://taranapo.com/account-recovery/")} className="text-blue-500 font-semibold">
+            <Text
+              onPress={() =>
+                Linking.openURL("https://taranapo.com/account-recovery/")
+              }
+              className="text-blue-500 font-semibold"
+            >
               effectively here.
             </Text>
           </ParagraphText>
         </View>
       </View>
 
-      {activeOTPScreen && <OTPScreen sethelp={help} back={() => setActiveOTPScreen(false)} />}
+      {activeOTPScreen && (
+        <OTPScreen sethelp={help} back={() => setActiveOTPScreen(false)} />
+      )}
     </View>
   );
 };
 
-const OTPScreen = ({sethelp, ...props}) => {
+const OTPScreen = ({ sethelp, ...props }) => {
   const [inputValue, setInputValue] = useState("");
-    const { setUser } = useContext(AuthContext)
+  const { setUser } = useContext(AuthContext);
 
   const saveDevice = async (value) => {
     try {
-      await AsyncStorage.setItem('register', value);
+      await AsyncStorage.setItem("register", value);
     } catch (e) {
       // saving error
     }
   };
 
-  const validateOTPCode = async () =>{
-    await saveDevice("true")
-    setUser({accessToken:true})
-  }
-
+  const validateOTPCode = async () => {
+    await saveDevice("true");
+    setUser({ accessToken: true });
+  };
 
   return (
     <View className="w-full h-full bg-white absolute inset-0 z-50">
@@ -551,7 +615,10 @@ const OTPScreen = ({sethelp, ...props}) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-          <Pressable onPress={()=>sethelp()} className="p-1 bg-slate-200 rounded-lg">
+          <Pressable
+            onPress={() => sethelp()}
+            className="p-1 bg-slate-200 rounded-lg"
+          >
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={20}
@@ -608,17 +675,19 @@ const OTPScreen = ({sethelp, ...props}) => {
 
           <ParagraphText align="center" fontSize="sm" padding="px-4">
             Learn how to recover your account{" "}
-            <Text onPress={()=>Linking.openURL("https://taranapo.com/account-recovery/")} className="text-blue-500 font-semibold">
+            <Text
+              onPress={() =>
+                Linking.openURL("https://taranapo.com/account-recovery/")
+              }
+              className="text-blue-500 font-semibold"
+            >
               effectively here.
             </Text>
           </ParagraphText>
         </View>
       </View>
-
-    
     </View>
   );
 };
-
 
 export default AuthScreen;

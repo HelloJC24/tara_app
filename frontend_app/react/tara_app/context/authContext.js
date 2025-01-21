@@ -1,9 +1,36 @@
-import { createContext, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { onAuthStateChanged } from "firebase/auth";
+import { createContext, useEffect, useState } from "react";
+import { auth } from "../config/firebase-config";
 
 export const AuthContext = createContext({});
 
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        try {
+          // Retrieve the ID token (accessToken) securely
+          const accessToken = await currentUser.getIdToken(true);
+          console.log("Current User AccessToken: ", accessToken);
+
+          // Store accessToken in AsyncStorage
+          await AsyncStorage.setItem("accessToken", accessToken);
+
+          // Update the user state with accessToken
+          setUser({
+            accessToken: accessToken,
+          });
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, setUser }}>

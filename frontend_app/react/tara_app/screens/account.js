@@ -1,92 +1,105 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StatusBar } from "expo-status-bar";
+import { signOut } from "firebase/auth";
 import LottieView from "lottie-react-native";
-import React, { useEffect, useState,useContext } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import {
+  Alert,
   BackHandler,
+  Linking,
   Pressable,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  Linking,
-  Alert
 } from "react-native";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import appJson from "../app.json";
 import Button from "../components/Button";
-import { DeletionGraphic,TaraSafeGraphic } from "../components/CustomGraphic";
+import { DeletionGraphic, TaraSafeGraphic } from "../components/CustomGraphic";
 import { TaraLogo } from "../components/CustomIcon";
 import ParagraphText from "../components/ParagraphText";
-const appVersion = appJson.expo.version;
 import ReportProblemScreen from "../components/ReportContainer";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import AuthProvider, { AuthContext } from "../context/authContext";
 import { useToast } from "../components/ToastNotify";
+import { auth } from "../config/firebase-config";
+import { updateUser } from "../config/hooks";
+import { AuthContext } from "../context/authContext";
+import { DataContext } from "../context/dataContext";
+const appVersion = appJson.expo.version;
 
 const AccountScreen = ({ route, navigation }) => {
+  const { setUser } = useContext(AuthContext);
+  const { data } = useContext(DataContext);
+
   const [activeEditUsername, setActiveEditUsername] = useState(false);
   const [activeAddMobileNum, setActiveMobileNum] = useState(false);
   const [activeAddEmailAddress, setActiveAddEmailAddress] = useState(false);
   const [activeTaraSafe, setActiveTaraSafe] = useState(false);
-  const [activeAccountDeletionModal, setActiveAccountDeletionModal] = useState(false);
-  const [viewreport,setViewReport] = useState(false)
-  const [phoneNumber,setPhone] = useState(null)
-  const [email,setEmail] = useState(null)
-  const [userName,setUserName] = useState("John Charlie Ubay Saclet");
-  const [userID,setUSERID] = useState(121212)
-  const { setUser } = useContext(AuthContext)
+  const [activeAccountDeletionModal, setActiveAccountDeletionModal] =
+    useState(false);
+  const [viewreport, setViewReport] = useState(false);
+  const [phoneNumber, setPhone] = useState(data?.user?.Phone);
+  const [email, setEmail] = useState(data?.user?.Email);
+  const [username, setUsername] = useState(data?.user?.Username || "");
+
   const toast = useToast();
 
   const showToast = () => {
     toast("success", "You have been logged out successfully..");
   };
 
-
-  useEffect(()=>{
-    if(route.params){
-    const {purpose} = route.params;
-    if(route.params){
-      if(purpose == 'tarasafe'){
-        setActiveTaraSafe(true)
-      }else if(purpose == 'phone'){
-        setActiveMobileNum(true)
+  useEffect(() => {
+    if (route.params) {
+      const { purpose } = route.params;
+      if (route.params) {
+        if (purpose == "tarasafe") {
+          setActiveTaraSafe(true);
+        } else if (purpose == "phone") {
+          setActiveMobileNum(true);
+        }
       }
     }
-  }
+  }, [route]);
 
-  },[route])
-
-const logOut = () =>{
-  Alert.alert(
-    'Logging Out?',
-    'Do you want to sign out? Ensure your email or phone is linked to recover your account.',
-    [
-      {
-        text: 'Close',
-        type: 'cancel'
-      },
-      {
-        text: 'Logout',
-        onPress: async () => {
-         //connect to logout 
-         setUser({accessToken:false})
-         await AsyncStorage.removeItem('register');
-         showToast()
+  const logOut = () => {
+    Alert.alert(
+      "Logging Out?",
+      "Do you want to sign out? Ensure your email or phone is linked to recover your account.",
+      [
+        {
+          text: "Close",
+          type: "cancel",
         },
-      }
-      
-    ],
-  );
-}
+        {
+          text: "Logout",
+          onPress: async () => {
+            //connect to logout
+            setUser({ accessToken: "" });
 
+            // logout firebase auth
+            await signOut(auth);
 
+            // update user status
+            const res = await updateUser(
+              data?.user?.UserID,
+              "Status",
+              "Inactive"
+            );
+            await AsyncStorage.removeItem("register");
+            await AsyncStorage.removeItem("data");
+            showToast();
+          },
+        },
+      ]
+    );
+  };
 
-  const LiveReport = () =>{
-    navigation.navigate('webview', {
-     track: userID,
-     url: "https://taranapo.com/report/"
-     });
- }
+  const LiveReport = () => {
+    navigation.navigate("webview", {
+      track: data?.user?.UserID,
+      url: "https://taranapo.com/report/",
+    });
+  };
 
   return (
     <View className="w-full h-full bg-white relative">
@@ -104,7 +117,7 @@ const logOut = () =>{
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-          <Pressable onPress={()=>logOut()} className="">
+          <Pressable onPress={() => logOut()} className="">
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={20}
@@ -132,7 +145,13 @@ const logOut = () =>{
               <View className="flex flex-row justify-between items-center">
                 <View className="flex-1">
                   <Text className="text-sm text-neutral-700">Legal Name</Text>
-                  <Text numberOfLines={1} ellipsizeMode="tail" className="text-lg py-1">{userName}</Text>
+                  <Text
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    className="text-lg py-1"
+                  >
+                    {username}
+                  </Text>
                 </View>
                 <TouchableOpacity onPress={() => setActiveEditUsername(true)}>
                   <Svg
@@ -153,7 +172,8 @@ const logOut = () =>{
                 Contact Details
               </Text>
               <ParagraphText fontSize="sm" textColor="text-neutral-700">
-              Providing your contact info helps recover your account and ensures receipts are sent to your email.
+                Providing your contact info helps recover your account and
+                ensures receipts are sent to your email.
               </ParagraphText>
             </View>
 
@@ -163,13 +183,16 @@ const logOut = () =>{
                   <Text className="text-sm text-neutral-700">
                     Mobile Number
                   </Text>
-                 {
-                   phoneNumber ? (
+                  {phoneNumber ? (
                     <Text className="text-lg py-1">{phoneNumber}</Text>
-                   ):(
-                    <Text onPress={() => setActiveMobileNum(true)} className="text-lg py-1 text-blue-500 font-semibold">Add Mobile Number</Text>
-                   )
-                 }
+                  ) : (
+                    <Text
+                      onPress={() => setActiveMobileNum(true)}
+                      className="text-lg py-1 text-blue-500 font-semibold"
+                    >
+                      Add Mobile Number
+                    </Text>
+                  )}
                 </View>
                 <TouchableOpacity onPress={() => setActiveMobileNum(true)}>
                   <Svg
@@ -191,17 +214,16 @@ const logOut = () =>{
                   </Text>
                   {/* <Text className="text-lg py-1">example@gmail.com</Text> */}
 
-                  {
-                    email ? (
-                <Text className="text-lg py-1">
-                    {email}
-                  </Text>
-                    ):(
-                      <Text onPress={() => setActiveAddEmailAddress(true)} className="text-lg py-1 text-blue-500 font-semibold">
-                    Add an email address
-                  </Text>
-                    )
-                  }
+                  {email ? (
+                    <Text className="text-lg py-1">{email}</Text>
+                  ) : (
+                    <Text
+                      onPress={() => setActiveAddEmailAddress(true)}
+                      className="text-lg py-1 text-blue-500 font-semibold"
+                    >
+                      Add an email address
+                    </Text>
+                  )}
                 </View>
                 <TouchableOpacity
                   onPress={() => setActiveAddEmailAddress(true)}
@@ -259,50 +281,75 @@ const logOut = () =>{
                 </Text>
 
                 <LottieView
-                source={require('../assets/animation/safety-tara.json')}
-                autoPlay
-                loop
-                width={35}
-                height={35}
-            />
+                  source={require("../assets/animation/safety-tara.json")}
+                  autoPlay
+                  loop
+                  width={35}
+                  height={35}
+                />
               </TouchableOpacity>
             </View>
           </View>
           <View className="w-full p-8">
-        <ParagraphText
-          fontSize="base"
-          align="center"
-          textColor="text-neutral-500"
-        >
-          <Text onPress={()=>Linking.openURL("https://taranapo.com/data-and-privacy/")} className="text-blue-500 font-semibold">Privacy Policy</Text> &{" "}
-          <Text onPress={()=>Linking.openURL("https://taranapo.com/terms-and-conditions/")} className="text-blue-500 font-semibold">Terms of Use</Text>
-        </ParagraphText>
-        <Text className="text-center text-sm text-neutral-500">
-          {appVersion} Beta
-        </Text>
-      </View>
+            <ParagraphText
+              fontSize="base"
+              align="center"
+              textColor="text-neutral-500"
+            >
+              <Text
+                onPress={() =>
+                  Linking.openURL("https://taranapo.com/data-and-privacy/")
+                }
+                className="text-blue-500 font-semibold"
+              >
+                Privacy Policy
+              </Text>{" "}
+              &{" "}
+              <Text
+                onPress={() =>
+                  Linking.openURL("https://taranapo.com/terms-and-conditions/")
+                }
+                className="text-blue-500 font-semibold"
+              >
+                Terms of Use
+              </Text>
+            </ParagraphText>
+            <Text className="text-center text-sm text-neutral-500">
+              {appVersion} Beta
+            </Text>
+          </View>
         </View>
-       
       </View>
-      
 
       {activeEditUsername && (
-        <EditUsernameScreen report={setViewReport} close={() => setActiveEditUsername(false)} />
+        <EditUsernameScreen
+          report={setViewReport}
+          close={() => setActiveEditUsername(false)}
+        />
       )}
       {activeAddMobileNum && (
-        <AddMobileNumber report={setViewReport} close={() => setActiveMobileNum(false)} />
+        <AddMobileNumber
+          report={setViewReport}
+          close={() => setActiveMobileNum(false)}
+        />
       )}
       {activeAddEmailAddress && (
-        <AddEmailAddress report={setViewReport} close={() => setActiveAddEmailAddress(false)} />
+        <AddEmailAddress
+          report={setViewReport}
+          close={() => setActiveAddEmailAddress(false)}
+        />
       )}
 
       {viewreport && (
-        <ReportProblemScreen navigation={navigation} close={() => setViewReport(false)} />
+        <ReportProblemScreen
+          navigation={navigation}
+          close={() => setViewReport(false)}
+        />
       )}
 
       {activeAccountDeletionModal && (
         <AccountDeletionModal
-        navigation={navigation}
+          navigation={navigation}
           close={() => setActiveAccountDeletionModal(false)}
         />
       )}
@@ -313,16 +360,13 @@ const logOut = () =>{
 };
 
 const AccountDeletionModal = ({ navigation, close }) => {
-
-  const SeeForm = () =>{
+  const SeeForm = () => {
     close();
-    navigation.navigate('webview', {
-     track: 'user',
-     url: "https://taranapo.com/deletion-request/"
-     });
- }
-
-
+    navigation.navigate("webview", {
+      track: "user",
+      url: "https://taranapo.com/deletion-request/",
+    });
+  };
 
   return (
     <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
@@ -348,7 +392,7 @@ const AccountDeletionModal = ({ navigation, close }) => {
         </ParagraphText>
 
         <View className="w-full flex gap-y-4">
-          <Button onPress={()=>SeeForm()}>Fill out the form</Button>
+          <Button onPress={() => SeeForm()}>Fill out the form</Button>
           <Button
             onPress={close}
             bgColor="bg-slate-200"
@@ -362,8 +406,31 @@ const AccountDeletionModal = ({ navigation, close }) => {
   );
 };
 
-const EditUsernameScreen = ({report, close }) => {
-  const [username, setUsername] = useState("John Doe");
+const EditUsernameScreen = ({ report, close }) => {
+  const { data, setData } = useContext(DataContext);
+
+  const [username, setUsername] = useState(data?.user?.Username);
+  const [statusMsg, setStatusMsg] = useState("");
+
+  const [isLoading, setIsLoading] = useState(false);
+  const toast = useToast();
+
+  const updateAccount = async () => {
+    try {
+      if (!username) return;
+
+      setIsLoading(true);
+      const res = await updateUser(data?.user?.UserID, "Username", username);
+
+      if (res.status === "success") {
+        setData({ user: { ...data.user, Username: username } });
+        toast("success", "Username updated successfully");
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   const handleBackPress = () => {
     close();
@@ -392,7 +459,10 @@ const EditUsernameScreen = ({report, close }) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-          <Pressable onPress={()=>report(true)} className="p-1 bg-slate-200 rounded-lg">
+          <Pressable
+            onPress={() => report(true)}
+            className="p-1 bg-slate-200 rounded-lg"
+          >
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={20}
@@ -418,10 +488,11 @@ const EditUsernameScreen = ({report, close }) => {
             </View>
 
             <TextInput
-              className="w-full text-lg text-blue-500"
+              className="flex-1 w-full text-lg text-blue-500"
               value={username}
               onChangeText={setUsername}
               placeholder=""
+              type="text"
             />
           </View>
 
@@ -439,7 +510,9 @@ const EditUsernameScreen = ({report, close }) => {
         <View></View>
 
         <View className="w-full flex gap-y-4 p-2">
-          <Button>Update Account</Button>
+          <Button onPress={updateAccount}>
+            {isLoading ? "Processing..." : "Update Account"}
+          </Button>
 
           <ParagraphText align="center" fontSize="sm">
             Learn how we protect your personal{" "}
@@ -453,8 +526,37 @@ const EditUsernameScreen = ({report, close }) => {
   );
 };
 
-const AddMobileNumber = ({report, close }) => {
-  const [phoneNumber, setPhoneNumber] = useState("");
+const AddMobileNumber = ({ report, close }) => {
+  const { data, setData } = useContext(DataContext);
+
+  const [phoneNumber, setPhoneNumber] = useState(data?.user?.Phone);
+  const [statusMsg, setStatusMsg] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const toast = useToast();
+
+  const updateAccount = async () => {
+    try {
+      if (!phoneNumber) {
+        setStatusMsg("Please enter phone number!");
+        return;
+      }
+
+      if (phoneNumber.length < 11 || phoneNumber.length > 11) {
+        setStatusMsg("Number must be 11 digits!");
+        return;
+      }
+
+      setIsLoading(true);
+      const res = await updateUser(data?.user?.UserID, "Phone", phoneNumber);
+      if (res.status === "success") {
+        setData({ user: { ...data.user, Phone: phoneNumber } });
+        toast("success", "Phone Number added");
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   const handleBackPress = () => {
     close();
@@ -482,7 +584,10 @@ const AddMobileNumber = ({report, close }) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-          <Pressable  onPress={()=>report(true)} className="p-1 bg-slate-200 rounded-lg">
+          <Pressable
+            onPress={() => report(true)}
+            className="p-1 bg-slate-200 rounded-lg"
+          >
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={20}
@@ -507,7 +612,7 @@ const AddMobileNumber = ({report, close }) => {
               <TaraLogo size={40} />
             </View>
             <TextInput
-              className="w-full text-lg text-blue-500"
+              className="flex-1 w-full text-lg text-blue-500"
               type="number"
               keyboardType="number-pad"
               value={phoneNumber}
@@ -522,7 +627,7 @@ const AddMobileNumber = ({report, close }) => {
             padding="py-2 px-6"
             textColor="text-neutral-700"
           >
-            Number must be 11 digits
+            {statusMsg}
           </ParagraphText>
         </View>
         <View></View>
@@ -530,7 +635,9 @@ const AddMobileNumber = ({report, close }) => {
         <View></View>
 
         <View className="w-full flex gap-y-4 p-2">
-          <Button>Update Account</Button>
+          <Button onPress={updateAccount}>
+            {isLoading ? "Processing..." : "Update Account"}
+          </Button>
 
           <ParagraphText align="center" fontSize="sm">
             Learn how we protect your personal{" "}
@@ -544,8 +651,41 @@ const AddMobileNumber = ({report, close }) => {
   );
 };
 
-const AddEmailAddress = ({report, close }) => {
+const AddEmailAddress = ({ report, close }) => {
+  const { data, setData } = useContext(DataContext);
+
   const [email, setEmail] = useState("example@gmail.com");
+  const [statusMsg, setStatusMsg] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const toast = useToast();
+
+  const updateAccount = async () => {
+    try {
+      if (!email) return;
+
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailPattern.test(email)) {
+        setStatusMsg("Invalid email format");
+        return;
+      }
+
+      setIsLoading(true);
+      const res = await updateUser(data?.user?.UserID, "Email", email);
+
+      if (res.status === "success") {
+        setData({ user: { ...data.user, Email: email } });
+
+        // change firebase auth email used
+        // await updateEmailAddress(email);
+
+        toast("success", "Email address added");
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   const handleBackPress = () => {
     close();
     return true;
@@ -572,7 +712,10 @@ const AddEmailAddress = ({report, close }) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-          <Pressable  onPress={()=>report(true)} className="p-1 bg-slate-200 rounded-lg">
+          <Pressable
+            onPress={() => report(true)}
+            className="p-1 bg-slate-200 rounded-lg"
+          >
             <Svg
               xmlns="http://www.w3.org/2000/svg"
               width={20}
@@ -598,11 +741,11 @@ const AddEmailAddress = ({report, close }) => {
             </View>
 
             <TextInput
-              className="w-full text-lg text-blue-500"
+              className="flex-1 w-full text-lg text-blue-500"
               value={email}
               onChangeText={setEmail}
               placeholder=""
-              keyboardType="email"
+              type="email"
             />
           </View>
 
@@ -620,7 +763,9 @@ const AddEmailAddress = ({report, close }) => {
         <View></View>
 
         <View className="w-full flex gap-y-4 p-2">
-          <Button>Update Account</Button>
+          <Button onPress={updateAccount}>
+            {isLoading ? "Processing..." : "Update Account"}
+          </Button>
 
           <ParagraphText align="center" fontSize="sm">
             Learn how we protect your personal{" "}
@@ -665,7 +810,6 @@ const TaraSafe = ({ close }) => {
                 <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
               </Svg>
             </Pressable>
-      
           </View>
 
           <View className="w-full">
@@ -676,12 +820,16 @@ const TaraSafe = ({ close }) => {
             </View>
 
             <View className="py-4">
-             <View className="flex-row justify-center items-center">
-             <TaraSafeGraphic size={250} />
-             </View>
+              <View className="flex-row justify-center items-center">
+                <TaraSafeGraphic size={250} />
+              </View>
 
-              <ParagraphText fontSize="sm" textColor="text-neutral-500 text-center">
-              We’ll notify these people via SMS or email for every booking. Sounds safe? Let’s do it!
+              <ParagraphText
+                fontSize="sm"
+                textColor="text-neutral-500 text-center"
+              >
+                We’ll notify these people via SMS or email for every booking.
+                Sounds safe? Let’s do it!
               </ParagraphText>
             </View>
 
@@ -689,7 +837,8 @@ const TaraSafe = ({ close }) => {
               fontSize="base"
               textColor="text-neutral-700 text-center"
             >
-              Provide two email addresses or phone numbers—they don’t need a Tara account!
+              Provide two email addresses or phone numbers—they don’t need a
+              Tara account!
             </ParagraphText>
 
             <View className="w-full flex gap-y-4 py-4">
@@ -769,7 +918,12 @@ const TaraSafe = ({ close }) => {
 
           <ParagraphText align="center" fontSize="sm">
             Learn how Tara keep you safe or visit our{" "}
-            <Text onPress={()=>Linking.openURL("https://taranapo.com/faqs/")}  className="text-blue-500 font-semibold">FAQs here.</Text>
+            <Text
+              onPress={() => Linking.openURL("https://taranapo.com/faqs/")}
+              className="text-blue-500 font-semibold"
+            >
+              FAQs here.
+            </Text>
           </ParagraphText>
         </View>
       </View>
