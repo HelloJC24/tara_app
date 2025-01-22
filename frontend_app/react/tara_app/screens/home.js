@@ -1,17 +1,21 @@
 import { StatusBar } from "expo-status-bar";
 import LottieView from "lottie-react-native";
 import React, { useState,useEffect } from "react";
-import { Image, Pressable, Text, TouchableOpacity, View,Linking,Alert } from "react-native";
+import { Image, Pressable, Text, TouchableOpacity, View,Linking,Alert,Platform } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import TaraLogo from "../assets/tara_icon.png";
 import BottomNavBar from "../components/BottomNavBar";
 import Button from "../components/Button";
 import ParagraphText from "../components/ParagraphText";
 import { TaraWalletIcon, TaraMotor, TaraCar, TaraVan, TaraGift } from "../components/CustomIcon";
-import { InviteGraphic, TaraPermission } from "../components/CustomGraphic";
+import { InviteGraphic, TaraPermission, TaraGate } from "../components/CustomGraphic";
 import QRCodeStyled from 'react-native-qrcode-styled';
 import RateUsApp from "../components/RateUsApp";
 import * as Location from 'expo-location';
+import axios from 'axios';
+import appJson from "../app.json";
+const appVersion = appJson.expo.version;
+import * as Notifications from "expo-notifications";
 
 const HomeScreen = ({ navigation }) => {
  
@@ -20,7 +24,10 @@ const HomeScreen = ({ navigation }) => {
   const [userID,setUserID] = useState("54613")
   const [activeRateUs, setActiveRateUs] = useState(true);
   const [locationPermission,setPermissionAsk] = useState(false);
-  const [location, setLocation] = useState([])
+  const [location, setLocation] = useState([]);
+  const [authToken,setAuthToken] = useState("YJwfmxOL3Idl1YvjQtJ0GiUkNVd2")
+  const [controlData,setControlData] = useState([]);
+  const [gate,setGate] = useState(false);
 
   const taraBook = (vehicle) =>{
     navigation.navigate('booking', {
@@ -44,6 +51,24 @@ const HomeScreen = ({ navigation }) => {
     });
   }
 
+
+const newUpdateAvailable = (v) =>{
+  Alert.alert(
+    'Update Available',
+    `You're using old ${v} version. We have our latest ${appVersion} version. Explore new improved update.`,
+    [
+      {
+        text: 'Later',
+        type: 'cancel'
+      },
+      {
+        text: 'Update',
+        onPress: () => Linking.openURL("https://taranapo.com/download/"),
+      }
+      
+    ],
+  );
+}
 
 
  useEffect(() => {
@@ -74,12 +99,98 @@ const HomeScreen = ({ navigation }) => {
       setPermissionAsk(false);
     }else{
       setLocation(location);
+      getControl();
     }
     
   }
 
+  async function getControl() {
+    try {
+      const response = await axios.get(
+        `https://dwayon.tech/api/dataControl/`,
+        {
+          params: {
+            origin:location
+          },
+          headers: {
+              'Auth': `Bearer ${authToken}`,
+              'Content-Type': 'application/json',
+            },
+        }
+      );
+   
+      if (response.data) {
+          setControlData(response.data.data);
+          const supportedLocations = response.data.data.supported_location;
+          setGate(response.data.data.gate)
+          if(location.coords){
+          const { latitude, longitude } = location.coords;
+          const isSupported = supportedLocations.some((location) => {
+            return (
+              latitude >= location.minLat &&
+              latitude <= location.maxLat &&
+              longitude >= location.minLng &&
+              longitude <= location.maxLng
+            );
+          });
+
+          if (!isSupported) {
+            //not supported
+            setGate(true)
+          } 
+          }
+
+            if(Platform.OS == 'android'){
+              if(response.data.data.version_app_android != appVersion){
+                newUpdateAvailable(response.data.data.version_app_android);
+              }
+            }
+           
+            if(Platform.OS == 'ios'){
+              if(response.data.data.version_app_ios != appVersion){
+                newUpdateAvailable(response.data.data.version_app_ios);
+              }
+            }
+           
+
+      } else {
+          
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+
+  //setup for push notifications
+  setTimeout(async () => {
+    registerForPushNotificationsAsync().then((token) => console.log(token));
+
+    const notificationListener = Notifications.addNotificationReceivedListener(
+      (notification) => {
+        console.log("Notification received:", notification);
+      }
+    );
+
+    const responseListener = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        console.log("Notification interacted with:", response);
+      }
+    );
+
+    return () => {
+      Notifications.removeNotificationSubscription(notificationListener);
+      Notifications.removeNotificationSubscription(responseListener);
+    };
+  }, 2000);
+
+
+
+
+
+
   getCurrentLocation();
-}, [locationPermission]);
+}, [locationPermission,setGate,setLocation]);
 
   return (
     <View className="w-full h-full bg-white relative">
@@ -102,7 +213,7 @@ const HomeScreen = ({ navigation }) => {
             </Pressable>
        
                 {
-                  rewardsAvailable ? (
+                  rewardsAvailable || controlData.rewards ? (
                     <Pressable onPress={()=>OpenRewards()} className="pb-1.5 bg-white rounded-lg">
                 <LottieView
                           source={require('../assets/animation/taragift.json')}
@@ -130,8 +241,12 @@ const HomeScreen = ({ navigation }) => {
           align="left"
           textColor="text-neutral-700"
         >
-          It's kind of sunny and cloudy today! Enjoy the trip..
+          {controlData.greetings ?? "hmm.. let me think.."}
         </ParagraphText>
+
+        <View>
+          
+        </View>
 
         <View
           className="w-full border-t border-x border-slate-100 p-3 shadow-md shadow-neutral-500 bg-white rounded-2xl 
@@ -188,14 +303,14 @@ const HomeScreen = ({ navigation }) => {
           <View className="w-full flex flex-row justify-between items-center py-2 px-4">
 
             {
-              location.length == 0 ? (
+              location.length == 0 || controlData.service_status1 == false ? (
 
             <Pressable onPress={()=>setPermissionAsk(true)} className="flex gap-y-1">
               <View className="opacity-50 flex justify-center items-center pt-2 w-20 h-20 bg-slate-200 rounded-full">
                 <TaraMotor size="55" />
               </View>
               <Text className="text-base text-center text-gray-200">
-                TaraRide
+                {controlData.service_name1 ?? 'TaraRide'}
               </Text>
             </Pressable>
 
@@ -208,7 +323,7 @@ const HomeScreen = ({ navigation }) => {
                 <TaraMotor size="55" />
               </View>
               <Text className="text-base text-center text-blue-500">
-                TaraRide
+              {controlData.service_name1 ?? 'TaraRide'}
               </Text>
             </Pressable>
 
@@ -218,13 +333,13 @@ const HomeScreen = ({ navigation }) => {
 
 
               {
-                location.length == 0 ? (
+                location.length == 0 || controlData.service_status2 == false ? (
                   <Pressable onPress={()=>setPermissionAsk(true)}>
                   <View className="opacity-50 flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
                   <TaraCar size="65" />
                   </View>
                   <Text className="text-base text-center text-gray-200">
-                    TaraCar
+                  {controlData.service_name2 ?? 'TaraCar'}
                   </Text>
                 </Pressable> 
                 ):(
@@ -233,7 +348,7 @@ const HomeScreen = ({ navigation }) => {
                             <TaraCar size="65" />
                             </View>
                             <Text className="text-base text-center text-blue-500">
-                              TaraCar
+                            {controlData.service_name2 ?? 'TaraCar'}
                             </Text>
                           </Pressable>
 
@@ -242,13 +357,13 @@ const HomeScreen = ({ navigation }) => {
                 
 
         {
-          location.length == 0 ? (
+          location.length == 0 || controlData.service_status3 == false ? (
             <Pressable onPress={()=>setPermissionAsk(true)}>
             <View className="opacity-50 flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
             <TaraVan size="65" />
             </View>
             <Text className="text-base text-center text-gray-200">
-              TaraVan
+            {controlData.service_name3 ?? 'TaraVan'}
             </Text>
           </Pressable>
           ):(
@@ -258,7 +373,7 @@ const HomeScreen = ({ navigation }) => {
               <TaraVan size="65" />
               </View>
               <Text className="text-base text-center text-blue-500">
-                TaraVan
+              {controlData.service_name3 ?? 'TaraVan'}
               </Text>
             </Pressable>
 
@@ -282,6 +397,8 @@ const HomeScreen = ({ navigation }) => {
        {activeRateUs && <RateUsApp close={() => setActiveRateUs(false)} />}
 
       {locationPermission && ( <AllowLocationPrompt close={()=>setPermissionAsk(false)} />)}
+
+      { gate && (<GatePrompt />)}
        
     </View>
   );
@@ -449,6 +566,77 @@ const AllowLocationPrompt = ({ close }) => {
     </View>
   );
 };
+
+
+const GatePrompt = () => {
+  return (
+    <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
+      <View
+        className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
+      flex gap-y-4"
+      >
+       
+
+        <View className="relative w-full flex justify-center items-center p-4">
+          <TaraGate size={200} />
+        </View>
+
+        <Text className="text-center text-2xl font-bold">
+          Not available right now
+        </Text>
+
+        <ParagraphText
+          align="center"
+          fontSize="sm"
+          textColor="text-neutral-700"
+          padding="px-2"
+        >
+          We are sorry but we are not currently available in your location..
+        </ParagraphText>
+      </View>
+    </View>
+  );
+};
+
+
+async function registerForPushNotificationsAsync() {
+  let token;
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync("petpew", {
+      name: "petpew",
+      sound: "../assets/sounds/petpew.mp3",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: "#beda31",
+      audioAttributes: {
+        usage: Notifications.AndroidAudioUsage.ALARM,
+        contentType: Notifications.AndroidAudioContentType.SONIFICATION,
+      },
+    });
+  }
+
+  
+  const { status } = await Notifications.requestPermissionsAsync();
+  if (status !== "granted") {
+    //failed
+    return;
+  }
+
+  token = await Notifications.getExpoPushTokenAsync({
+    projectId: "9666c06c-78e4-4768-baba-4035a03729fb",
+  });
+ 
+  return token;
+}
+
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 
 export default HomeScreen;

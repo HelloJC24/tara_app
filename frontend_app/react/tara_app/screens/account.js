@@ -22,6 +22,7 @@ import ReportProblemScreen from "../components/ReportContainer";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AuthProvider, { AuthContext } from "../context/authContext";
 import { useToast } from "../components/ToastNotify";
+import * as Updates from 'expo-updates';
 
 const AccountScreen = ({ route, navigation }) => {
   const [activeEditUsername, setActiveEditUsername] = useState(false);
@@ -37,8 +38,8 @@ const AccountScreen = ({ route, navigation }) => {
   const { setUser } = useContext(AuthContext)
   const toast = useToast();
 
-  const showToast = () => {
-    toast("success", "You have been logged out successfully..");
+  const showToast = (type,msg) => {
+    toast(type, msg);
   };
 
 
@@ -71,7 +72,7 @@ const logOut = () =>{
          //connect to logout 
          setUser({accessToken:false})
          await AsyncStorage.removeItem('register');
-         showToast()
+         showToast('success',"You have been logged out successfully..")
         },
       }
       
@@ -79,6 +80,30 @@ const logOut = () =>{
   );
 }
 
+const fetchUpdates = async () =>{
+  try {
+    const update = await Updates.checkForUpdateAsync();
+    if (update.isAvailable) {
+      Alert.alert(
+        'Update Available',
+        'An update is available and will be applied.',
+        [
+          {
+            text: 'OK',
+            onPress: async () => {
+              await Updates.fetchUpdateAsync();
+              await Updates.reloadAsync();
+            },
+          },
+        ],
+      );
+    } else {
+      showToast('success',"Your app is up-to-date.")
+    }
+  } catch (error) {
+    showToast('error',"Can't fetch updates right now.")
+  } 
+}
 
 
   const LiveReport = () =>{
@@ -245,11 +270,11 @@ const logOut = () =>{
                   Request for Account Deletion
                 </Text>
               </View>
-              <View className="w-full border-b border-slate-200 py-2">
+              <Pressable onPress={()=>fetchUpdates()} className="w-full border-b border-slate-200 py-2">
                 <Text className="text-lg py-1 text-blue-500 font-semibold">
                   Check Update
                 </Text>
-              </View>
+              </Pressable>
               <TouchableOpacity
                 onPress={() => setActiveTaraSafe(true)}
                 className="w-full flex flex-row justify-between items-center border-b border-slate-200 py-2"

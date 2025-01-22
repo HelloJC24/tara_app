@@ -8,7 +8,7 @@ import UptimeImage from "../assets/graphic/uptime.svg"
 import SelectTara from "../assets/graphic/tarasafeselect.svg"
 import AskLocation from "../assets/graphic/location-permi.svg"
 import AskCamera from "../assets/graphic/camera-permission.svg"
-
+import AskGate from "../assets/graphic/sadsad.svg"
 
 export const InviteGraphic = (props) => {
     return (
@@ -72,3 +72,9 @@ return (
 <AskCamera width={props.size} height={props.size} fill={props.color} />
 );
 }
+
+export const TaraGate = (props) => {
+    return (
+    <AskGate width={props.size} height={props.size} fill={props.color} />
+    );
+    }

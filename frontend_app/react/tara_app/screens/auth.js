@@ -383,7 +383,7 @@ const TermsAndConditionScreen = (props) => {
         <View className="bg-white h-full w-screen px-4 py-2">
           <WebView
         style={{flex:1,backgroundColor:'white'}}
-        source={{ uri: 'https://kiefersdelivery.com/terms-and-conditions/'
+        source={{ uri: 'https://taranapo.com/terms-and-conditions/'
          }}
         onLoadEnd={() => setIsLoading(true)}
         onLoadStart={() => setIsLoading(false)}

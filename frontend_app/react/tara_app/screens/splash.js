@@ -3,12 +3,15 @@ import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import { Alert, Image, View } from "react-native";
 import TaraLogo from "../assets/tara_icon.png";
+import LottieView from "lottie-react-native";
+
 
 const SplashScreen = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
+
     let navigationTimer;
 
     const checkNetworkAndNavigate = async () => {
@@ -65,10 +68,20 @@ const SplashScreen = ({ navigation }) => {
     <View className="w-full h-full relative bg-white">
       <StatusBar style="light" />
       <View className="w-full h-full py-16 flex justify-end items-center">
-        <Image source={TaraLogo} className="w-36 h-8" />
+        {/* <Image source={TaraLogo} className="w-36 h-8" /> */}
+          <LottieView
+            source={require('../assets/animation/tara-speed.json')}
+            autoPlay
+            loop
+            width={150}
+            height={80}
+          />
       </View>
     </View>
   );
 };
+
+
+
 
 export default SplashScreen;

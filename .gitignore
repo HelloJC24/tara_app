@@ -2,3 +2,4 @@ source.json
 lib
 backend/serviceAccount.json
 frontend_app/react/tara_app/node_modules/
+backend
