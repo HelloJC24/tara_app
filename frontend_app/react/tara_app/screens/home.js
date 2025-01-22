@@ -1,27 +1,47 @@
+import * as Location from "expo-location";
 import { StatusBar } from "expo-status-bar";
 import LottieView from "lottie-react-native";
-import React, { useState,useEffect } from "react";
-import { Image, Pressable, Text, TouchableOpacity, View,Linking,Alert,Platform } from "react-native";
+import React, { useContext, useEffect, useState } from "react";
+import {
+  Alert,
+  Image,
+  Linking,
+  Pressable,
+  Text,
+  TouchableOpacity,
+  View,
+  Platform
+} from "react-native";
+import QRCodeStyled from "react-native-qrcode-styled";
 import Svg, { Path } from "react-native-svg";
 import TaraLogo from "../assets/tara_icon.png";
 import BottomNavBar from "../components/BottomNavBar";
 import Button from "../components/Button";
 import ParagraphText from "../components/ParagraphText";
-import { TaraWalletIcon, TaraMotor, TaraCar, TaraVan, TaraGift } from "../components/CustomIcon";
 import { InviteGraphic, TaraPermission, TaraGate } from "../components/CustomGraphic";
-import QRCodeStyled from 'react-native-qrcode-styled';
 import RateUsApp from "../components/RateUsApp";
 import * as Location from 'expo-location';
 import axios from 'axios';
 import appJson from "../app.json";
 const appVersion = appJson.expo.version;
 import * as Notifications from "expo-notifications";
+import {
+  TaraCar,
+  TaraGift,
+  TaraMotor,
+  TaraVan,
+  TaraWalletIcon,
+} from "../components/CustomIcon";
+import ParagraphText from "../components/ParagraphText";
+import RateUsApp from "../components/RateUsApp";
+import { fetchDataControl, fetchUser } from "../config/hooks";
+import { AuthContext } from "../context/authContext";
+import { DataContext } from "../context/dataContext";
 
 const HomeScreen = ({ navigation }) => {
- 
   const [activeScanFriend, setActiveScanFriend] = useState(false);
-  const [rewardsAvailable, SetRewards] = useState(true)
-  const [userID,setUserID] = useState("54613")
+  const [rewardsAvailable, SetRewards] = useState(true);
+
   const [activeRateUs, setActiveRateUs] = useState(true);
   const [locationPermission,setPermissionAsk] = useState(false);
   const [location, setLocation] = useState([]);
@@ -29,13 +49,56 @@ const HomeScreen = ({ navigation }) => {
   const [controlData,setControlData] = useState([]);
   const [gate,setGate] = useState(false);
 
-  const taraBook = (vehicle) =>{
-    navigation.navigate('booking', {
-      track: userID,
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  const { user } = useContext(AuthContext);
+  const { data, setData } = useContext(DataContext);
+
+  const taraBook = (vehicle) => {
+    navigation.navigate("booking", {
+      track: user?.userId,
       wheels: vehicle,
-      start:location
+      start: location,
+    });
+  };
+
+  const OpenRewards = () => {
+    navigation.navigate("webview", {
+      track: user?.userId,
+      url: `https://taranapo.com/rewards/?taraid=${user?.userId}`,
+    });
+  };
+
+  const openQR = () => {
+    navigation.navigate("qrcode", {
+      mode: "STF",
+    });
+  };
+
+  useEffect(() => {
+    async function getCurrentLocation() {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setPermissionAsk(true);
+        Alert.alert(
+          "Permission Denied",
+          "We cannot proceed performing our services without location access.",
+          [
+            {
+              text: "Close",
+              type: "cancel",
+            },
+          ]
+        );
+        return;
+      } else {
+        setPermissionAsk(false);
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
       });
-  }
 
   const OpenRewards = () =>{
     navigation.navigate('webview', {
@@ -191,6 +254,40 @@ const newUpdateAvailable = (v) =>{
 
   getCurrentLocation();
 }, [locationPermission,setGate,setLocation]);
+      if (location.mocked) {
+        setPermissionAsk(false);
+      } else {
+        setLocation(location);
+      }
+    }
+
+    getCurrentLocation();
+  }, [locationPermission]);
+
+
+
+  useEffect(() => {
+    // fetching user data
+    const getUser = async () => {
+      try {
+        setIsLoading(true);
+        const res = await fetchUser(user?.userId);
+
+        if (res.status === "success") {
+          setData((prevData) => ({
+            ...prevData,
+            user: res.data,
+          }));
+
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    getUser();
+  }, [user?.userId]);
 
   return (
     <View className="w-full h-full bg-white relative">
@@ -200,7 +297,10 @@ const newUpdateAvailable = (v) =>{
           <Image source={TaraLogo} className="w-36 h-full" />
 
           <View className="flex flex-row gap-x-3 items-center justify-between">
-            <Pressable onPress={()=>Linking.openURL("https://taranapo.com")} className="p-1 bg-slate-200 rounded-lg">
+            <Pressable
+              onPress={() => Linking.openURL("https://taranapo.com")}
+              className="p-1 bg-slate-200 rounded-lg"
+            >
               <Svg
                 xmlns="http://www.w3.org/2000/svg"
                 width={20}
@@ -216,22 +316,18 @@ const newUpdateAvailable = (v) =>{
                   rewardsAvailable || controlData.rewards ? (
                     <Pressable onPress={()=>OpenRewards()} className="pb-1.5 bg-white rounded-lg">
                 <LottieView
-                          source={require('../assets/animation/taragift.json')}
-                          autoPlay
-                          loop
-                          width={40}
-                          height={35}
-                      />
-                </Pressable>
-                  ):(
-                    <View className="pt-1.5 px-2 bg-white rounded-lg">
-                    <TaraGift size={24} />
-                    </View>
-                  )
-                }
-          
-                       
-          
+                  source={require("../assets/animation/taragift.json")}
+                  autoPlay
+                  loop
+                  width={40}
+                  height={35}
+                />
+              </Pressable>
+            ) : (
+              <View className="pt-1.5 px-2 bg-white rounded-lg">
+                <TaraGift size={24} />
+              </View>
+            )}
           </View>
         </View>
 
@@ -262,7 +358,9 @@ const newUpdateAvailable = (v) =>{
                 Wallet
               </Text>
               <View className="flex flex-row gap-x-1 items-center">
-                <Text className="text-xl font-medium">&#8369;128.00</Text>
+                <Text className="text-xl font-medium">
+                  &#8369; {isLoading ? "..." : data?.user?.Wallet}
+                </Text>
                 <TouchableOpacity onPress={() => navigation.navigate("wallet")}>
                   <Svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -301,6 +399,28 @@ const newUpdateAvailable = (v) =>{
           </Text>
 
           <View className="w-full flex flex-row justify-between items-center py-2 px-4">
+            {location.length == 0 ? (
+              <Pressable
+                onPress={() => setPermissionAsk(true)}
+                className="flex gap-y-1"
+              >
+                <View className="opacity-50 flex justify-center items-center pt-2 w-20 h-20 bg-slate-200 rounded-full">
+                  <TaraMotor size="55" />
+                </View>
+                <Text className="text-base text-center text-gray-200">
+                  {data?.control?.service_name1 || "TaraRide"}
+                </Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => taraBook(2)} className="flex gap-y-1">
+                <View className="flex justify-center items-center pt-2 w-20 h-20 bg-slate-200 rounded-full">
+                  <TaraMotor size="55" />
+                </View>
+                <Text className="text-base text-center text-blue-500">
+                  {data?.control?.service_name1 || "TaraRide"}
+                </Text>
+              </Pressable>
+            )}
 
             {
               location.length == 0 || controlData.service_status1 == false ? (
@@ -384,6 +504,25 @@ const newUpdateAvailable = (v) =>{
 
 
 
+            {location.length == 0 ? (
+              <Pressable onPress={() => setPermissionAsk(true)}>
+                <View className="opacity-50 flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
+                  <TaraVan size="65" />
+                </View>
+                <Text className="text-base text-center text-gray-200">
+                  {data?.control?.service_name3 || "TaraVan"}
+                </Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => taraBook(5)} className="flex gap-y-1">
+                <View className="flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
+                  <TaraVan size="65" />
+                </View>
+                <Text className="text-base text-center text-blue-500">
+                  {data?.control?.service_name3 || "TaraVan"}
+                </Text>
+              </Pressable>
+            )}
           </View>
         </View>
 
@@ -392,9 +531,13 @@ const newUpdateAvailable = (v) =>{
       {/* <ExistingBooking /> */}
 
       {activeScanFriend && (
-        <FriendsWithBenefits openQR={openQR} QR={userID} close={() => setActiveScanFriend(false)} />
+        <FriendsWithBenefits
+          openQR={openQR}
+          QR={data?.user?.UserID}
+          close={() => setActiveScanFriend(false)}
+        />
       )}
-       {activeRateUs && <RateUsApp close={() => setActiveRateUs(false)} />}
+      {activeRateUs && <RateUsApp close={() => setActiveRateUs(false)} />}
 
       {locationPermission && ( <AllowLocationPrompt close={()=>setPermissionAsk(false)} />)}
 
@@ -454,7 +597,7 @@ const ExistingBooking = () => {
   );
 };
 
-const FriendsWithBenefits = ({openQR,QR, close }) => {
+const FriendsWithBenefits = ({ openQR, QR, close }) => {
   return (
     <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
       <View
@@ -467,33 +610,33 @@ const FriendsWithBenefits = ({openQR,QR, close }) => {
 
         <View className="relative w-full flex justify-center items-center p-4">
           <InviteGraphic size={300} />
-<View className="absolute bottom-7">
-<QRCodeStyled
-  data={QR}
-  style={{backgroundColor: 'transparent'}}
-  padding={10}
-  pieceSize={5}
-  pieceCornerType='rounded'
-  color={'#020617'}
-  pieceScale={1.02}
-  pieceLiquidRadius={3}
-  logo={{
-    href: require('../assets/tara_app.png'),
-    padding: 4,
-    scale: 1,
-    hidePieces: true
-  }}
-  errorCorrectionLevel={'H'}
-  innerEyesOptions={{
-    borderRadius: 4,
-    color: '#404040',
-  }}
-  outerEyesOptions={{
-    borderRadius: 12,
-    color: '#ffa114',
-  }}
-/>
-</View>
+          <View className="absolute bottom-7">
+            <QRCodeStyled
+              data={QR}
+              style={{ backgroundColor: "transparent" }}
+              padding={10}
+              pieceSize={5}
+              pieceCornerType="rounded"
+              color={"#020617"}
+              pieceScale={1.02}
+              pieceLiquidRadius={3}
+              logo={{
+                href: require("../assets/tara_app.png"),
+                padding: 4,
+                scale: 1,
+                hidePieces: true,
+              }}
+              errorCorrectionLevel={"H"}
+              innerEyesOptions={{
+                borderRadius: 4,
+                color: "#404040",
+              }}
+              outerEyesOptions={{
+                borderRadius: 12,
+                color: "#ffa114",
+              }}
+            />
+          </View>
         </View>
 
         <ParagraphText
@@ -502,8 +645,8 @@ const FriendsWithBenefits = ({openQR,QR, close }) => {
           textColor="text-neutral-700"
           padding="px-2"
         >
-          Here’s your unique QR code! Anyone who scans it can get between &#8369;10 and
-          &#8369;20, and you'll receive the same rewards too.
+          Here’s your unique QR code! Anyone who scans it can get between
+          &#8369;10 and &#8369;20, and you'll receive the same rewards too.
         </ParagraphText>
 
         <Text className="text-center text-base font-semibold text-neutral-700">
@@ -511,7 +654,7 @@ const FriendsWithBenefits = ({openQR,QR, close }) => {
         </Text>
 
         <View className="w-full flex gap-y-4">
-          <Button onPress={()=>openQR()}>Scan a friend</Button>
+          <Button onPress={() => openQR()}>Scan a friend</Button>
           <Button
             onPress={close}
             bgColor="bg-slate-200"
@@ -532,8 +675,6 @@ const AllowLocationPrompt = ({ close }) => {
         className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
       flex gap-y-4"
       >
-       
-
         <View className="relative w-full flex justify-center items-center p-4">
           <TaraPermission size={200} />
         </View>
@@ -551,9 +692,7 @@ const AllowLocationPrompt = ({ close }) => {
           We need your precise location for a better experience.
         </ParagraphText>
 
-
         <View className="w-full flex gap-y-4">
-          
           <Button
             onPress={close}
             bgColor="bg-slate-200"

@@ -4,19 +4,20 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   BackHandler,
   Image,
+  Linking,
   Platform,
   Pressable,
   Text,
   TouchableOpacity,
   View,
-  Linking
 } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
 import AppLogo from "../assets/splash-icon.png";
+import { deleteInvalidImage, scanID, uploadImage } from "../config/hooks";
 import Button from "./Button";
+import { TaraCamPermission, UptimeGraphic } from "./CustomGraphic";
 import ParagraphText from "./ParagraphText";
 import { useToast } from "./ToastNotify";
-import { UptimeGraphic,TaraCamPermission } from "./CustomGraphic";
 
 
 const IDScanner = (props) => {
@@ -36,11 +37,10 @@ const IDScanner = (props) => {
     return true;
   };
   useEffect(() => {
-
     if (!permission?.granted) {
-      setHasPermission(true)
-    }else{
-      setHasPermission(false)
+      setHasPermission(true);
+    } else {
+      setHasPermission(false);
     }
 
     
@@ -80,9 +80,9 @@ const IDScanner = (props) => {
     return null;
   }
 
-
-
-
+  const showToast = () => {
+    toast("error", "Something went wrong, try again!");
+  };
 
   const handleImageCapture = async () => {
     try {
@@ -102,31 +102,50 @@ const IDScanner = (props) => {
 
       // Insert Image uri in Form Data
       const formData = new FormData();
-      formData.append("file", {
+      formData.append("image", {
         uri:
           Platform.OS === "ios" ? image.uri.replace("file://", "") : image.uri,
         type: "image/jpeg",
         name: fileName,
       });
 
-      // const scanIdResponse = await scanID();
+      // Upload image
+      const uploadResponse = await uploadImage(formData);
 
-      // // Check for scan errors
-      // if (
-      //   scanIdResponse.data.name === null ||
-      //   scanIdResponse.data.name === "NO NAME FOUND"
-      // ) {
-      //   setIsError(true);
-      //   toast("error", "Your photo is blurry");
-      //   return;
-      // }
-      setTimeout(() => {
-        toast("success", "Image scanned successfully");
+      console.log("Upload res: ", uploadResponse);
+      // Check for upload errors early
+      if (uploadResponse.status === "error") {
+        showToast();
         setIsLoading(false);
-        props.nextPage();
-      }, 3000);
+        return;
+      }
+      // Extract the image URL
+      const imgUrl = uploadResponse.url;
+
+      console.log("ID Scanning...");
+      // Scan the user's ID using the uploaded image
+      const scanIdResponse = await scanID(imgUrl);
+
+      // Check for scan errors
+      if (
+        scanIdResponse.data.name === null ||
+        scanIdResponse.data.name === "NO NAME FOUND"
+      ) {
+        // Delete the image uploaded if has invalid name
+        await deleteInvalidImage(imgUrl);
+        showToast();
+        setIsLoading(false);
+        return;
+      }
+
+      toast("success", "Image scanned successfully");
+      // insert the scanned username
+      props.setScannedUsername(scanIdResponse.data.name);
+      setIsLoading(false);
+      props.nextPage();
     } catch (error) {
       console.log("This is Error: ", error);
+      showToast();
     }
   };
 
@@ -157,8 +176,8 @@ const IDScanner = (props) => {
         <CameraView
           ref={cameraRef}
           facing="back"
-          // ratio="16:9"
-          // pictureSize="1080x1920"
+          ratio="16:9"
+          pictureSize="1080x1920"
           autofocus={true}
           focusable={true}
           mute={true}
@@ -218,11 +237,10 @@ const ProcessingPhoto = (props) => {
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
           </Pressable>
-        
         </View>
 
         <View className="w-full flex items-center gap-y-4">
-        <UptimeGraphic size={200}/>
+          <UptimeGraphic size={200} />
           <Text className="text-center text-base z-50">
             Processing your photo..
           </Text>
@@ -237,7 +255,12 @@ const ProcessingPhoto = (props) => {
 
           <ParagraphText align="center" fontSize="sm" padding="px-4">
             Learn how we protect your personal{" "}
-            <Text onPress={()=>Linking.openURL("https://taranapo.com/data-protection/")} className="text-blue-500 font-semibold">
+            <Text
+              onPress={() =>
+                Linking.openURL("https://taranapo.com/data-protection/")
+              }
+              className="text-blue-500 font-semibold"
+            >
               information here.
             </Text>
           </ParagraphText>
@@ -305,15 +328,13 @@ const ErrorProcessingPhoto = (props) => {
   );
 };
 
-const AskCameraPermission = ({onRequestPermission}) =>{
+const AskCameraPermission = ({ onRequestPermission }) => {
   return (
     <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
       <View
         className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
       flex gap-y-4"
       >
-       
-
         <View className="relative w-full flex justify-center items-center p-4">
           <TaraCamPermission size={200} />
         </View>
@@ -331,11 +352,9 @@ const AskCameraPermission = ({onRequestPermission}) =>{
           We need your camera permission for identification card.
         </ParagraphText>
 
-
         <View className="w-full flex gap-y-4">
-          
           <Button
-          onPress={()=>onRequestPermission()}
+            onPress={() => onRequestPermission()}
             bgColor="bg-blue-500"
             textColor="text-white"
           >
@@ -344,8 +363,8 @@ const AskCameraPermission = ({onRequestPermission}) =>{
         </View>
       </View>
     </View>
-  )
-}
+  );
+};
 
 const GuideNotice = ({close}) =>{
   return (
