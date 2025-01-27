@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { signInWithCustomToken} from "firebase/auth";
 import {
   collection,
   onSnapshot,
@@ -17,32 +17,62 @@ import {
   SCAN_ID_API,
   UPDATE_USER_API,
   UPLOAD_IMG_API,
+  ADMIN_TOKEN,
+  CORRECTOR,
+  EMAILOTP,
+  SMSOTP,
+  DECRYPT_API,
+  GET_SETTINGS_API,
+  CREATE_SETTINGS_API,
+  GENERATE_PUBLIC_TOKEN,
+  UPDATE_SETTINGS,
+  REFERRAL_API
 } from "./constants";
 import { auth, db } from "./firebase-config";
-import { formattedDate, OSID } from "./functions";
+import { validateInputType } from "./functions";
+
+export const generatePublicToken = async()=>{
+  //detect location storage
+  try {
+    const callcheck= await axios.get(GENERATE_PUBLIC_TOKEN,{
+      headers:{
+        Key:ADMIN_TOKEN
+      }
+    });
+    if(callcheck.data.status == 'ok'){
+      console.log('successfully generated public token',callcheck.data.bearer_id_token.length)
+    }
+    return callcheck.data.bearer_id_token;
+  
+  } catch (error) {
+    console.log(error)
+  }
+}
+
 
 // header config for token authorization
-const config = async () => {
-  try {
-    const token = await AsyncStorage.getItem("uid");
-    console.log(token);
-    return {
-      headers: { Auth: "Bearer YJwfmxOL3Idl1YvjQtJ0GiUkNVd2" },
-    };
-  } catch (e) {}
+const config = async (user) => {
+  return {
+    headers: { Auth: user?.accessToken || await generatePublicToken() }, // Use token from user context
+  };
 };
+
+export const hookConf = async (user) =>{
+  const token = await config(user);
+  return token.headers.Auth;
+}
 
 // Upload image to firebase cloud storage
 export const uploadImage = async (file) => {
   try {
     const res = await axios.post(`${UPLOAD_IMG_API}`, file, {
       headers: {
-        Auth: "Bearer YJwfmxOL3Idl1YvjQtJ0GiUkNVd2",
+        Auth: await generatePublicToken(),
         "Content-Type": "multipart/form-data",
       },
     });
 
-    console.log("Uploaded Image: ", res.data);
+    //console.log("Uploaded Image: ", res.data);
     return {
       status: res.data.status,
       message: res.data.message,
@@ -59,7 +89,7 @@ export const uploadImage = async (file) => {
 
 export const deleteInvalidImage = async (url) => {
   try {
-    console.log("delete this image: ", url);
+    //console.log("delete this image: ", url);
 
     const filename = url.split("/").pop();
 
@@ -70,7 +100,7 @@ export const deleteInvalidImage = async (url) => {
 
     const res = await axios.post(`${DELETE_IMG_API}`, data, {
       headers: {
-        Auth: "Bearer YJwfmxOL3Idl1YvjQtJ0GiUkNVd2",
+        Auth: await generatePublicToken(),
       },
     });
 
@@ -95,7 +125,7 @@ export const scanID = async (imgUrl) => {
   try {
     const res = await axios.get(`${SCAN_ID_API}?url=${imgUrl}`, {
       headers: {
-        Auth: "Bearer YJwfmxOL3Idl1YvjQtJ0GiUkNVd2",
+        Auth: await generatePublicToken(),
       },
     });
 
@@ -132,75 +162,67 @@ export const scanID = async (imgUrl) => {
   }
 };
 
-export const createAccount = async (username) => {
+
+//saving to Firebase
+export const createAccount = async (username,deviceId) => {
   try {
-    // Clean up username by converting to lowercase,  removing spaces and remove invalid characters
-    const sanitizedUsername = username
-      .toLowerCase()
-      .replace(/\s+/g, "")
-      .replace(/[^a-z0-9._-]/g, "");
-
-    // Generate email and password
-    const email = `${sanitizedUsername}@gmail.com`;
-    const password = sanitizedUsername;
-
-    // Create Firebase auth account
-    const firebaseAuthRes = await createUserWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
-
-    const uid = await firebaseAuthRes.user.uid;
-
-    const sessionToken = await firebaseAuthRes.user.getIdToken(true);
-
     const user = {
       Username: username,
-      Phone: "",
-      Wallet: "005.00",
-      Cancel: false,
-      Created: formattedDate(),
-      OSID: OSID(),
-      Status: "Active",
-      Email: "",
-      SRD: "",
-      Location: "",
-      Device: "Phone",
-      ActiveBooking: 0,
-      Assignee: "User",
-      ReviewUs: false,
-      Session: sessionToken,
+      Phone: "N/A",
+      Email: "N/A",
+      Device: deviceId,
     };
-
-    // save uid to api headers for auth
-    await AsyncStorage.setItem("uid", uid);
-
+  
+  
+  
     // Send user data to external API
     const res = await axios.post(CREATE_USER_API, user, {
       headers: {
-        Auth: "Bearer YJwfmxOL3Idl1YvjQtJ0GiUkNVd2",
+        Auth: await generatePublicToken(),
       },
     });
 
+    //logged
+    //console.log(res.data)
+
+    signInWithCustomToken(auth, res.data.Token)
+    .then((userCredential) => {
+        // User is signed in
+        //console.log("User signed in:", userCredential.user);
+    })
+    .then((idToken) => {
+      saveidToken(idToken)
+    })
+    .catch((error) => {
+        //console.error("Error signing in:", error.code, error.message);
+    });
+
+
     return {
       status: "success",
-      data: res.data.data,
+      data: res.data,
     };
+
+
+
+
+
   } catch (error) {
     console.log(error.code);
     return {
       status: "error",
-      message: error.message,
+      msg:error.code
     };
   }
 };
+
+
 
 export const fetchDataControl = async () => {
   try {
     const res = await axios.get(`${GET_DATA_CONTROL_API}`, await config());
 
-    console.log("data control: ", res.data);
+    //console.log("data control: ", res.data);
     return {
       status: "success",
       data: res.data.data,
@@ -214,14 +236,14 @@ export const fetchDataControl = async () => {
   }
 };
 
-export const fetchUser = async (userId) => {
+export const fetchUser = async (userId,user) => {
   try {
     const res = await axios.get(
       `${GET_USER_API}?UserID=${userId}`,
-      await config()
+      await config(user)
     );
 
-    console.log("User: ", res.data);
+    //console.log("User: ", res.data);
     return {
       status: "success",
       data: res.data.data,
@@ -235,7 +257,7 @@ export const fetchUser = async (userId) => {
   }
 };
 
-export const updateUser = async (userId, target_column, value) => {
+export const updateUser = async (userId, target_column, value,user) => {
   try {
     const newData = {
       UserID: userId,
@@ -243,16 +265,17 @@ export const updateUser = async (userId, target_column, value) => {
         [target_column]: value,
       },
     };
-    console.log(newData);
-    const res = await axios.post(`${UPDATE_USER_API}`, newData, await config());
-    console.log("updated user response: ", res.data);
+    //console.log(newData);
+    const res = await axios.post(`${UPDATE_USER_API}`, newData,
+       await config(user ?? null)
+    );
 
     return {
       status: "success",
       message: res.data.message,
     };
   } catch (error) {
-    console.error("Error updating username:", error);
+    console.error("Error updating data:", error);
     return {
       status: "error",
       message: error.message,
@@ -260,20 +283,6 @@ export const updateUser = async (userId, target_column, value) => {
   }
 };
 
-// Function to update email from firebase auth
-// export const updateEmailAddress = async (newEmail) => {
-//   try {
-//     const verification = await sendEmailVerification(auth.currentUser);
-
-//     console.log(verification);
-
-//     const res = await updateEmail(auth.currentUser, newEmail);
-//     console.log("update email: ", res);
-//     console.log("Email updated successfully");
-//   } catch (error) {
-//     console.error("Error updating email:", error);
-//   }
-// };
 
 export const insertChat = async (chat) => {
   try {
@@ -358,7 +367,7 @@ export const fetchInboxMessages = async (senderId, cb) => {
   }
 };
 
-export const fetchHistory = async (userId, starting_date, end_date) => {
+export const fetchHistory = async (userId, starting_date, end_date,user) => {
   try {
     // const res = await axios.get(
     //   `${GET_HISTORY_API}?UserID=${userId}&starting_date=${starting_date}&end_date=${end_date}`,
@@ -367,7 +376,7 @@ export const fetchHistory = async (userId, starting_date, end_date) => {
 
     const res = await axios.get(
       `${GET_HISTORY_API}?UserID=Uf9df5b&starting_date=2025-01-01&end_date=2025-01-31`,
-      await config()
+      await config(user)
     );
 
     console.log("History: ", res.data);
@@ -384,3 +393,232 @@ export const fetchHistory = async (userId, starting_date, end_date) => {
     };
   }
 };
+
+export const userNameAgent = async (username,newusername,user) => {
+  try {
+    const response = await axios.get(CORRECTOR,{
+      headers: {
+        Auth: await generatePublicToken(),
+      },
+      params: {
+        new:newusername,
+        old:username
+      },
+    })
+    
+    return response.data;
+
+  }catch(e){
+    console.log(e)
+  }
+}
+
+export const checkUserAccount = async (input) =>{
+var paramtype = 'UserID'
+const checktype = validateInputType(input)
+if(checktype == 'phone'){
+  paramtype = 'Phone'
+}else if(checktype == 'email'){
+  paramtype = 'Email'
+}
+
+
+try {
+  const callcheck= await axios.get(`${GET_USER_API}?${paramtype}=${input}`,{
+    headers: {
+      Auth: await generatePublicToken(),
+    }
+  });
+
+ // console.log(callcheck.data)
+  return callcheck.data;
+
+} catch (error) {
+  console.log(error)
+}
+}
+
+export const sendOTPAccount = async (input,otp) =>{
+  var kindparams = `${EMAILOTP}?email=${input}&code=${otp}`
+  const checktype = validateInputType(input)
+  if(checktype == 'phone'){
+    kindparams = `${SMSOTP}?phone=${input}&otp=${otp}`
+  }
+  
+  try {
+    const callcheck= await axios.get(kindparams,{
+      headers: {
+        Auth: await generatePublicToken(),
+      }
+    });
+  
+    return callcheck.data;
+  
+  } catch (error) {
+    console.log(error)
+  }
+  }
+  
+
+const saveidToken = async (value) => {
+  try {
+    await AsyncStorage.setItem("idToken", value);
+  } catch (e) {
+    // saving error
+  }
+};
+
+const savedTaraUser = async (value) => {
+  try {
+    await AsyncStorage.setItem("taraid", value);
+  } catch (e) {
+    // saving error
+  }
+};
+
+const saveDevice = async (value) => {
+  try {
+    await AsyncStorage.setItem("register", value);
+  } catch (e) {
+    // saving error
+  }
+};
+
+export const confirmOTPProcess = async (taraid,otp) => {
+  console.log("user",taraid,otp)
+  const userInfo = await fetchUser(taraid);
+  const eotp = userInfo.data.OTP;
+  try {
+    const resdec = await axios.get(`${DECRYPT_API}?decrypt=${eotp}`,{
+      headers: {
+        Auth: await generatePublicToken(),
+      }
+    })
+    
+    if(resdec.data.value == otp){
+      //update
+      const update_respnse = await updateUser(taraid,"OTP","");
+      //sign in
+      //console.log("response from update",update_respnse.message)
+      signInWithCustomToken(auth, update_respnse.message)
+      .then((userCredential) => {
+          // User is signed in
+          //console.log("User signed in:", userCredential.user);
+          saveDevice("true");
+          savedTaraUser(taraid)
+      })
+      .then((idToken) => {
+        saveidToken(idToken)
+      })
+      .catch((error) => {
+          console.error("Error signing in:", error.code, error.message);
+      });
+
+
+
+
+    }else{
+      return {
+        status: "error",
+        msg: "One Time Password is incorrect."
+      }
+    }
+   
+
+  } catch (error) {
+    console.log(error)
+  }
+  return userInfo;
+}
+
+export const getUserSettings = async(userID,user)=>{
+  try {
+    const callcheck= await axios.get(`${GET_SETTINGS_API}?UserID=${userID}`,
+      await config(user)
+    );
+    return callcheck.data;
+  
+  } catch (error) {
+    console.log(error)
+  }
+  }
+
+export const createSettings = async(userID,user)=>{
+  try {
+    const user_settings = {
+        UserID: userID,
+        PaymentType: "wallet",
+        AISuggestions: true,
+        RateAfterDrop: true,
+        Plan_auto_renew: "N/A",
+        set_renew_date: "N/A",
+        renew_payment_mode: "monthly",
+        ui_mode: "light",
+        autopickup: false,
+        marketing:true
+    };
+  
+    // Send user data to external API
+    const res = await axios.post(CREATE_SETTINGS_API, user_settings,
+      await config(user)
+    );
+
+    return res.data;
+    
+  }catch(e){
+
+  }
+}
+
+export const updateSettings = async (userId,target_column,value,user)=>{
+
+//check
+const sets = await getUserSettings(userId,user);
+if(sets.message == 'No settings found for the provided UserID or TaraID.'){
+//create
+console.log("creating a settings")
+const weeh = await createSettings(userId,user);
+if(weeh.message != 'Settings created successfully.'){
+return;
+}
+}
+  try {
+    const newData = {
+      UserID: userId,
+      target_columns: {
+        [target_column]: value,
+      },
+    };
+    //console.log(newData);
+    const res = await axios.post(`${UPDATE_SETTINGS}`, newData,
+       await config(user ?? null)
+    );
+
+    return {
+      status: "success",
+      message: res.data.message,
+    };
+  } catch (error) {
+    console.error("Error updating settings:", error);
+    return {
+      status: "error",
+      message: error.message,
+    };
+  }
+}
+
+export const referAFriend = async(userID,friend,user) =>{
+  console.log(userID,friend)
+  try {
+    const callcheck= await axios.get(`${REFERRAL_API}?referrer=${userID}&friend=${friend}`,
+      await config(user)
+    );
+
+    console.log(callcheck.data)
+    return callcheck.data;
+  
+  } catch (error) {
+    console.log(error)
+  }
+}
+

@@ -1,6 +1,6 @@
 import BottomSheet from "@devvie/bottom-sheet";
 import { StatusBar } from "expo-status-bar";
-import React, { useContext, useRef, useState } from "react";
+import React, { useContext, useRef, useState,useEffect } from "react";
 import {
   FlatList,
   I18nManager,
@@ -10,6 +10,8 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  TouchableWithoutFeedback,
+  Keyboard
 } from "react-native";
 import QRCodeStyled from "react-native-qrcode-styled";
 import Svg, { Path, Rect } from "react-native-svg";
@@ -27,12 +29,28 @@ import {
 import ParagraphText from "../components/ParagraphText";
 import ReportProblemScreen from "../components/ReportContainer";
 import { DataContext } from "../context/dataContext";
+import { getUserSettings,createSettings,updateSettings,checkUserAccount } from "../config/hooks";
+import { AuthContext } from "../context/authContext";
+import { TaraEmpty } from "../components/CustomGraphic";
+import { useToast } from "../components/ToastNotify";
 
-const WalletScreen = ({ navigation }) => {
+
+const WalletScreen = ({  navigation}) => {
   const [activeTopup, setActiveTopup] = useState(false);
   const [activeSendOrTransfer, setActiveSendOrTransfer] = useState(false);
   const [help, setHelp] = useState(false);
   const { data, setData } = useContext(DataContext);
+  const { user } = useContext(AuthContext);
+  const [defaulPay,setDefaultPay] = useState(false);
+  const [repfriend,setRep] = useState(null)
+  const toast = useToast();
+  
+
+  // useEffect(()=>{
+  //   setRep(data.friend ?? null);
+  //   setActiveSendOrTransfer(true)
+  // },[data,setData])
+ 
 
   const LiveReport = () => {
     navigation.navigate("webview", {
@@ -43,90 +61,116 @@ const WalletScreen = ({ navigation }) => {
 
   const openQR = () => {
     navigation.navigate("qrcode", {
-      mode: "STR",
+      mode: "STR"
     });
   };
 
-  const [walletTransactions, setWalletTransaction] = useState([
-    {
-      id: "1",
-      type: "ride",
-      bookingId: "T-AR65ASD54",
-      amount: "28.00",
-    },
-    {
-      id: "2",
-      type: "ride",
-      bookingId: "T-AR65ASD54",
-      amount: "28.00",
-    },
-    {
-      id: "3",
-      type: "ride",
-      bookingId: "T-AR65ASD54",
-      amount: "28.00",
-    },
-    {
-      id: "4",
-      type: "credit",
-      bookingId: "T-AR65ASD54",
-      amount: "8.00",
-    },
-    {
-      id: "5",
-      type: "ride",
-      bookingId: "T-AR65ASD54",
-      amount: "28.00",
-    },
-    {
-      id: "6",
-      type: "ride",
-      bookingId: "T-AR65ASD54",
-      amount: "28.00",
-    },
-    {
-      id: "7",
-      type: "ride",
-      bookingId: "T-AR65ASD54",
-      amount: "28.00",
-    },
-    {
-      id: "8",
-      type: "credit",
-      bookingId: "T-AR65ASD54",
-      amount: "28.00",
-    },
-    {
-      id: "9",
-      type: "ride",
-      bookingId: "T-AR65ASD54",
-      amount: "28.00",
-    },
-    {
-      id: "10",
-      type: "ride",
-      bookingId: "T-AR65ASD54",
-      amount: "28.00",
-    },
-    {
-      id: "11",
-      type: "ride",
-      bookingId: "T-AR65ASD54",
-      amount: "28.00",
-    },
-    {
-      id: "12",
-      type: "ride",
-      bookingId: "T-AR65ASD54",
-      amount: "28.00",
-    },
-    {
-      id: "13",
-      type: "credit",
-      bookingId: "T-AR65ASD54",
-      amount: "19.00",
-    },
-  ]);
+
+  useEffect(()=>{
+    const pullSettings = async () =>{
+      console.log("pulling settings")
+      const sets = await getUserSettings(data?.user?.UserID,user);
+      if(sets.message == 'No settings found for the provided UserID or TaraID.'){
+        //create
+        //console.log("creating a settings")
+        //const weeh = await createSettings(data?.user?.UserID,user);
+      }else{
+        //load settings
+        console.log("default:",sets.data[0].PaymentType)
+        if(sets.data[0].PaymentType == 'wallet'){
+          setDefaultPay(true)
+        }
+      }
+    }
+    pullSettings();
+  },[data,user])
+
+
+  const setdefualtPaymentMethod = async (mode) =>{
+    await updateSettings(data?.user?.UserID,"PaymentType",mode,user)
+    toast("success", "Payment method updated.");
+  }
+
+  const [walletTransactions, setWalletTransaction] = useState([])
+  //   {
+  //     id: "1",
+  //     type: "ride",
+  //     bookingId: "T-AR65ASD54",
+  //     amount: "28.00",
+  //   },
+  //   {
+  //     id: "2",
+  //     type: "ride",
+  //     bookingId: "T-AR65ASD54",
+  //     amount: "28.00",
+  //   },
+  //   {
+  //     id: "3",
+  //     type: "ride",
+  //     bookingId: "T-AR65ASD54",
+  //     amount: "28.00",
+  //   },
+  //   {
+  //     id: "4",
+  //     type: "credit",
+  //     bookingId: "T-AR65ASD54",
+  //     amount: "8.00",
+  //   },
+  //   {
+  //     id: "5",
+  //     type: "ride",
+  //     bookingId: "T-AR65ASD54",
+  //     amount: "28.00",
+  //   },
+  //   {
+  //     id: "6",
+  //     type: "ride",
+  //     bookingId: "T-AR65ASD54",
+  //     amount: "28.00",
+  //   },
+  //   {
+  //     id: "7",
+  //     type: "ride",
+  //     bookingId: "T-AR65ASD54",
+  //     amount: "28.00",
+  //   },
+  //   {
+  //     id: "8",
+  //     type: "credit",
+  //     bookingId: "T-AR65ASD54",
+  //     amount: "28.00",
+  //   },
+  //   {
+  //     id: "9",
+  //     type: "ride",
+  //     bookingId: "T-AR65ASD54",
+  //     amount: "28.00",
+  //   },
+  //   {
+  //     id: "10",
+  //     type: "ride",
+  //     bookingId: "T-AR65ASD54",
+  //     amount: "28.00",
+  //   },
+  //   {
+  //     id: "11",
+  //     type: "ride",
+  //     bookingId: "T-AR65ASD54",
+  //     amount: "28.00",
+  //   },
+  //   {
+  //     id: "12",
+  //     type: "ride",
+  //     bookingId: "T-AR65ASD54",
+  //     amount: "28.00",
+  //   },
+  //   {
+  //     id: "13",
+  //     type: "credit",
+  //     bookingId: "T-AR65ASD54",
+  //     amount: "19.00",
+  //   },
+  // ]);
 
   return (
     <View className="w-full h-full bg-white relative">
@@ -173,7 +217,7 @@ const WalletScreen = ({ navigation }) => {
 
             <View>
               <Text className="text-2xl font-bold text-center">
-                &#8369; {data?.user?.Wallet}
+                &#8369; {data?.user?.Wallet}.00
               </Text>
               <Text className="text-base font-normal text-center">
                 Available balance
@@ -224,7 +268,7 @@ const WalletScreen = ({ navigation }) => {
             <View className="w-full flex flex-row gap-x-4 items-center justify-between py-4">
               <Text className="text-base">Set as default payment method</Text>
 
-              <ToggleButton />
+              <ToggleButton upd={setDefaultPay} state={defaulPay} change={setdefualtPaymentMethod} />
             </View>
           </View>
         </View>
@@ -235,7 +279,16 @@ const WalletScreen = ({ navigation }) => {
           Wallet transactions
         </Text>
 
-        <FlatList
+      {
+        walletTransactions.length == 0 ? (
+          <View className="h-full flex-row justify-center items-start">
+                <View className="mt-20">
+                <TaraEmpty size={150} />
+                <Text className="text-center mt-4 text-gray-400">aww nothing here..</Text>
+                </View>
+                </View>
+        ):(
+          <FlatList
           className="mb-[350px]"
           data={walletTransactions}
           renderItem={({ item, index }) => (
@@ -250,6 +303,10 @@ const WalletScreen = ({ navigation }) => {
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
         />
+        )
+      }
+
+     
 
         {/* <ScrollView
           showsVerticalScrollIndicator={false}
@@ -278,6 +335,9 @@ const WalletScreen = ({ navigation }) => {
       )}
       {activeSendOrTransfer && (
         <SendOrTransferScreen
+        realtiming={data}
+          rep={repfriend}
+          balance={data}
           openQR={openQR}
           close={() => setActiveSendOrTransfer(false)}
         />
@@ -323,13 +383,30 @@ const TransactionItem = ({ navigation, bookingId, amount, type }) => {
   );
 };
 
-const ToggleButton = () => {
-  const [isChecked, setIsChecked] = useState(true);
+const ToggleButton = ({upd,change, ...props}) => {
+  const [isChecked, setIsChecked] = useState(false);
+
+  useEffect(()=>{
+  setIsChecked(props.state)
+  },[props])
+
+
+  const changeToggle = () =>{
+    setIsChecked(!isChecked)
+    if(isChecked){
+      change("cash")
+      upd(false)
+    }else{
+      change("wallet")
+      upd(true)
+    }
+    
+  }
 
   return (
     <View className="flex-row items-center">
       <Pressable
-        onPress={() => setIsChecked(!isChecked)}
+        onPress={() => changeToggle()}
         className={`relative w-14 h-8 rounded-full ${
           isChecked ? "bg-blue-500" : "bg-gray-200"
         }`}
@@ -348,11 +425,20 @@ const ToggleButton = () => {
   );
 };
 
-const PaymentMethods = ({ navigation, provider, status, endpoint }) => {
+const PaymentMethods = ({ navigation, provider, status, endpoint, much }) => {
+  const { data } = useContext(DataContext);
+  const toast = useToast();
+
   const openPayment = (mop) => {
+
+    if(!much){
+       toast("error", "Please provide top up amount.");
+       return
+    }
+
     navigation.navigate("webview", {
       track: "payment",
-      url: `https://taranapo.com/bacungan/payments/${mop}/?taraid=${"dfd"}`,
+      url: `https://taranapo.com/gateway/payments/${mop}/?taraid=${data?.user?.UserID}&amount=${much}`,
     });
   };
 
@@ -472,8 +558,9 @@ const TopupScreen = ({ navigation, close }) => {
               </View>
 
               <TextInput
-                className="flex-1 text-lg text-blue-500"
+                className="font-medium flex-1 text-lg text-blue-500"
                 value={amount}
+                maxLength={4}
                 onChangeText={setAmount}
                 placeholder="Enter top-up amount"
                 keyboardType="numeric"
@@ -497,6 +584,7 @@ const TopupScreen = ({ navigation, close }) => {
                     endpoint={item.endpoint}
                     status={item.status}
                     navigation={navigation}
+                    much={amount}
                   />
                 )}
                 keyExtractor={(item) => item.id}
@@ -520,14 +608,74 @@ const TopupScreen = ({ navigation, close }) => {
   );
 };
 
-const SendOrTransferScreen = ({ openQR, close }) => {
+const SendOrTransferScreen = ({realtiming,rep,balance, openQR, close }) => {
   const [amount, setAmount] = useState("");
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(rep);
   const sheetRef = useRef(null);
-  const [userMe, setUSERME] = useState("1224");
+  const [userMe, setUSERME] = useState(balance?.user?.UserID);
+  const [allowed,setAllow] = useState(false)
+  const toast = useToast();
+  
+
+  useEffect(()=>{
+    setInput(realtiming.friend);
+    sheetRef.current.close();
+    if(balance?.user?.UserID == realtiming.friend){
+      toast("try_again", "Sending to yourself? Why?");
+      setAllow(false)
+    }
+  },[realtiming])
+
+ 
+  const openCute = () =>{
+    sheetRef.current.open()
+    Keyboard.dismiss()
+  }
+
+
+  const checkBalance=(text)=>{
+    setAmount(text)
+    if(text == '0'){
+      setAllow(false)
+      return;
+    }
+
+    if(amount != '' && input != ''){
+      setAllow(true)
+    }
+
+    if(parseInt(balance?.user?.Wallet) == parseInt(text)){
+      toast("error", "Ops! You need to keep some balance.");
+      setAllow(false)
+    }
+
+    if(parseInt(balance?.user?.Wallet) < parseInt(text)){
+      toast("error", "Not enough wallet balance.");
+      setAllow(false)
+    }
+
+   
+  }
+
+
+  const checkRep = async () =>{
+    const cehckas = await checkUserAccount(input);
+    if(cehckas.message == 'User found.'){
+      setAllow(true)
+      toast("success", "Account found. Ready for sending ..");
+    }else{
+      setAllow(false)
+      toast("error", "No Tara account associated with this information was found.");
+    }
+  }
+
+
+
   return (
     <View className="w-full h-screen bg-white absolute inset-0 z-50">
       <StatusBar style="dark" />
+      <TouchableWithoutFeedback onPress={()=>Keyboard.dismiss()}>
+      <View>
       <View className=" border-b-[10px] border-slate-200">
         <View className="px-6 pt-10 ">
           <View className="w-full flex flex-row gap-x-3 items-center justify-end py-2">
@@ -553,26 +701,28 @@ const SendOrTransferScreen = ({ openQR, close }) => {
               </View>
 
               <TextInput
-                className="flex-1 text-lg text-blue-500"
+                className="font-medium flex-1 text-xl text-blue-500"
                 value={amount}
                 keyboardType="numeric"
-                onChangeText={setAmount}
                 placeholder="Enter amount"
+                maxLength={4}
+                onChangeText={checkBalance}
               />
             </View>
 
             <Text className="text-sm py-4">
               Available Balance: (
-              <Text className="font-bold">&#8369;128.00</Text>)
+              <Text className="font-bold">&#8369;{balance?.user?.Wallet}.00</Text>)
             </Text>
           </View>
         </View>
       </View>
 
+      
       <View className="w-full px-6 py-4">
         <View className="flex-row justify-between items-center pb-4">
           <Text className="text-lg font-semibold w-48 ">Recipient: </Text>
-          <TouchableOpacity onPress={() => sheetRef.current.open()}>
+          <TouchableOpacity onPress={() => openCute()}>
             <View className="flex-row justify-center items-center">
               <TaraBlackQR size={25} color="#404040" />
               <Svg
@@ -596,8 +746,10 @@ const SendOrTransferScreen = ({ openQR, close }) => {
             className="w-full text-lg text-blue-500"
             type="text"
             value={input}
+            maxLength={30}
             onChangeText={setInput}
-            placeholder="Email or phone number"
+            onBlur={()=>checkRep()}
+            placeholder="TaraID, Email or phone number"
           />
         </View>
         <ParagraphText
@@ -608,6 +760,7 @@ const SendOrTransferScreen = ({ openQR, close }) => {
           Make sure they linked their phone number or email address.
         </ParagraphText>
       </View>
+     
 
       <View className="w-full flex gap-y-4 px-6 py-10">
         <ParagraphText
@@ -627,8 +780,20 @@ const SendOrTransferScreen = ({ openQR, close }) => {
             Refund Policy.
           </Text>
         </ParagraphText>
-        <Button>Send</Button>
+        {
+          allowed ? (
+          <Button>Send</Button>
+          ):(
+          <Button
+           bgColor="bg-slate-200"
+           textColor="text-white"
+          >Send</Button>
+          )
+        }
+        
       </View>
+        </View>
+        </TouchableWithoutFeedback>
       <BottomSheet
         animationType="false"
         ref={sheetRef}

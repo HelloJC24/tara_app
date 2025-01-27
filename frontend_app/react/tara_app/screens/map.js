@@ -3,7 +3,7 @@ import { WebView } from 'react-native-webview';
 import Svg, { Circle, Path,Rect,Defs, Filter, FeGaussianBlur } from "react-native-svg";
 import LottieView from 'lottie-react-native';
 import BottomSheet from "@devvie/bottom-sheet";
-import { useRef,useEffect, useState, use } from "react";
+import { useRef,useEffect, useState, useContext } from "react";
 import Button from "../components/Button";
 import animationMarker from '../assets/animation/marker.json';
 import { 
@@ -29,6 +29,10 @@ import * as Location from 'expo-location';
 import { useToast } from "../components/ToastNotify";
 import QRCodeStyled from 'react-native-qrcode-styled';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUserSettings,updateSettings } from "../config/hooks";
+import { AuthContext } from "../context/authContext";
+import { DataContext } from "../context/dataContext";
+import { hookConf } from "../config/hooks";
 
 const BookingPage = ({route,navigation}) =>{
  const sheetRef = useRef(null);
@@ -81,7 +85,9 @@ const [draglocaname,setdragLocName] = useState("Unknown location")
 const [vehiclePrompt,readVehicleProm] = useState(false)
 const [slideTut,setSlideTutor] = useState(false)
 const [slidedontshow,setSlideDontShow] = useState(false)
-const [authToken,setAuthToken] = useState("YJwfmxOL3Idl1YvjQtJ0GiUkNVd2")
+const { user,setUser } = useContext(AuthContext);
+const { data } = useContext(DataContext);
+const [authToken,setAuthToken] = useState(null)
 
 const showToast = (type,msg) => {
 toast(type, msg);
@@ -89,7 +95,6 @@ toast(type, msg);
 
 
 useEffect(()=>{
-
 //get tutorials
 const getData = async () => {
     try {
@@ -102,11 +107,7 @@ const getData = async () => {
       console.log(e)
     }
   };
-
   getData();
-
-
-
 const {wheels,start} = route.params;
 if(route.params){
 addVehicle(wheels)
@@ -123,7 +124,37 @@ switch (wheels) {
 
 
 
+
 },[route,setSlideTutor])
+
+//pull settings
+useEffect(()=>{
+const pullSettings = async () =>{
+    console.log("pulling settings")
+    const sets = await getUserSettings(data?.user?.UserID,user);
+    if(sets.message == 'No settings found for the provided UserID or TaraID.'){
+    //create
+    //console.log("creating a settings")
+    //const weeh = await createSettings(data?.user?.UserID,user);
+    }else{
+    //load settings
+    if(sets.data[0].PaymentType == 'wallet'){
+        setModeofPayment(1)
+    }else{
+        setModeofPayment(0)
+    }
+    }
+}
+
+
+//token
+const readyToken = async () =>{
+    setAuthToken(await hookConf(user))
+}
+
+readyToken();
+pullSettings();
+},[data,user])
 
 
 
@@ -349,10 +380,9 @@ const draggingStop = async () =>{
         params: {
           coordinates:mapboxCeb
         },
-        headers: {
-            'Auth': `Bearer ${authToken}`,
-            'Content-Type': 'application/json',
-          },
+        headers:{
+            Auth: authToken
+        }
       }
     );
  
@@ -1692,6 +1722,7 @@ height={40}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
             <LocationCard
+            autoDrop={setInfoMode}
             sheet={sheetRef}
             infoMode={infoMode}
             data={item}

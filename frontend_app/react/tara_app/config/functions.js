@@ -21,3 +21,24 @@ export const OSID = () => {
     return "Unknown";
   }
 };
+
+export const validateInputType = (input) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Regex for email validation
+  const phoneRegex = /^\+?(\d{1,3})?[-.\s]?\(?\d{1,4}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}$/; // Regex for phone number validation
+
+  if (emailRegex.test(input)) {
+    return "email";
+  } else if (phoneRegex.test(input)) {
+    return "phone";
+  } else {
+    return "invalid";
+  }
+};
+
+export const generateOTP = () => {
+  const otp = Math.floor(10000 + Math.random() * 90000); // Generate a random 6-digit number
+  return otp.toString(); // Convert to string to preserve leading zeros, if any
+};
+
+
+

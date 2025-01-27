@@ -47,7 +47,7 @@ const ProtectedRouting = () => {
         headerShown: false,
       })}
     >
-      {user?.accessToken || device ? (
+      {user?.accessToken ? (
         <>
           <Stack.Screen name="home" component={HomeScreen} />
           <Stack.Screen name="wallet" component={WalletScreen} />
@@ -60,11 +60,9 @@ const ProtectedRouting = () => {
         </>
       ) : (
         <>
-          {device ? ( //temporary solution to solve auth glitch
-            <Stack.Screen name="start" component={StartPage} />
-          ) : (
+      
             <Stack.Screen name="auth" component={AuthScreen} />
-          )}
+       
 
           <Stack.Screen name="webview" component={WebViewerScreen} />
         </>

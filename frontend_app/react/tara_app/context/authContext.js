@@ -6,7 +6,7 @@ import { auth } from "../config/firebase-config";
 export const AuthContext = createContext({});
 
 const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState([]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -14,15 +14,19 @@ const AuthProvider = ({ children }) => {
         try {
           // Retrieve the ID token (accessToken) securely
           const accessToken = await currentUser.getIdToken(true);
-          console.log("Current User AccessToken: ", accessToken);
+          const uid = currentUser.uid;
+          console.log("Current User AccessToken: ", accessToken.length,uid);
 
           // Store accessToken in AsyncStorage
           await AsyncStorage.setItem("accessToken", accessToken);
+          await AsyncStorage.setItem("uid", uid);
 
           // Update the user state with accessToken
-          setUser({
-            accessToken: accessToken,
-          });
+        // Set the accessToken
+        setUser((prevState) => ({
+          ...prevState,
+          accessToken: accessToken,
+        }));
         } catch (error) {
           console.error(error);
         }

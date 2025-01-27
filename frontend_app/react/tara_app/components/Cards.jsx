@@ -3,19 +3,24 @@ import { TaraMarker,TaraNavigation } from "./CustomIcon"
 
 
 
-export const LocationCard = ({sheet,pickupname,dropname,data,setPickup,setDrop,reset, ...props}) =>{
+export const LocationCard = ({autoDrop,sheet,pickupname,dropname,data,setPickup,setDrop,reset, ...props}) =>{
     
 const thisLocation = () =>{
     if(props.infoMode == 1){
         pickupname(data.Location)
         setPickup(data.NRF)
+        sheet.current?.open()
+        Keyboard.dismiss()
+        autoDrop(2)
     }else{
+        //drop
         dropname(data.Location)
         setDrop(data.NRF)
+        sheet.current?.close()
+        Keyboard.dismiss()
     }
     reset(null)
-    sheet.current?.close()
-    Keyboard.dismiss()
+    
 }
 
 

@@ -9,6 +9,7 @@ import SelectTara from "../assets/graphic/tarasafeselect.svg"
 import AskLocation from "../assets/graphic/location-permi.svg"
 import AskCamera from "../assets/graphic/camera-permission.svg"
 import AskGate from "../assets/graphic/sadsad.svg"
+import EmptyIcon from "../assets/graphic/empty.svg"
 
 export const InviteGraphic = (props) => {
     return (
@@ -78,3 +79,9 @@ export const TaraGate = (props) => {
     <AskGate width={props.size} height={props.size} fill={props.color} />
     );
     }
+
+export const TaraEmpty = (props) => {
+return (
+<EmptyIcon width={props.size} height={props.size} fill={props.color} />
+);
+}

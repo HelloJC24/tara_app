@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState,useRef } from "react";
 import {
   BackHandler,
   Image,
@@ -10,6 +10,8 @@ import {
   Text,
   TextInput,
   View,
+  TouchableWithoutFeedback,
+  Keyboard
 } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
 import { WebView } from "react-native-webview";
@@ -22,8 +24,10 @@ import ParagraphText from "../components/ParagraphText";
 import QuickTipsBottomSheet from "../components/QuickTipsBottomSheet";
 import ReportProblemScreen from "../components/ReportContainer";
 import { useToast } from "../components/ToastNotify";
-import { createAccount } from "../config/hooks";
+import { createAccount, userNameAgent,checkUserAccount,updateUser,sendOTPAccount,confirmOTPProcess } from "../config/hooks";
+import { generateOTP } from "../config/functions";
 import { AuthContext } from "../context/authContext";
+import * as Device from 'expo-device';
 
 const AuthScreen = () => {
   const [stage, setStage] = useState(0);
@@ -283,21 +287,38 @@ const CreateAccountScreen = ({ help, ...props }) => {
 const SetUsernameScreen = ({ sethelp, ...props }) => {
   const [username, setUsername] = useState(props.scannedUsername);
   const [isLoading, setIsLoading] = useState(false);
+  const [allowed,setAllowed] = useState(true)
+  const [errorName,setErrorName] = useState("Name looks good! Try to correct if needed.")
+
+
 
   const toast = useToast();
 
-  const onSubmit = () => {
+  const onSubmit = async () => {
     setIsLoading(true);
-    setTimeout(() => {
-      console.log("fake submmiting...");
-      toast("success", "User created successfully");
-
-      // set the new custom username
-      props.setScannedUsername(username);
-      setIsLoading(false);
-      props.nextPage();
-    }, 3000);
+    props.setScannedUsername(username);
+    setIsLoading(false);
+    props.nextPage();
   };
+
+  const handleTextChange = (input) => {
+    setUsername(input); // Update the state with the new text
+    setAllowed(false)
+    setErrorName("Hmm.. checking..")
+  };
+
+  const detectCorrection = async () =>{
+    const state_edit = await userNameAgent(props.scannedUsername,username);
+    //console.log(state_edit)
+    if(state_edit.grant == 'FALSE'){
+      setAllowed(false)
+      toast("error", `The new name is not similar from ${props.scannedUsername}`);
+      setErrorName(`Wait! That's not close to ${props.scannedUsername}`)
+    }else{
+      setAllowed(true)
+      setErrorName("Name looks good! Try to correct if needed.")
+    }
+  }
 
   return (
     <View className="w-full h-full bg-white relative">
@@ -328,10 +349,11 @@ const SetUsernameScreen = ({ sethelp, ...props }) => {
             </View>
 
             <TextInput
-              className="flex-1 w-full text-lg text-blue-500"
+              className="flex-1 w-full text-xl font-medium text-blue-500"
               value={username}
-              onChangeText={setUsername}
-              placeholder=""
+              onChangeText={handleTextChange}
+              onBlur={(e)=>detectCorrection(e)}
+              placeholder="Juan Dela Cruz"
             />
           </View>
 
@@ -339,9 +361,9 @@ const SetUsernameScreen = ({ sethelp, ...props }) => {
             align="center"
             fontSize="sm"
             padding="py-2 px-6"
-            textColor="text-neutral-700"
+            textColor={allowed ? "text-neutral-700" : "text-red-600 font-medium"}
           >
-            Name looks good! Try to correct if needed.
+            {errorName}
           </ParagraphText>
         </View>
         <View></View>
@@ -349,9 +371,21 @@ const SetUsernameScreen = ({ sethelp, ...props }) => {
         <View></View>
 
         <View className="w-full flex gap-y-4 p-2">
+          {
+            allowed ? (
           <Button onPress={onSubmit}>
             {isLoading ? "Creating account..." : "Create Account"}
           </Button>
+            ):(
+           <Button
+            bgColor="bg-slate-200"
+            textColor="text-white"
+          >
+            Create Account
+          </Button>
+            )
+          }
+          
 
           <ParagraphText align="center" fontSize="sm" padding="px-4">
             Learn how we protect your personal{" "}
@@ -374,6 +408,13 @@ const TermsAndConditionScreen = ({ scannedUsername, ...props }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const toast = useToast();
+  const [deviceId, setDeviceId] = useState(null);
+  useEffect(() => {
+    const id = Device.deviceId;
+    setDeviceId(id); // This is the unique device ID
+  }, []);
+
+
 
   const { setUser } = useContext(AuthContext);
 
@@ -392,14 +433,20 @@ const TermsAndConditionScreen = ({ scannedUsername, ...props }) => {
   const registerAccount = async () => {
     try {
       setIsSubmitting(true);
-      console.log(scannedUsername);
-      const res = await createAccount(scannedUsername);
-      console.log("Create user res: ", res.data);
-      if (res.status === "success") {
+      //console.log(scannedUsername);
+      const res = await createAccount(scannedUsername,deviceId);
+      //console.log("Create user res: ", res);
+      if (res.status == "success") {
         setUser({ userId: res.data?.UserID });
+        //save UID
+        await AsyncStorage.setItem("uid",res.data?.UID);
+        //save token
         initFirstApp();
 
         setIsSubmitting(false);
+      }else{
+        setIsSubmitting(false);
+        toast("error", "Something went wrong, try again!");
       }
     } catch (error) {
       console.error(error);
@@ -446,9 +493,18 @@ const TermsAndConditionScreen = ({ scannedUsername, ...props }) => {
         </View>
 
         <View className="p-6 bg-white absolute bottom-0 w-full flex gap-y-4">
-          <Button onPress={registerAccount}>
-            {isSubmitting ? "Submitting..." : "I Accept and wish to proceed"}
+          
+          {
+            isSubmitting ? (
+          <Button >
+            Please wait
           </Button>
+            ):(
+          <Button onPress={registerAccount}>
+           I Accept and wish to proceed
+          </Button>
+            )
+          }
 
           <ParagraphText align="center" fontSize="sm" padding="px-4">
             By clickng the proceed you are also agreeing to our{" "}
@@ -469,10 +525,13 @@ const TermsAndConditionScreen = ({ scannedUsername, ...props }) => {
 };
 
 // SignUp Page
-
 const SignUpScreen = ({ help, ...props }) => {
   const [activeOTPScreen, setActiveOTPScreen] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  const [loadingCheck,setCheckLoading] = useState(false)
+  const [OTP,setOTP] = useState("");
+  const toast = useToast();
+  const [tempUserID,setUserTempID] = useState(null)
 
   const handleBackPress = () => {
     if (props.back && !activeOTPScreen) {
@@ -492,9 +551,47 @@ const SignUpScreen = ({ help, ...props }) => {
     };
   }, [activeOTPScreen]);
 
+
+  const checkButton = async () => {
+    Keyboard.dismiss()
+    if(inputValue.length > 0){
+      setCheckLoading(true)
+      
+      const check_response = await checkUserAccount(inputValue);
+      
+      if(check_response.message){
+        if(check_response.message == 'User not found.'){
+          setCheckLoading(false);
+          toast("error", "This user is not link to any account.");
+        }else if(check_response.message == 'User found.'){
+          const xtop = generateOTP();
+          //console.log(xtop)
+          setOTP(xtop)
+          //update
+          setUserTempID(check_response.data.UserID)
+          const otp_response = await updateUser(check_response.data.UserID,"OTP",xtop)
+          if(otp_response.status == 'success'){
+          //send OTP
+          const sender_otp = await sendOTPAccount(inputValue,xtop);
+          if(sender_otp.status == 'ok'){
+            setActiveOTPScreen(true);
+          }
+          
+          }else{
+            toast("try_again", "Something is wrong. Please try again.");
+          }
+          setCheckLoading(false);
+        }
+      }else{
+        setCheckLoading(false);
+      }
+    }
+  }
+
   return (
     <View className="w-full h-full bg-white absolute inset-0">
       <StatusBar style="dark" />
+      <TouchableWithoutFeedback onPress={()=>Keyboard.dismiss()}>
       <View className="h-full flex justify-between items-center px-6 py-10">
         <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
           <Pressable onPress={props.back}>
@@ -558,7 +655,14 @@ const SignUpScreen = ({ help, ...props }) => {
         <View></View>
 
         <View className="w-full flex gap-y-4 p-2">
-          <Button onPress={() => setActiveOTPScreen(true)}>Sign in</Button>
+          {
+            loadingCheck ? (
+            <Button>Signing in..</Button>
+            ):(
+          <Button onPress={() => checkButton()}>Sign in</Button>
+            )
+          }
+          
 
           <ParagraphText align="center" fontSize="sm" padding="px-4">
             Learn how to recover your account{" "}
@@ -573,34 +677,109 @@ const SignUpScreen = ({ help, ...props }) => {
           </ParagraphText>
         </View>
       </View>
-
+      </TouchableWithoutFeedback>
       {activeOTPScreen && (
-        <OTPScreen sethelp={help} back={() => setActiveOTPScreen(false)} />
+        <OTPScreen request={true} verify={inputValue} user={tempUserID} sethelp={help} back={() => setActiveOTPScreen(false)} />
       )}
     </View>
   );
 };
 
-const OTPScreen = ({ sethelp, ...props }) => {
+const OTPScreen = ({request,verify,user, sethelp, ...props }) => {
   const [inputValue, setInputValue] = useState("");
+  const [waitingState,setWaiting] = useState(false)
   const { setUser } = useContext(AuthContext);
+  const [countdown, setCountdown] = useState(60); // 2 minutes in seconds
+  const timerRef = useRef(null);
+  const [requestOTP,sendRequest] = useState(false);
+  const [retrySending,setRetrySending] = useState(false)
+  const toast = useToast();
 
-  const saveDevice = async (value) => {
-    try {
-      await AsyncStorage.setItem("register", value);
-    } catch (e) {
-      // saving error
+
+
+  if(countdown === 0){
+    sendRequest(false);
+    setCountdown(60);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
     }
-  };
+  
+  }
+
+ 
+  
+  useEffect(() => {
+    if(request){
+      runTimer();
+    }
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
+  
 
   const validateOTPCode = async () => {
-    await saveDevice("true");
-    setUser({ accessToken: true });
+    Keyboard.dismiss()
+    if(inputValue){
+      setWaiting(true)
+      const hmmotp = await confirmOTPProcess(user,inputValue);
+      setUser((prevState) => ({
+        ...prevState,
+        userId: user,
+      }));
+      if(hmmotp.status == 'error'){
+        toast("wrong_code", hmmotp.msg);
+        setWaiting(false)
+      }
+    }
+   
   };
+
+
+  const reSendOTP = async () =>{
+    Keyboard.dismiss()
+    setRetrySending(true)
+    const xtop = generateOTP();
+    const otp_response = await updateUser(user,"OTP",xtop)
+    if(otp_response.status == 'success'){
+    //send OTP
+    const sender_otp = await sendOTPAccount(verify,xtop);
+    if(sender_otp.status == 'ok' || sender_otp.status == 'success'){
+      toast("success", "We sent a new one time password.");
+      runTimer();
+      setRetrySending(false)
+    }
+    
+  }
+    
+  }
+
+  const runTimer = () =>{
+    sendRequest(true);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    
+    timerRef.current = setInterval(() => {
+      setCountdown((prevCountdown) => {
+        if (prevCountdown <= 1) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+          return 0;
+        }
+        return prevCountdown - 1;
+      });
+    }, 1000);
+    
+  }
+
 
   return (
     <View className="w-full h-full bg-white absolute inset-0 z-50">
       <StatusBar style="dark" />
+      <TouchableWithoutFeedback onPress={()=>Keyboard.dismiss()}>
       <View className="h-full flex justify-between items-center px-6 py-10">
         <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
           <Pressable onPress={props.back}>
@@ -646,7 +825,7 @@ const OTPScreen = ({ sethelp, ...props }) => {
               className={`w-full text-2xl ${inputValue ? "font-bold" : ""}`}
               type="number"
               keyboardType="number-pad"
-              maxLength={6}
+              maxLength={5}
               value={inputValue}
               onChangeText={setInputValue}
               placeholder="e.g 08269"
@@ -659,7 +838,7 @@ const OTPScreen = ({ sethelp, ...props }) => {
             padding="py-2 px-6"
             textColor="text-neutral-700"
           >
-            We sent a 6-digits code in both email and phone number. Please check
+            We sent a 5-digits code in your email or phone number. Please check
             and enter here.
           </ParagraphText>
         </View>
@@ -667,10 +846,50 @@ const OTPScreen = ({ sethelp, ...props }) => {
         <View></View>
         <View></View>
         <View className="w-full flex gap-y-4 p-2">
-          <Button bgColor="bg-slate-200" textColor="text-neutral-700">
-            Request another in 2mins
-          </Button>
-          <Button onPress={() => validateOTPCode()}>Verify Code</Button>
+                {
+          !waitingState && (
+            requestOTP ? (
+              <Button
+                bgColor="bg-slate-200"
+                textColor="text-neutral-700"
+              >
+                Request in {countdown}s
+              </Button>
+            ) : (
+              
+                retrySending ? (
+                  <Button
+                  bgColor="bg-slate-100"
+                  textColor="text-neutral-400"
+                >
+                  Sending new OTP..
+                </Button>
+                ):(
+                  <Button
+                  onPress={()=>reSendOTP()}
+                  bgColor="bg-slate-200"
+                  textColor="text-neutral-700"
+                >
+                  Request new OTP
+                </Button>
+                )
+            )
+          )
+        }
+
+          {
+            waitingState ? (
+              <Button
+                bgColor="bg-slate-200"
+                textColor="text-white"
+              >
+                Please wait ..
+              </Button>
+            ):(
+              <Button onPress={() => validateOTPCode()}>Verify Code</Button>
+            )
+          }
+          
 
           <ParagraphText align="center" fontSize="sm" padding="px-4">
             Learn how to recover your account{" "}
@@ -685,6 +904,7 @@ const OTPScreen = ({ sethelp, ...props }) => {
           </ParagraphText>
         </View>
       </View>
+      </TouchableWithoutFeedback>
     </View>
   );
 };

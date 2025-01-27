@@ -2,7 +2,7 @@
   "expo": {
     "name": "Tara Rides",
     "slug": "tara",
-    "version": "1.4.0",
+    "version": "1.7.0",
     "orientation": "portrait",
     "icon": "./assets/tararides.png",
     "userInterfaceStyle": "light",
@@ -16,6 +16,7 @@
       "supportsTablet": true
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/tararides.png",
         "backgroundColor": "#ffffff"
@@ -50,9 +51,16 @@
         {
           "icon": "./assets/favicon.png",
           "color": "#ffffff",
-          "defaultChannel": "petpew",
-          "sounds": ["./assets/sounds/petpew.mp3"],
-          "enableBackgroundRemoteNotifications": false
+          "sounds": [ "./petpew.mp3"],
+          "enableBackgroundRemoteNotifications": true
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
         }
       ]
     ],

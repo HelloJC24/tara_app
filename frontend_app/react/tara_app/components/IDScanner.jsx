@@ -18,6 +18,7 @@ import Button from "./Button";
 import { TaraCamPermission, UptimeGraphic } from "./CustomGraphic";
 import ParagraphText from "./ParagraphText";
 import { useToast } from "./ToastNotify";
+import LottieView from "lottie-react-native";
 
 
 const IDScanner = (props) => {
@@ -92,6 +93,7 @@ const IDScanner = (props) => {
         quality: 1.0,
         skipProcessing: Platform.OS === "android",
         exif: false,
+        shutterSound: false,
         imageType: "image/jpeg",
       });
       // Set loading state to true
@@ -117,6 +119,7 @@ const IDScanner = (props) => {
       if (uploadResponse.status === "error") {
         showToast();
         setIsLoading(false);
+        
         return;
       }
       // Extract the image URL
@@ -146,6 +149,7 @@ const IDScanner = (props) => {
     } catch (error) {
       console.log("This is Error: ", error);
       showToast();
+      setGuide(true)
     }
   };
 
@@ -176,7 +180,7 @@ const IDScanner = (props) => {
         <CameraView
           ref={cameraRef}
           facing="back"
-          ratio="16:9"
+          //ratio="16:9"
           pictureSize="1080x1920"
           autofocus={true}
           focusable={true}
@@ -190,6 +194,8 @@ const IDScanner = (props) => {
             <View className="absolute bottom-10 left-8 w-8 h-8 border-b-4 border-l-4 rounded-bl-xl border-white" />
             <View className="absolute bottom-10 right-8 w-8 h-8 border-b-4 border-r-4 rounded-br-xl border-white" />
           </View>
+
+          
         </CameraView>
 
         <View className="w-full max-h-60 flex gap-y-2 items-center p-4 bg-white">
@@ -240,9 +246,15 @@ const ProcessingPhoto = (props) => {
         </View>
 
         <View className="w-full flex items-center gap-y-4">
-          <UptimeGraphic size={200} />
+          <LottieView
+                            source={require("../assets/animation/loading.json")}
+                            autoPlay
+                            loop
+                            width={400}
+                            height={250}
+                          />
           <Text className="text-center text-base z-50">
-            Processing your photo..
+            Scanning your ID..
           </Text>
         </View>
 

@@ -20,7 +20,6 @@ import Button from "../components/Button";
 import ParagraphText from "../components/ParagraphText";
 import { InviteGraphic, TaraPermission, TaraGate } from "../components/CustomGraphic";
 import RateUsApp from "../components/RateUsApp";
-import * as Location from 'expo-location';
 import axios from 'axios';
 import appJson from "../app.json";
 const appVersion = appJson.expo.version;
@@ -32,29 +31,28 @@ import {
   TaraVan,
   TaraWalletIcon,
 } from "../components/CustomIcon";
-import ParagraphText from "../components/ParagraphText";
-import RateUsApp from "../components/RateUsApp";
-import { fetchDataControl, fetchUser } from "../config/hooks";
+import { fetchUser,updateUser } from "../config/hooks";
 import { AuthContext } from "../context/authContext";
 import { DataContext } from "../context/dataContext";
+import { GET_DATA_CONTROL_API,ADMIN_TOKEN } from "../config/constants";
+import { useToast } from "../components/ToastNotify";
 
 const HomeScreen = ({ navigation }) => {
   const [activeScanFriend, setActiveScanFriend] = useState(false);
   const [rewardsAvailable, SetRewards] = useState(true);
-
-  const [activeRateUs, setActiveRateUs] = useState(true);
+  const [activeRateUs, setActiveRateUs] = useState(false);
   const [locationPermission,setPermissionAsk] = useState(false);
   const [location, setLocation] = useState([]);
-  const [authToken,setAuthToken] = useState("YJwfmxOL3Idl1YvjQtJ0GiUkNVd2")
   const [controlData,setControlData] = useState([]);
   const [gate,setGate] = useState(false);
-
-
   const [isLoading, setIsLoading] = useState(false);
-
   const { user } = useContext(AuthContext);
   const { data, setData } = useContext(DataContext);
+  const [activaeBooking,setActiveBooking] = useState(false)
+  const [pushToken,setPushToken] = useState(null)
+const toast = useToast();
 
+  
   const taraBook = (vehicle) => {
     navigation.navigate("booking", {
       track: user?.userId,
@@ -76,43 +74,7 @@ const HomeScreen = ({ navigation }) => {
     });
   };
 
-  useEffect(() => {
-    async function getCurrentLocation() {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        setPermissionAsk(true);
-        Alert.alert(
-          "Permission Denied",
-          "We cannot proceed performing our services without location access.",
-          [
-            {
-              text: "Close",
-              type: "cancel",
-            },
-          ]
-        );
-        return;
-      } else {
-        setPermissionAsk(false);
-      }
 
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-
-  const OpenRewards = () =>{
-    navigation.navigate('webview', {
-     track: userID,
-     url: `https://taranapo.com/rewards/?taraid=${userID}`
-     });
- }
-
-
- const openQR = () =>{
-  navigation.navigate('qrcode', {
-    mode: 'STF',
-    });
-  }
 
 
 const newUpdateAvailable = (v) =>{
@@ -168,15 +130,16 @@ const newUpdateAvailable = (v) =>{
   }
 
   async function getControl() {
+    
     try {
       const response = await axios.get(
-        `https://dwayon.tech/api/dataControl/`,
+        GET_DATA_CONTROL_API,
         {
           params: {
             origin:location
           },
           headers: {
-              'Auth': `Bearer ${authToken}`,
+              'Auth': `Bearer ${user?.accessToken}`,
               'Content-Type': 'application/json',
             },
         }
@@ -227,7 +190,7 @@ const newUpdateAvailable = (v) =>{
 
   //setup for push notifications
   setTimeout(async () => {
-    registerForPushNotificationsAsync().then((token) => console.log(token));
+    registerForPushNotificationsAsync().then((token) => savePushToken(token));
 
     const notificationListener = Notifications.addNotificationReceivedListener(
       (notification) => {
@@ -247,38 +210,39 @@ const newUpdateAvailable = (v) =>{
     };
   }, 2000);
 
-
-
-
-
+  const savePushToken = async (pt) =>{
+    //toast("success", pt.data,user);
+    const savingPush = await updateUser(user?.userId,"OSID",pt.data,user)
+    const saveloc = `${location.coords.latitude},${coords.longitude}`;
+    console.log("location:",saveloc)
+    const savingLocation = await updateUser(user?.userId,"Location",saveloc)
+    console.log("saving push:",savingPush)
+  }
 
   getCurrentLocation();
-}, [locationPermission,setGate,setLocation]);
-      if (location.mocked) {
-        setPermissionAsk(false);
-      } else {
-        setLocation(location);
-      }
-    }
-
-    getCurrentLocation();
-  }, [locationPermission]);
+}, [locationPermission,setGate,setLocation,user?.accessToken]);
 
 
 
   useEffect(() => {
     // fetching user data
     const getUser = async () => {
+      
       try {
         setIsLoading(true);
-        const res = await fetchUser(user?.userId);
-
+        const res = await fetchUser(user?.userId,user);
+        ///console.log(res)
         if (res.status === "success") {
+          //console.log(res.data)
           setData((prevData) => ({
             ...prevData,
             user: res.data,
           }));
 
+          setActiveBooking(res.data.ActiveBooking == 'N/A' ? false : true);
+          setActiveRateUs(res.data.ReviewUs == 'N/A' ? false : true)
+          //if active fetch rides details
+          setGate(res.data.Status == 'Active' ? false : true)
           setIsLoading(false);
         }
       } catch (error) {
@@ -331,14 +295,20 @@ const newUpdateAvailable = (v) =>{
           </View>
         </View>
 
-        <ParagraphText
+        {
+          controlData.length == 0 ? (
+            <View className="my-4 bg-gray-200 rounded-lg w-56 h-6"></View>
+          ):(
+            <ParagraphText
           padding="py-4 pr-16"
           fontSize="lg"
           align="left"
           textColor="text-neutral-700"
         >
-          {controlData.greetings ?? "hmm.. let me think.."}
+          {controlData.greetings}
         </ParagraphText>
+          )
+        }
 
         <View>
           
@@ -358,9 +328,15 @@ const newUpdateAvailable = (v) =>{
                 Wallet
               </Text>
               <View className="flex flex-row gap-x-1 items-center">
-                <Text className="text-xl font-medium">
-                  &#8369; {isLoading ? "..." : data?.user?.Wallet}
+                {
+                  isLoading ? (
+                    <View className="bg-gray-200 rounded-lg w-10 h-6"></View>
+                  ):(
+                    <Text className="text-xl font-medium">
+                  &#8369;{data?.user?.Wallet}.00
                 </Text>
+                  )
+                }
                 <TouchableOpacity onPress={() => navigation.navigate("wallet")}>
                   <Svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -399,28 +375,7 @@ const newUpdateAvailable = (v) =>{
           </Text>
 
           <View className="w-full flex flex-row justify-between items-center py-2 px-4">
-            {location.length == 0 ? (
-              <Pressable
-                onPress={() => setPermissionAsk(true)}
-                className="flex gap-y-1"
-              >
-                <View className="opacity-50 flex justify-center items-center pt-2 w-20 h-20 bg-slate-200 rounded-full">
-                  <TaraMotor size="55" />
-                </View>
-                <Text className="text-base text-center text-gray-200">
-                  {data?.control?.service_name1 || "TaraRide"}
-                </Text>
-              </Pressable>
-            ) : (
-              <Pressable onPress={() => taraBook(2)} className="flex gap-y-1">
-                <View className="flex justify-center items-center pt-2 w-20 h-20 bg-slate-200 rounded-full">
-                  <TaraMotor size="55" />
-                </View>
-                <Text className="text-base text-center text-blue-500">
-                  {data?.control?.service_name1 || "TaraRide"}
-                </Text>
-              </Pressable>
-            )}
+      
 
             {
               location.length == 0 || controlData.service_status1 == false ? (
@@ -502,33 +457,12 @@ const newUpdateAvailable = (v) =>{
                 
 
 
-
-
-            {location.length == 0 ? (
-              <Pressable onPress={() => setPermissionAsk(true)}>
-                <View className="opacity-50 flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
-                  <TaraVan size="65" />
-                </View>
-                <Text className="text-base text-center text-gray-200">
-                  {data?.control?.service_name3 || "TaraVan"}
-                </Text>
-              </Pressable>
-            ) : (
-              <Pressable onPress={() => taraBook(5)} className="flex gap-y-1">
-                <View className="flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
-                  <TaraVan size="65" />
-                </View>
-                <Text className="text-base text-center text-blue-500">
-                  {data?.control?.service_name3 || "TaraVan"}
-                </Text>
-              </Pressable>
-            )}
           </View>
         </View>
 
         <BottomNavBar />
       </View>
-      {/* <ExistingBooking /> */}
+      {activaeBooking && <ExistingBooking />}
 
       {activeScanFriend && (
         <FriendsWithBenefits
@@ -610,12 +544,12 @@ const FriendsWithBenefits = ({ openQR, QR, close }) => {
 
         <View className="relative w-full flex justify-center items-center p-4">
           <InviteGraphic size={300} />
-          <View className="absolute bottom-7">
+          <View className="absolute bottom-5">
             <QRCodeStyled
               data={QR}
               style={{ backgroundColor: "transparent" }}
               padding={10}
-              pieceSize={5}
+              pieceSize={4.5}
               pieceCornerType="rounded"
               color={"#020617"}
               pieceScale={1.02}
@@ -743,7 +677,7 @@ async function registerForPushNotificationsAsync() {
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("petpew", {
       name: "petpew",
-      sound: "../assets/sounds/petpew.mp3",
+      sound: "petpew.mp3",
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: "#beda31",

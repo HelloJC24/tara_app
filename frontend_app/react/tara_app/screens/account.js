@@ -12,6 +12,10 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  ScrollView,
+  Keyboard
 } from "react-native";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import appJson from "../app.json";
@@ -23,10 +27,11 @@ import ReportProblemScreen from "../components/ReportContainer";
 import { useToast } from "../components/ToastNotify";
 import * as Updates from 'expo-updates';
 import { auth } from "../config/firebase-config";
-import { updateUser } from "../config/hooks";
+import { updateUser,userNameAgent,getUserSettings,updateSettings } from "../config/hooks";
 import { AuthContext } from "../context/authContext";
 import { DataContext } from "../context/dataContext";
 const appVersion = appJson.expo.version;
+
 
 const AccountScreen = ({ route, navigation }) => {
   const { setUser } = useContext(AuthContext);
@@ -50,6 +55,13 @@ const AccountScreen = ({ route, navigation }) => {
   };
 
   useEffect(() => {
+
+      setPhone(data?.user?.Phone);
+     setEmail(data?.user?.Email);
+      setUsername(data?.user?.Username || "");
+    
+
+
     if (route.params) {
       const { purpose } = route.params;
       if (route.params) {
@@ -60,9 +72,12 @@ const AccountScreen = ({ route, navigation }) => {
         }
       }
     }
-  }, [route]);
+  }, [route,data]);
 
 
+
+
+  
 
 const logOut = () =>{
   Alert.alert(
@@ -77,15 +92,23 @@ const logOut = () =>{
           text: "Logout",
           onPress: async () => {
             //connect to logout
-            setUser({ accessToken: "" });
-               // update user status
-            const res = await updateUser(
-              data?.user?.UserID,
-              "Status",
-              "Inactive"
-            );
-            await AsyncStorage.removeItem("register");
-            await AsyncStorage.removeItem("data"); 
+          
+            try {
+              await signOut(auth);
+              await AsyncStorage.removeItem("register");
+              await AsyncStorage.removeItem("data");
+              await AsyncStorage.removeItem("uid");
+              await AsyncStorage.removeItem("accessToken");
+              await AsyncStorage.removeItem("idToken")
+              showToast("success","You have been log-out in this device.") 
+              setUser((prevState) => ({
+                ...prevState,
+                accessToken: '',
+              }));
+            } catch (error) {
+              console.error('Error logging out:', error);
+            }
+          
           },
         },
       ]
@@ -209,7 +232,7 @@ const logOut = () =>{
                   <Text className="text-sm text-neutral-700">
                     Mobile Number
                   </Text>
-                  {phoneNumber ? (
+                  {phoneNumber != 'N/A' ? (
                     <Text className="text-lg py-1">{phoneNumber}</Text>
                   ) : (
                     <Text
@@ -240,7 +263,7 @@ const logOut = () =>{
                   </Text>
                   {/* <Text className="text-lg py-1">example@gmail.com</Text> */}
 
-                  {email ? (
+                  {email != 'N/A'  ? (
                     <Text className="text-lg py-1">{email}</Text>
                   ) : (
                     <Text
@@ -432,7 +455,7 @@ const AccountDeletionModal = ({ navigation, close }) => {
   );
 };
 
-const EditUsernameScreen = ({ report, close }) => {
+const EditUsernameScreen = ({report, close }) => {
   const { data, setData } = useContext(DataContext);
 
   const [username, setUsername] = useState(data?.user?.Username);
@@ -442,14 +465,20 @@ const EditUsernameScreen = ({ report, close }) => {
   const toast = useToast();
 
   const updateAccount = async () => {
+    Keyboard.dismiss()
     try {
       if (!username) return;
-
+     
       setIsLoading(true);
       const res = await updateUser(data?.user?.UserID, "Username", username);
 
       if (res.status === "success") {
-        setData({ user: { ...data.user, Username: username } });
+        setData((prevData) => ({
+          user: {
+            ...prevData.user, // Spread existing user data
+            Username: username, // Update Username
+          },
+        }));
         toast("success", "Username updated successfully");
         setIsLoading(false);
       }
@@ -457,6 +486,21 @@ const EditUsernameScreen = ({ report, close }) => {
       console.log(error);
     }
   };
+
+
+  const onCheckUsername = async () =>{
+    if (!username) return;
+    setIsLoading(true);
+  const state_edit = await userNameAgent(data?.user?.Username,username);
+    //console.log(state_edit)
+    if(state_edit.grant == 'FALSE'){
+      toast("error", `The new name is not similar from ${data?.user?.Username}`);
+    }else{
+      setIsLoading(false);
+      setErrorName("Name looks good! Try to correct if needed.")
+    }
+    
+  }
 
   const handleBackPress = () => {
     close();
@@ -472,6 +516,7 @@ const EditUsernameScreen = ({ report, close }) => {
   return (
     <View className="w-full h-full bg-white absolute inset-0 z-50">
       <StatusBar style="dark" />
+      <TouchableWithoutFeedback onPress={()=>Keyboard.dismiss()}>
       <View className="h-full  flex justify-between items-center px-6 py-10">
         <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
           <Pressable onPress={close}>
@@ -517,7 +562,9 @@ const EditUsernameScreen = ({ report, close }) => {
               className="flex-1 w-full text-lg text-blue-500"
               value={username}
               onChangeText={setUsername}
-              placeholder=""
+              placeholder={"Generated username"}
+              maxLength={40}
+              onBlur={(e)=>onCheckUsername(e)}
               type="text"
             />
           </View>
@@ -528,7 +575,7 @@ const EditUsernameScreen = ({ report, close }) => {
             padding="py-2 px-6"
             textColor="text-neutral-700"
           >
-            Seems familiar with the old one
+            Update your username to something similar to your previous one.
           </ParagraphText>
         </View>
         <View></View>
@@ -536,9 +583,21 @@ const EditUsernameScreen = ({ report, close }) => {
         <View></View>
 
         <View className="w-full flex gap-y-4 p-2">
-          <Button onPress={updateAccount}>
-            {isLoading ? "Processing..." : "Update Account"}
+          {
+            isLoading ? (
+              <Button
+              bgColor="bg-slate-200"
+              textColor="text-white"
+            >
+            Processing
           </Button>
+            ):(
+            <Button onPress={updateAccount}>
+            Update Account
+          </Button>
+            )
+          }
+          
 
           <ParagraphText align="center" fontSize="sm">
             Learn how we protect your personal{" "}
@@ -548,6 +607,7 @@ const EditUsernameScreen = ({ report, close }) => {
           </ParagraphText>
         </View>
       </View>
+      </TouchableWithoutFeedback>
     </View>
   );
 };
@@ -561,6 +621,7 @@ const AddMobileNumber = ({ report, close }) => {
   const toast = useToast();
 
   const updateAccount = async () => {
+    Keyboard.dismiss()
     try {
       if (!phoneNumber) {
         setStatusMsg("Please enter phone number!");
@@ -573,10 +634,12 @@ const AddMobileNumber = ({ report, close }) => {
       }
 
       setIsLoading(true);
+     
       const res = await updateUser(data?.user?.UserID, "Phone", phoneNumber);
       if (res.status === "success") {
+        setStatusMsg("")
         setData({ user: { ...data.user, Phone: phoneNumber } });
-        toast("success", "Phone Number added");
+        toast("success", "Phone Number Added");
         setIsLoading(false);
       }
     } catch (error) {
@@ -584,6 +647,8 @@ const AddMobileNumber = ({ report, close }) => {
     }
   };
 
+
+ 
   const handleBackPress = () => {
     close();
     return true;
@@ -597,6 +662,7 @@ const AddMobileNumber = ({ report, close }) => {
   return (
     <View className="w-full h-full bg-white absolute inset-0 z-50">
       <StatusBar style="dark" />
+      <TouchableWithoutFeedback onPress={()=>Keyboard.dismiss()}>
       <View className="h-full  flex justify-between items-center px-6 py-10">
         <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
           <Pressable onPress={close}>
@@ -640,10 +706,11 @@ const AddMobileNumber = ({ report, close }) => {
             <TextInput
               className="flex-1 w-full text-lg text-blue-500"
               type="number"
+              maxLength={11}
               keyboardType="number-pad"
-              value={phoneNumber}
+              value={phoneNumber == 'N/A' ? '' : phoneNumber}
               onChangeText={setPhoneNumber}
-              placeholder=""
+              placeholder="Enter your phone number"
             />
           </View>
 
@@ -661,9 +728,18 @@ const AddMobileNumber = ({ report, close }) => {
         <View></View>
 
         <View className="w-full flex gap-y-4 p-2">
-          <Button onPress={updateAccount}>
-            {isLoading ? "Processing..." : "Update Account"}
+          
+          {
+            isLoading ? (
+          <Button >
+           Processing
           </Button>
+            ):(
+          <Button onPress={updateAccount}>
+            Update Account
+          </Button>
+            )
+          }
 
           <ParagraphText align="center" fontSize="sm">
             Learn how we protect your personal{" "}
@@ -673,19 +749,56 @@ const AddMobileNumber = ({ report, close }) => {
           </ParagraphText>
         </View>
       </View>
+      </TouchableWithoutFeedback>
     </View>
   );
 };
 
 const AddEmailAddress = ({ report, close }) => {
   const { data, setData } = useContext(DataContext);
+  const { user,setUser } = useContext(AuthContext);
 
-  const [email, setEmail] = useState("example@gmail.com");
+  const [email, setEmail] = useState(data?.user?.Email == 'N/A' ? '' : data?.user?.Email);
   const [statusMsg, setStatusMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [marketing,setMarketing] = useState(false)
   const toast = useToast();
 
+ useEffect(()=>{
+    const pullSettings23 = async () =>{
+      const sets = await getUserSettings(data?.user?.UserID,user);
+      if(sets.message == 'No settings found for the provided UserID or TaraID.'){
+        //create
+      }else{
+        //load settings
+        console.log("marketing:",sets.data[0].marketing)
+        if(sets.data[0].marketing == 'true' || sets.data[0].marketing == '1'){
+          setMarketing(true)
+        }else{
+          setMarketing(false)
+        }
+      }
+    }
+    pullSettings23();
+
+    if(email.length == 0){
+      setStatusMsg("");
+    }
+
+  },[data,email])
+
+
+
+
+  const sendMarketing = async () =>{
+    setMarketing(marketing ? false : true)
+    const newupdate = marketing ? "0" : "1"
+    const marketing_update = await updateSettings(data?.user?.UserID,"marketing",newupdate,user)
+    console.log(marketing_update)
+  }
+
   const updateAccount = async () => {
+    Keyboard.dismiss()
     try {
       if (!email) return;
 
@@ -695,6 +808,7 @@ const AddEmailAddress = ({ report, close }) => {
         return;
       }
 
+      
       setIsLoading(true);
       const res = await updateUser(data?.user?.UserID, "Email", email);
 
@@ -704,7 +818,7 @@ const AddEmailAddress = ({ report, close }) => {
         // change firebase auth email used
         // await updateEmailAddress(email);
 
-        toast("success", "Email address added");
+        toast("success", "Email Address Added");
         setIsLoading(false);
       }
     } catch (error) {
@@ -725,6 +839,7 @@ const AddEmailAddress = ({ report, close }) => {
   return (
     <View className="w-full h-full bg-white absolute inset-0 z-50">
       <StatusBar style="dark" />
+      <TouchableWithoutFeedback onPress={()=>Keyboard.dismiss()}>
       <View className="h-full  flex justify-between items-center px-6 py-10">
         <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
           <Pressable onPress={close}>
@@ -770,19 +885,45 @@ const AddEmailAddress = ({ report, close }) => {
               className="flex-1 w-full text-lg text-blue-500"
               value={email}
               onChangeText={setEmail}
-              placeholder=""
+              maxLength={40}
+              placeholder="Enter your email"
               type="email"
             />
           </View>
 
-          <ParagraphText
+         {
+          statusMsg && (
+            <ParagraphText
             align="center"
             fontSize="sm"
-            padding="py-2 px-6"
+            padding="py-2 px-4"
+            textColor="text-red-500"
+          >
+           {statusMsg}
+          </ParagraphText>
+          )
+         }
+
+          <View className="my-2 flex-row justify-start items-center px-1.5">
+            <Pressable onPress={()=>sendMarketing()} className="flex-row justify-center items-center border border-gray-300 h-8 w-8 rounded-lg">
+              {
+                marketing ? (
+                  <View className="bg-blue-500 h-4 w-4 rounded"></View>
+                ):(
+                  <View className="bg-white h-4 w-4 rounded"></View>
+                )
+              }
+              
+            </Pressable>
+          <ParagraphText
+            align="left"
+            fontSize="sm"
+            padding="py-2 px-4"
             textColor="text-neutral-700"
           >
-            Incorrect email format
+           Use my email to receive promotions, marketing materials, and updates on upcoming features.
           </ParagraphText>
+          </View>
         </View>
         <View></View>
         <View></View>
@@ -801,13 +942,64 @@ const AddEmailAddress = ({ report, close }) => {
           </ParagraphText>
         </View>
       </View>
+      </TouchableWithoutFeedback>
     </View>
   );
 };
 
 const TaraSafe = ({ close }) => {
-  const [input, setInput] = useState("example@gmail.com");
+  const [input, setInput] = useState("");
   const [input2, setInput2] = useState("");
+  const [enabling,setEnable] = useState(false)
+  const toast = useToast();
+  const { data, setData } = useContext(DataContext);
+
+  useEffect(()=>{
+    if(data?.user?.TaraSafe == 'N/A'){
+    setInput("")
+    setInput2("")
+    }else{
+      const emails = data?.user?.TaraSafe.split(',').map(email => email.trim());
+      if(emails.length == 2){ //max
+        setInput(emails[0])
+       setInput2(emails[1])
+      }else if(emails.length == 1) {
+        setInput(emails[0])
+      }
+      
+    }
+  },[data])
+
+  const enableTara = async () =>{
+    Keyboard.dismiss();
+
+  if(input || input){
+    setEnable(true)
+    const taracontact = `${input},${input2}`;
+
+      if(taracontact == data?.user?.TaraSafe){
+      toast("try_again", "No changes for your TaraSafe contact.");
+      setEnable(false)
+      return
+      }
+
+    const res = await updateUser(data?.user?.UserID, "TaraSafe", taracontact);
+    console.log(res)
+    setEnable(false)
+    toast("success", "Tara Safe now activated. We sent a notice to them.");
+    //update dataset
+    setData((prevData) => ({
+      user: {
+        ...prevData.user, // Spread existing user data
+        TaraSafe: taracontact, // Update Username
+      },
+    }));
+  }
+  }
+
+  const dismissKeyboard = () => {
+    Keyboard.dismiss(); // Closes the keyboard
+  };
 
   const handleBackPress = () => {
     close();
@@ -822,6 +1014,7 @@ const TaraSafe = ({ close }) => {
   return (
     <View className="w-full h-full bg-white absolute inset-0 z-50">
       <StatusBar style="dark" />
+      <ScrollView>
       <View className="h-full  flex justify-between items-center px-6 py-10">
         <View>
           <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
@@ -858,7 +1051,9 @@ const TaraSafe = ({ close }) => {
                 Sounds safe? Let’s do it!
               </ParagraphText>
             </View>
-
+          <KeyboardAvoidingView>
+            <TouchableWithoutFeedback onPress={dismissKeyboard}>
+              <>
             <ParagraphText
               fontSize="base"
               textColor="text-neutral-700 text-center"
@@ -898,6 +1093,7 @@ const TaraSafe = ({ close }) => {
                   className="flex-1 text-lg text-blue-500"
                   value={input}
                   onChangeText={setInput}
+                  maxLength={40}
                   placeholder="Enter your email or phone number"
                 />
               </View>
@@ -933,14 +1129,26 @@ const TaraSafe = ({ close }) => {
                   value={input2}
                   onChangeText={setInput2}
                   placeholder="Enter your email or phone number"
+                  maxLength={40}
                 />
               </View>
             </View>
+            </>
+            </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
           </View>
         </View>
 
         <View className="w-full flex gap-y-4 p-2">
-          <Button>Enable</Button>
+          {
+            enabling ? (
+          <Button bgColor="bg-slate-200"
+                        textColor="text-white">Please wait..</Button>
+                      ):(
+          <Button onPress={()=>enableTara()}>Enable</Button>
+            )
+          }
+          
 
           <ParagraphText align="center" fontSize="sm">
             Learn how Tara keep you safe or visit our{" "}
@@ -953,6 +1161,7 @@ const TaraSafe = ({ close }) => {
           </ParagraphText>
         </View>
       </View>
+      </ScrollView>
     </View>
   );
 };

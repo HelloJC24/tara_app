@@ -24,6 +24,7 @@ import {
 } from "../components/CustomIcon";
 import { fetchHistory } from "../config/hooks";
 import { DataContext } from "../context/dataContext";
+import { TaraEmpty } from "../components/CustomGraphic";
 
 const styles = StyleSheet.create({
   mapKO: {
@@ -67,40 +68,40 @@ const HistoryPage = ({ navigation }) => {
     ]);
   };
 
-  const [historyList, setHistoryList] = useState([
-    {
-      id: "1",
-      bookingID: "TRA-521212021",
-      start_coordinates: "14.593021375747188, 121.03227310082738",
-      end_coordinates: "14.604909740365962, 121.07717689987197",
-      pickup: "New Buncag, Bgy. Mandaragat",
-      drop: "San Jose, Puerto Princesa City",
-      amount: 99,
-      distance: "5.2km",
-      duration: "10mins",
-      payment_type: "Cash",
-      status: "Completed",
-      rider: 5165554,
-      when: "Yesterday",
-      rated: true,
-    },
-    {
-      id: "2",
-      bookingID: "TRA-521212021",
-      start_coordinates: "14.593021375747188, 121.03227310082738",
-      end_coordinates: "14.604909740365962, 121.07717689987197",
-      pickup: "New Buncag, Bgy. Mandaragat, Puerto Princesa City",
-      drop: "San Jose, Puerto Princesa City, Palawan 5300",
-      amount: 99,
-      distance: "5.2km",
-      duration: "10mins",
-      payment_type: "Wallet",
-      status: "Completed",
-      rider: 5165554,
-      when: "Yesterday",
-      rated: true,
-    },
-  ]);
+  const [historyList, setHistoryList] = useState([])
+  //   {
+  //     id: "1",
+  //     bookingID: "TRA-521212021",
+  //     start_coordinates: "14.593021375747188, 121.03227310082738",
+  //     end_coordinates: "14.604909740365962, 121.07717689987197",
+  //     pickup: "New Buncag, Bgy. Mandaragat",
+  //     drop: "San Jose, Puerto Princesa City",
+  //     amount: 99,
+  //     distance: "5.2km",
+  //     duration: "10mins",
+  //     payment_type: "Cash",
+  //     status: "Completed",
+  //     rider: 5165554,
+  //     when: "Yesterday",
+  //     rated: true,
+  //   },
+  //   {
+  //     id: "2",
+  //     bookingID: "TRA-521212021",
+  //     start_coordinates: "14.593021375747188, 121.03227310082738",
+  //     end_coordinates: "14.604909740365962, 121.07717689987197",
+  //     pickup: "New Buncag, Bgy. Mandaragat, Puerto Princesa City",
+  //     drop: "San Jose, Puerto Princesa City, Palawan 5300",
+  //     amount: 99,
+  //     distance: "5.2km",
+  //     duration: "10mins",
+  //     payment_type: "Wallet",
+  //     status: "Completed",
+  //     rider: 5165554,
+  //     when: "Yesterday",
+  //     rated: true,
+  //   },
+  // ]);
 
   const HistoryCard = ({
     start_coordinates,
@@ -315,8 +316,16 @@ const HistoryPage = ({ navigation }) => {
             )}
           </TouchableOpacity>
         </View>
-
-        <FlatList
+{
+  historyList.length == 0 ? (
+    <View className="h-full flex-row justify-center items-start">
+      <View className="mt-20">
+      <TaraEmpty size={250} />
+      <Text className="text-center mt-4 text-gray-400">aww nothing here..</Text>
+      </View>
+      </View>
+  ):(
+<FlatList
           data={historyList}
           renderItem={({ item, index }) => (
             <HistoryCard
@@ -337,6 +346,9 @@ const HistoryPage = ({ navigation }) => {
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
         />
+  )
+}
+        
       </View>
     </View>
   );

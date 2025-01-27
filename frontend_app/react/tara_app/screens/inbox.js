@@ -209,7 +209,7 @@ const Chat = ({ navigation, redirect, chatId, close }) => {
             </Svg>
           </Pressable>
           <View className="flex-row gap-x-6 justify-start items-center">
-            {redirect == "chat" && (
+            {/* {redirect == "chat" && ( */}
               <TouchableOpacity onPress={() => setAudioCall(true)}>
                 <Svg
                   width="20"
@@ -224,7 +224,7 @@ const Chat = ({ navigation, redirect, chatId, close }) => {
                   />
                 </Svg>
               </TouchableOpacity>
-            )}
+            {/* )} */}
             <Pressable onPress={() => setActiveAutoReport(true)}>
               <LottieView
                 source={require("../assets/animation/eye-watch.json")}
