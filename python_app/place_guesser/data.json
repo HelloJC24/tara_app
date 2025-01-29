@@ -1,0 +1,254 @@
+[
+    {
+      "date": "2025-01-01",
+      "day": "Wednesday",
+      "time": "08:30",
+      "fromLocation": "Matuod Street Manga District Tagb City",
+      "toLocation": "University of San Jose Recolectos Basak"
+    },
+    {
+      "date": "2025-01-01",
+      "day": "Wednesday",
+      "time": "17:00",
+      "fromLocation": "University of San Jose Recolectos Basak",
+      "toLocation": "Matuod Street Manga District Tagb City"
+    },
+    {
+      "date": "2025-01-02",
+      "day": "Thursday",
+      "time": "08:30",
+      "fromLocation": "Matuod Street Manga District Tagb City",
+      "toLocation": "University of San Jose Recolectos Basak"
+    },
+    {
+      "date": "2025-01-02",
+      "day": "Thursday",
+      "time": "12:00",
+      "fromLocation": "University of San Jose Recolectos Basak",
+      "toLocation": "Chowking Basak San Nicholas Cebu City"
+    },
+    {
+      "date": "2025-01-02",
+      "day": "Thursday",
+      "time": "13:00",
+      "fromLocation": "Chowking Basak San Nicholas Cebu City",
+      "toLocation": "University of San Jose Recolectos Basak"
+    },
+    {
+      "date": "2025-01-02",
+      "day": "Thursday",
+      "time": "17:00",
+      "fromLocation": "University of San Jose Recolectos Basak",
+      "toLocation": "Matuod Street Manga District Tagb City"
+    },
+    {
+      "date": "2025-01-03",
+      "day": "Friday",
+      "time": "09:00",
+      "fromLocation": "Matuod Street Manga District Tagb City",
+      "toLocation": "Dr brew Coffe, Cebu City"
+    },
+    {
+      "date": "2025-01-03",
+      "day": "Friday",
+      "time": "10:00",
+      "fromLocation": "Dr brew Coffe, Cebu City",
+      "toLocation": "University of San Jose Recolectos Basak"
+    },
+    {
+      "date": "2025-01-03",
+      "day": "Friday",
+      "time": "17:00",
+      "fromLocation": "University of San Jose Recolectos Basak",
+      "toLocation": "Matuod Street Manga District Tagb City"
+    },
+    {
+      "date": "2025-01-04",
+      "day": "Saturday",
+      "time": "11:00",
+      "fromLocation": "Matuod Street Manga District Tagb City",
+      "toLocation": "Island City Mall, Tagbilaran City"
+    },
+    {
+      "date": "2025-01-04",
+      "day": "Saturday",
+      "time": "15:00",
+      "fromLocation": "Island City Mall, Tagbilaran City",
+      "toLocation": "Matuod Street Manga District Tagb City"
+    },
+    {
+      "date": "2025-01-05",
+      "day": "Sunday",
+      "time": "10:00",
+      "fromLocation": "Matuod Street Manga District Tagb City",
+      "toLocation": "Church"
+    },
+    {
+      "date": "2025-01-05",
+      "day": "Sunday",
+      "time": "12:30",
+      "fromLocation": "Church",
+      "toLocation": "Matuod Street Manga District Tagb City"
+    },
+    {
+      "date": "2025-01-06",
+      "day": "Monday",
+      "time": "08:00",
+      "fromLocation": "Matuod Street Manga District Tagb City",
+      "toLocation": "University of San Jose Recolectos Basak"
+    },
+    {
+      "date": "2025-01-06",
+      "day": "Monday",
+      "time": "18:00",
+      "fromLocation": "University of San Jose Recolectos Basak",
+      "toLocation": "Gym"
+    },
+    {
+      "date": "2025-01-06",
+      "day": "Monday",
+      "time": "19:30",
+      "fromLocation": "Gym",
+      "toLocation": "Matuod Street Manga District Tagb City"
+    },
+    {
+      "date": "2025-01-07",
+      "day": "Tuesday",
+      "time": "08:00",
+      "fromLocation": "Matuod Street Manga District Tagb City",
+      "toLocation": "University of San Jose Recolectos Basak"
+    },
+    {
+      "date": "2025-01-07",
+      "day": "Tuesday",
+      "time": "12:00",
+      "fromLocation": "University of San Jose Recolectos Basak",
+      "toLocation": "Dr brew Coffe, Cebu City"
+    },
+    {
+      "date": "2025-01-07",
+      "day": "Tuesday",
+      "time": "13:00",
+      "fromLocation": "Dr brew Coffe, Cebu City",
+      "toLocation": "University of San Jose Recolectos Basak"
+    },
+    {
+      "date": "2025-01-07",
+      "day": "Tuesday",
+      "time": "18:00",
+      "fromLocation": "University of San Jose Recolectos Basak",
+      "toLocation": "Matuod Street Manga District Tagb City"
+    },
+    {
+      "date": "2025-01-08",
+      "day": "Wednesday",
+      "time": "07:30",
+      "fromLocation": "Matuod Street Manga District Tagb City",
+      "toLocation": "University of San Jose Recolectos Basak"
+    },
+    {
+      "date": "2025-01-08",
+      "day": "Wednesday",
+      "time": "17:30",
+      "fromLocation": "University of San Jose Recolectos Basak",
+      "toLocation": "Matuod Street Manga District Tagb City"
+    },
+    {
+      "date": "2025-01-09",
+      "day": "Thursday",
+      "time": "08:00",
+      "fromLocation": "Matuod Street Manga District Tagb City",
+      "toLocation": "University of San Jose Recolectos Basak"
+    },
+    {
+      "date": "2025-01-09",
+      "day": "Thursday",
+      "time": "12:30",
+      "fromLocation": "University of San Jose Recolectos Basak",
+      "toLocation": "Island City Mall, Tagbilaran City"
+    },
+    {
+      "date": "2025-01-09",
+      "day": "Thursday",
+      "time": "13:30",
+      "fromLocation": "Island City Mall, Tagbilaran City",
+      "toLocation": "University of San Jose Recolectos Basak"
+    },
+    {
+      "date": "2025-01-09",
+      "day": "Thursday",
+      "time": "18:00",
+      "fromLocation": "University of San Jose Recolectos Basak",
+      "toLocation": "Matuod Street Manga District Tagb City"
+    },
+    {
+      "date": "2025-01-10",
+      "day": "Friday",
+      "time": "08:30",
+      "fromLocation": "Matuod Street Manga District Tagb City",
+      "toLocation": "University of San Jose Recolectos Basak"
+    },
+    {
+      "date": "2025-01-10",
+      "day": "Friday",
+      "time": "17:00",
+      "fromLocation": "University of San Jose Recolectos Basak",
+      "toLocation": "Chowking Basak San Nicholas Cebu City"
+    },
+    {
+      "date": "2025-01-10",
+      "day": "Friday",
+      "time": "19:00",
+      "fromLocation": "Chowking Basak San Nicholas Cebu City",
+      "toLocation": "Matuod Street Manga District Tagb City"
+    },
+    {
+      "date": "2025-01-11",
+      "day": "Saturday",
+      "time": "09:00",
+      "fromLocation": "Matuod Street Manga District Tagb City",
+      "toLocation": "Island City Mall, Tagbilaran City"
+    },
+    {
+      "date": "2025-01-11",
+      "day": "Saturday",
+      "time": "13:00",
+      "fromLocation": "Island City Mall, Tagbilaran City",
+      "toLocation": "Park"
+    },
+    {
+      "date": "2025-01-11",
+      "day": "Saturday",
+      "time": "17:00",
+      "fromLocation": "Park",
+      "toLocation": "Matuod Street Manga District Tagb City"
+    },
+    {
+      "date": "2025-01-12",
+      "day": "Sunday",
+      "time": "10:00",
+      "fromLocation": "Matuod Street Manga District Tagb City",
+      "toLocation": "Church"
+    },
+    {
+      "date": "2025-01-12",
+      "day": "Sunday",
+      "time": "12:30",
+      "fromLocation": "Church",
+      "toLocation": "Dr brew Coffe, Cebu City"
+    },
+    {
+      "date": "2025-01-12",
+      "day": "Sunday",
+      "time": "14:30",
+      "fromLocation": "Dr brew Coffe, Cebu City",
+      "toLocation": "Matuod Street Manga District Tagb City"
+    },
+    {
+      "date": "2025-01-13",
+      "day": "Monday",
+      "time": "08:30",
+      "fromLocation": "Matuod Street Manga District Tagb City",
+      "toLocation": "University of San Jose Recolectos Basak"
+    }
+  ]

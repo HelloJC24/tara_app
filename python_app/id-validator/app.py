@@ -49,7 +49,8 @@ def validate_face_quality(faces):
     for face_crop in faces:
         preprocessed_face = preprocess_face(face_crop)
         prediction = face_classifier_model.predict(preprocessed_face)[0][0]
-        if prediction <= 0.25:  # Threshold for a "real" face
+        print(prediction)
+        if prediction <= 0.25:  # Threshold for a "real" face ADJUST THIS ACCORDINGLY
             return True
     return False
 

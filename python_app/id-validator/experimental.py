@@ -1,5 +1,3 @@
-# Experimental Code only - For testing without API
-
 import requests
 import cv2
 import pytesseract
@@ -13,7 +11,7 @@ import re
 import json
 
 # Load pre-trained models
-face_classifier_model = load_model('./id-validator/model/drawing_face_classifier-v1.h5')
+face_classifier_model = load_model('model/drawing_face_classifier-v1.h5')
 
 # Step 1: Validate URLs and Load Images
 def validate_and_load_image(url):
@@ -35,6 +33,7 @@ def detect_face(image, padding=20):
     faces = face_cascade.detectMultiScale(gray_image, scaleFactor=1.1, minNeighbors=5)
     
     cropped_faces = []
+    i =0
     for x, y, w, h in faces:
         x_pad = max(x - padding, 0)
         y_pad = max(y - padding, 0)
@@ -42,6 +41,14 @@ def detect_face(image, padding=20):
         h_pad = min(y + h + padding, image.shape[0]) - y_pad
         face_crop = image[y_pad:y_pad + h_pad, x_pad:x_pad + w_pad]
         cropped_faces.append(face_crop)
+            # View cropped face """OPTIONAL ONLY YOU MAY COMMENT THIS OUT"""
+        cv2.imshow(f"Face {i+1}", face_crop)
+        cv2.waitKey(0)  
+        cv2.destroyAllWindows()  
+
+        # Optional: Save the cropped face to a file
+        cv2.imwrite(f"cropped_face_{i+1}.jpg", face_crop)
+
     return cropped_faces
 
 # Step 3: Validate Face Quality
@@ -55,9 +62,10 @@ def validate_face(faces):
     for face_crop in faces:
         preprocessed_face = preprocess_face(face_crop)
         prediction = face_classifier_model.predict(preprocessed_face)[0][0]
-        if prediction <= 0.25:  # Real face threshold
-            return True
-    return False
+        
+        if prediction <= 0.43:  # Threshold for a "real" face ADJUST THIS ACCORDINGLY
+            return True, prediction
+    return False, 0
 
 # Step 4: Match Reference Image
 def match_reference(face_image, ref_image):
@@ -88,8 +96,9 @@ def process_id_card(url1, url2=None):
     if len(faces) == 0:
         return json.dumps({"error": "No face detected on the ID card."})
 
-    if not validate_face(faces):
-        return json.dumps({"error": "Invalid ID Card Detected: Ensure ID Card Authenticity"})
+    is_valid_face, confidence = validate_face(faces) 
+    if not is_valid_face:
+        return json.dumps({"error": "Invalid ID Card Detected: Ensure ID Card Authenticity. By the mean time, here's what you can try:\n 1. Submit a clear ID Card. 2. Make sure the face is clear on the ID card (e.g. not blurry, no glares)"})
 
     ref_status = "none"
     if url2:
@@ -99,10 +108,10 @@ def process_id_card(url1, url2=None):
         ref_status = "matched" if match_reference(id_card_image, ref_image) else "unmatched"
 
     ocr_result = ocr_and_classify(id_card_image)
-    return json.dumps({"reference_image": ref_status, **ocr_result })
+    return json.dumps({"reference_image": ref_status, "Face ID Dection Accuracy: ": f"{round((1- confidence)*100,2)}%", **ocr_result })
 
 # Example Usage
-url1 = "http://localhost/id_validator/sample_images/demo4.jpg" 
+url1 = "http://localhost/id_validator/sample_images/demo9.jpg" 
 # url2 = "http://localhost/id_validator/sample_images/s1.jpg"
 response = process_id_card(url1)
 print(json.dumps(response))
