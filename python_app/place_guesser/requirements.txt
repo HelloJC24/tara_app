@@ -1,0 +1,7 @@
+pandas==2.2.3
+numpy==1.26.4
+fastapi==0.115.6
+pydantic==2.10.4
+uvicorn==0.34.0
+scikit-learn==1.6.1
+requests==2.32.3
