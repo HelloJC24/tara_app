@@ -6,12 +6,9 @@ The step by step process of the code are as follows:
 1. Detect if a face is present in ID .
 2. Validate face quality if ID Card (Real Human Face).
 3. Optionally match the face with a reference image.
-4. Classify the ID type (using the texts in the OCR image)
-5. OCR image (e.g. get ID number,type and name) and print output in json format: 
-```bash
-{"name": "", "id-type":"", "id-number"}
+4. Classify the ID type (using the texts in the OCR image). (On Progress)
+5. OCR image (e.g. get ID number,type and name) and print output in json format (On Progress): 
 
-````
 
 ## Features
 
