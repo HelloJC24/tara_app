@@ -66,4 +66,28 @@ export const LocationCardDrag = (props) =>{
     </View>
     </View>
         )
-    }
+}
+
+export const HelloVisitor = ({uwu}) => {
+  return (
+    <View>
+      <View className="bg-blue-500 p-4 rounded-2xl shadow-lg flex-row justify-between items-center">
+      <View>
+      <Text className="font-medium text-xl text-white">Done exploring?</Text>
+      <Text className="font-normal text-sm text-blue-200">Unlock all awesome features!</Text>
+      </View>
+
+      <View className="flex-row justify-center items-center gap-x-2.5">
+        <TouchableOpacity onPress={()=>uwu('create')} className="bg-gray-800 px-2.5 py-1.5 rounded-lg shadow-lg">
+          <Text className="text-white font-medium text-lg">Create</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={()=>uwu('login')} className="bg-gray-800 px-2.5 py-1.5 rounded-lg shadow-lg">
+          <Text className="text-white font-medium text-lg">Login</Text>
+        </TouchableOpacity>
+      </View>
+
+      </View>
+     
+    </View>
+  );
+};

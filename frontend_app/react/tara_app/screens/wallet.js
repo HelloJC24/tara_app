@@ -29,10 +29,11 @@ import {
 import ParagraphText from "../components/ParagraphText";
 import ReportProblemScreen from "../components/ReportContainer";
 import { DataContext } from "../context/dataContext";
-import { getUserSettings,createSettings,updateSettings,checkUserAccount } from "../config/hooks";
+import { getUserSettings,createSettings,updateSettings,checkUserAccount,getPaymentHistory,sendTransfer2Friend,fetchUser } from "../config/hooks";
 import { AuthContext } from "../context/authContext";
 import { TaraEmpty } from "../components/CustomGraphic";
 import { useToast } from "../components/ToastNotify";
+import { HelloVisitor } from "../components/Cards";
 
 
 const WalletScreen = ({  navigation}) => {
@@ -40,10 +41,11 @@ const WalletScreen = ({  navigation}) => {
   const [activeSendOrTransfer, setActiveSendOrTransfer] = useState(false);
   const [help, setHelp] = useState(false);
   const { data, setData } = useContext(DataContext);
-  const { user } = useContext(AuthContext);
+  const { user,setUser } = useContext(AuthContext);
   const [defaulPay,setDefaultPay] = useState(false);
   const [repfriend,setRep] = useState(null)
   const toast = useToast();
+  const [walletTransactions, setWalletTransaction] = useState([])
   
 
   // useEffect(()=>{
@@ -65,6 +67,20 @@ const WalletScreen = ({  navigation}) => {
     });
   };
 
+  const openPremium = () =>{
+    toast("try_again","Create or login your account to unlock it.")
+    }
+
+
+  const goLogin = (page) =>{
+    setUser((prevState) => ({
+      ...prevState,
+      userId: null,
+      accessToken: null,
+      history: page
+    }));
+  }
+
 
   useEffect(()=>{
     const pullSettings = async () =>{
@@ -76,13 +92,20 @@ const WalletScreen = ({  navigation}) => {
         //const weeh = await createSettings(data?.user?.UserID,user);
       }else{
         //load settings
-        console.log("default:",sets.data[0].PaymentType)
+        //console.log("default:",sets.data[0].PaymentType)
         if(sets.data[0].PaymentType == 'wallet'){
           setDefaultPay(true)
         }
       }
     }
+
+
+    const pullPaymentHistory = async () =>{
+      const histwallter = await getPaymentHistory(data?.user?.UserID,"2025-01-29",user);
+      setWalletTransaction(histwallter.data.reverse() ?? [])
+    }
     pullSettings();
+    pullPaymentHistory();
   },[data,user])
 
 
@@ -91,86 +114,8 @@ const WalletScreen = ({  navigation}) => {
     toast("success", "Payment method updated.");
   }
 
-  const [walletTransactions, setWalletTransaction] = useState([])
-  //   {
-  //     id: "1",
-  //     type: "ride",
-  //     bookingId: "T-AR65ASD54",
-  //     amount: "28.00",
-  //   },
-  //   {
-  //     id: "2",
-  //     type: "ride",
-  //     bookingId: "T-AR65ASD54",
-  //     amount: "28.00",
-  //   },
-  //   {
-  //     id: "3",
-  //     type: "ride",
-  //     bookingId: "T-AR65ASD54",
-  //     amount: "28.00",
-  //   },
-  //   {
-  //     id: "4",
-  //     type: "credit",
-  //     bookingId: "T-AR65ASD54",
-  //     amount: "8.00",
-  //   },
-  //   {
-  //     id: "5",
-  //     type: "ride",
-  //     bookingId: "T-AR65ASD54",
-  //     amount: "28.00",
-  //   },
-  //   {
-  //     id: "6",
-  //     type: "ride",
-  //     bookingId: "T-AR65ASD54",
-  //     amount: "28.00",
-  //   },
-  //   {
-  //     id: "7",
-  //     type: "ride",
-  //     bookingId: "T-AR65ASD54",
-  //     amount: "28.00",
-  //   },
-  //   {
-  //     id: "8",
-  //     type: "credit",
-  //     bookingId: "T-AR65ASD54",
-  //     amount: "28.00",
-  //   },
-  //   {
-  //     id: "9",
-  //     type: "ride",
-  //     bookingId: "T-AR65ASD54",
-  //     amount: "28.00",
-  //   },
-  //   {
-  //     id: "10",
-  //     type: "ride",
-  //     bookingId: "T-AR65ASD54",
-  //     amount: "28.00",
-  //   },
-  //   {
-  //     id: "11",
-  //     type: "ride",
-  //     bookingId: "T-AR65ASD54",
-  //     amount: "28.00",
-  //   },
-  //   {
-  //     id: "12",
-  //     type: "ride",
-  //     bookingId: "T-AR65ASD54",
-  //     amount: "28.00",
-  //   },
-  //   {
-  //     id: "13",
-  //     type: "credit",
-  //     bookingId: "T-AR65ASD54",
-  //     amount: "19.00",
-  //   },
-  // ]);
+  
+  
 
   return (
     <View className="w-full h-full bg-white relative">
@@ -217,7 +162,7 @@ const WalletScreen = ({  navigation}) => {
 
             <View>
               <Text className="text-2xl font-bold text-center">
-                &#8369; {data?.user?.Wallet}.00
+                &#8369; {data?.user?.Wallet ?? 0}.00
               </Text>
               <Text className="text-base font-normal text-center">
                 Available balance
@@ -247,7 +192,31 @@ const WalletScreen = ({  navigation}) => {
                 <Text className="text-base text-blue-500">Top Up</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+             {
+              user?.userId == 'visitor' ? (
+                <TouchableOpacity
+                onPress={()=>openPremium()}
+                className="relative flex-1 bg-slate-100 p-3 rounded-xl flex gap-x-4 flex-row items-center justify-center"
+              >
+                <View className="absolute -top-2 -right-1">
+                      <Svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <Path d="M19 8.424V6.99998C19 3.13402 15.866 0 12 0C8.13397 0 5 3.13402 5 6.99998V8.424C3.18003 9.2183 2.00263 11.0143 2 13V19C2.00328 21.76 4.23992 23.9967 6.99997 24H17C19.76 23.9967 21.9966 21.76 22 19V13C21.9974 11.0143 20.8199 9.2183 19 8.424ZM13 17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17V15C11 14.4477 11.4477 14 12 14C12.5523 14 13 14.4477 13 15V17ZM17 8.00002H6.99997V7.00003C6.99997 4.23863 9.23853 2.00002 12 2.00002C14.7614 2.00002 17 4.23858 17 7.00003V8.00002Z" fill="#fbbf24"/>
+                      </Svg>
+                      </View>
+                <Svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width={20}
+                  height={20}
+                  viewBox="0 0 24 24"
+                  fill="#93c5fd"
+                >
+                  <Path d="M23.119.882a2.966 2.966 0 0 0-2.8-.8l-16 3.37a4.995 4.995 0 0 0-2.853 8.481l1.718 1.717a1 1 0 0 1 .293.708v3.168a2.965 2.965 0 0 0 .3 1.285l-.008.007.026.026A3 3 0 0 0 5.157 20.2l.026.026.007-.008a2.965 2.965 0 0 0 1.285.3h3.168a1 1 0 0 1 .707.292l1.717 1.717A4.963 4.963 0 0 0 15.587 24a5.049 5.049 0 0 0 1.605-.264 4.933 4.933 0 0 0 3.344-3.986l3.375-16.035a2.975 2.975 0 0 0-.792-2.833ZM4.6 12.238l-1.719-1.717a2.94 2.94 0 0 1-.722-3.074 2.978 2.978 0 0 1 2.5-2.026L20.5 2.086 5.475 17.113v-2.755a2.978 2.978 0 0 0-.875-2.12Zm13.971 7.17a3 3 0 0 1-5.089 1.712l-1.72-1.72a2.978 2.978 0 0 0-2.119-.878H6.888L21.915 3.5Z" />
+                </Svg>
+
+                <Text className="text-base text-blue-300">Send/Transfer</Text>
+              </TouchableOpacity>
+              ):(
+                <TouchableOpacity
                 onPress={() => setActiveSendOrTransfer(true)}
                 className="flex-1 bg-slate-100 p-3 rounded-xl flex gap-x-4 flex-row items-center justify-center"
               >
@@ -263,6 +232,8 @@ const WalletScreen = ({  navigation}) => {
 
                 <Text className="text-base text-blue-500">Send/Transfer</Text>
               </TouchableOpacity>
+              )
+             }
             </View>
 
             <View className="w-full flex flex-row gap-x-4 items-center justify-between py-4">
@@ -278,7 +249,8 @@ const WalletScreen = ({  navigation}) => {
         <Text className="font-bold text-2xl text-neutral-700">
           Wallet transactions
         </Text>
-
+        
+       
       {
         walletTransactions.length == 0 ? (
           <View className="h-full flex-row justify-center items-start">
@@ -286,6 +258,7 @@ const WalletScreen = ({  navigation}) => {
                 <TaraEmpty size={150} />
                 <Text className="text-center mt-4 text-gray-400">aww nothing here..</Text>
                 </View>
+                
                 </View>
         ):(
           <FlatList
@@ -293,38 +266,20 @@ const WalletScreen = ({  navigation}) => {
           data={walletTransactions}
           renderItem={({ item, index }) => (
             <TransactionItem
-              key={item.id}
-              bookingId={item.bookingId}
-              amount={item.amount}
-              type={item.type}
+              key={item.TransactionID}
+              bookingId={item.BookingID}
+              amount={item.Amount}
+              type={item.Type}
+              invoice={item.TransactionID}
+              when={item.Created}
               navigation={navigation}
             />
           )}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.TransactionID}
           showsVerticalScrollIndicator={false}
         />
         )
-      }
-
-     
-
-        {/* <ScrollView
-          showsVerticalScrollIndicator={false}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 5 }}
-        >
-          <View className="">
-            {walletTransactions.map(({ id, bookingId, amount }) => {
-              return (
-                <TransactionItem
-                  key={id}
-                  bookingId={bookingId}
-                  amount={amount}
-                />
-              );
-            })}
-          </View>
-        </ScrollView> */}
+      }        
       </View>
 
       {activeTopup && (
@@ -348,11 +303,19 @@ const WalletScreen = ({  navigation}) => {
           close={() => setHelp(false)}
         />
       )}
+
+       {
+      user?.userId == 'visitor' && (
+        <View className="fixed bottom-[500px] p-4">
+          <HelloVisitor uwu={goLogin} />
+          </View>
+      )
+      }
     </View>
   );
 };
 
-const TransactionItem = ({ navigation, bookingId, amount, type }) => {
+const TransactionItem = ({ navigation, bookingId, amount, type, invoice,when }) => {
   const OpenReceipt = (bi) => {
     navigation.navigate("webview", {
       track: "user",
@@ -365,15 +328,19 @@ const TransactionItem = ({ navigation, bookingId, amount, type }) => {
       onPress={() => OpenReceipt(bookingId)}
       className="w-full border-b border-slate-200 flex flex-row gap-x-4 items-end justify-between py-4"
     >
-      <View className="">
-        <Text className="text-sm font-medium">Ride</Text>
-        <Text className="text-base text-gray-500">Booking ID: {bookingId}</Text>
+      <View className="w-auto">
+        <View className="flex-row justify-start gap-x-2 items-center w-auto">
+        <Text className="text-lg text-gray-800 font-medium">{type}</Text>
+        <View className="h-2 w-2 bg-gray-300 rounded-full"></View>
+        <Text className="text-xs text-gray-500">{when}</Text>
+        </View>
+        <Text className="text-sm text-gray-500">Transaction ID: {invoice}</Text>
       </View>
 
-      {type == "ride" ? (
-        <Text className="font-bold text-base">-&#8369;{amount}</Text>
-      ) : type == "credit" ? (
-        <Text className="font-bold text-base text-green-500">
+      {type == "Ride" || type == "Transfer" ? (
+        <Text className="font-bold text-base text-gray-500">-&#8369;{amount}</Text>
+      ) : type == "Credit" ? (
+        <Text className="font-bold text-base text-green-600">
           +&#8369;{amount}
         </Text>
       ) : (
@@ -425,7 +392,7 @@ const ToggleButton = ({upd,change, ...props}) => {
   );
 };
 
-const PaymentMethods = ({ navigation, provider, status, endpoint, much }) => {
+const PaymentMethods = ({ navigation, provider, status, endpoint, much,auto }) => {
   const { data } = useContext(DataContext);
   const toast = useToast();
 
@@ -436,15 +403,35 @@ const PaymentMethods = ({ navigation, provider, status, endpoint, much }) => {
        return
     }
 
+    if(much == '0'){
+      toast("error", "Top up amount is 0? weird.");
+      return
+    }
+
+
+    const regex = /^(?!0\d)\d+(\.\d{1,2})?$/;
+
+    if (!regex.test(much)) {
+      toast("error","Invalid amount!");
+      return
+    } 
+    
+    if(much < 25){
+      toast("error","Minimum amount is 25");
+      return
+    }
+    
+
     navigation.navigate("webview", {
       track: "payment",
       url: `https://taranapo.com/gateway/payments/${mop}/?taraid=${data?.user?.UserID}&amount=${much}`,
     });
+    auto(false)
   };
 
   return (
     <Pressable
-      onPress={() => openPayment(endpoint)}
+      onPress={() => openPayment(provider)}
       className={`flex flex-row justify-between items-center gap-x-4 items-center border-b border-slate-200 py-4`}
     >
       <View className="flex-row justify-start items-center gap-x-2">
@@ -503,7 +490,7 @@ const TopupScreen = ({ navigation, close }) => {
       id: "2",
       provider: "tarapay",
       endpoint: "Tara Pay",
-      status: false,
+      status: true,
     },
     {
       id: "3",
@@ -565,8 +552,9 @@ const TopupScreen = ({ navigation, close }) => {
                 placeholder="Enter top-up amount"
                 keyboardType="numeric"
               />
+              
             </View>
-
+            <Text className="py-2 text-xs text-gray-500">Minimum amount is &#8369;25.00</Text>
             <View className="w-full py-4">
               <Text className="text-2xl font-semibold">Payment Methods</Text>
               <Text className="text-base">
@@ -585,6 +573,7 @@ const TopupScreen = ({ navigation, close }) => {
                     status={item.status}
                     navigation={navigation}
                     much={amount}
+                    auto={close}
                   />
                 )}
                 keyExtractor={(item) => item.id}
@@ -615,6 +604,8 @@ const SendOrTransferScreen = ({realtiming,rep,balance, openQR, close }) => {
   const [userMe, setUSERME] = useState(balance?.user?.UserID);
   const [allowed,setAllow] = useState(false)
   const toast = useToast();
+ const { user } = useContext(AuthContext);
+const { data, setData } = useContext(DataContext);
   
 
   useEffect(()=>{
@@ -669,6 +660,22 @@ const SendOrTransferScreen = ({realtiming,rep,balance, openQR, close }) => {
     }
   }
 
+  const startSending = async()=>{
+    setAllow(false)
+    const waitba = await sendTransfer2Friend(userMe,input,amount,user);
+    if(waitba.message == "Transaction Completed."){
+    const res = await fetchUser(userMe);
+        if (res.status === "success") {
+          setData((prevData) => ({
+            ...prevData,
+            user: res.data,
+          }));
+          toast("success", "Transfer Completed");
+          close(false)
+        }
+        setAllow(true)
+    }
+  }
 
 
   return (
@@ -712,7 +719,7 @@ const SendOrTransferScreen = ({realtiming,rep,balance, openQR, close }) => {
 
             <Text className="text-sm py-4">
               Available Balance: (
-              <Text className="font-bold">&#8369;{balance?.user?.Wallet}.00</Text>)
+              <Text className="font-bold">&#8369;{balance?.user?.Wallet ?? 0}.00</Text>)
             </Text>
           </View>
         </View>
@@ -782,7 +789,10 @@ const SendOrTransferScreen = ({realtiming,rep,balance, openQR, close }) => {
         </ParagraphText>
         {
           allowed ? (
-          <Button>Send</Button>
+          <Button
+          onPress={()=>startSending()}
+          >
+            Send</Button>
           ):(
           <Button
            bgColor="bg-slate-200"

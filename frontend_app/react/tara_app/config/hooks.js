@@ -26,7 +26,9 @@ import {
   CREATE_SETTINGS_API,
   GENERATE_PUBLIC_TOKEN,
   UPDATE_SETTINGS,
-  REFERRAL_API
+  REFERRAL_API,
+  PAYMENT_HISTORY,
+  TRANSFER_AMOUNT
 } from "./constants";
 import { auth, db } from "./firebase-config";
 import { validateInputType } from "./functions";
@@ -622,3 +624,28 @@ export const referAFriend = async(userID,friend,user) =>{
   }
 }
 
+
+export const getPaymentHistory = async (userID,start,user) =>{
+  try {
+    const callcheck= await axios.get(`${PAYMENT_HISTORY}?user_id=${userID}&start_date=${start}`,
+      await config(user)
+    );
+    return callcheck.data;
+  
+  } catch (error) {
+    console.log(error)
+  }
+}
+
+
+export const sendTransfer2Friend = async (userID,friend,amount,user) =>{
+  try {
+    const callcheck= await axios.get(`${TRANSFER_AMOUNT}?userid=${userID}&friend=${friend}&amount=${amount}`,
+      await config(user)
+    );
+    return callcheck.data;
+  
+  } catch (error) {
+    console.log(error)
+  }
+}

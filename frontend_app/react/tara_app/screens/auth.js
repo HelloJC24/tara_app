@@ -28,10 +28,21 @@ import { createAccount, userNameAgent,checkUserAccount,updateUser,sendOTPAccount
 import { generateOTP } from "../config/functions";
 import { AuthContext } from "../context/authContext";
 import * as Device from 'expo-device';
+import { DataContext } from "../context/dataContext";
 
 const AuthScreen = () => {
   const [stage, setStage] = useState(0);
   const navigation = useNavigation();
+  const { user } = useContext(AuthContext);
+
+  useEffect(()=>{
+   if(user?.history == 'login'){
+    setStage(1)
+   }else if(user?.history == 'create'){
+    setStage(2)
+   }
+  },[user])
+  
 
   const seeHelp = () => {
     setStage(3);
@@ -79,10 +90,20 @@ const AuthScreen = () => {
 
 const MainAuthScreen = ({ help, setStage }) => {
   const toast = useToast();
-
+  const { user,setUser } = useContext(AuthContext);
+  const { data, setData } = useContext(DataContext);
   const showToast = () => {
     toast("success", "This is a success toast message.");
   };
+
+  const VisitasGuest =() =>{
+    setUser((prevState) => ({
+      ...prevState,
+      userId: "visitor",
+      accessToken: "accessToken",
+    }));
+    
+  }
 
   return (
     <View className="w-full h-full bg-white relative">
@@ -142,7 +163,7 @@ const MainAuthScreen = ({ help, setStage }) => {
             Create new account
           </Button>
           <Button
-            onPress={showToast}
+            onPress={VisitasGuest}
             bgColor="bg-yellow-100"
             textColor="text-amber-600"
           >
