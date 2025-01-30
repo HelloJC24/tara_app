@@ -1,7 +1,8 @@
 import BottomSheet from "@devvie/bottom-sheet";
 import { StatusBar } from "expo-status-bar";
 import LottieView from "lottie-react-native";
-import React, { useEffect, useRef, useState } from "react";
+import moment from "moment";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import {
   FlatList,
   Image,
@@ -18,15 +19,35 @@ import Profile from "../assets/icon.png";
 import Button from "../components/Button";
 import { TaraLogo } from "../components/CustomIcon";
 import ParagraphText from "../components/ParagraphText";
-import { fetchInboxMessages } from "../config/hooks";
+import {
+  fetchConversations,
+  fetchInboxMessages,
+  fetchSeenChatStatus,
+  fetchTypingStatus,
+  fetchUser,
+  insertChat,
+  translateText,
+  updateSeenStatus,
+  updateTypingStatus,
+} from "../config/hooks";
+import { AuthContext } from "../context/authContext";
 
 const InboxScreen = ({ route, navigation }) => {
-  const [selectedChat, selectChat] = useState({ chatId: null, active: false });
   const [senderID, setSenderID] = useState(null);
   const [receiverID, setReceiverID] = useState(null);
   const [chatRedirect, setRedirect] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState([]);
+  const [seenMsg, setSeenMsg] = useState({});
+  const [userInfo, setUserInfo] = useState([]);
+
+  const { user } = useContext(AuthContext);
+
+  const [selectedChat, setSelectedChat] = useState({
+    senderId: null,
+    receiverId: null,
+    active: false,
+  });
 
   useEffect(() => {
     if (route.params) {
@@ -36,19 +57,59 @@ const InboxScreen = ({ route, navigation }) => {
           setReceiverID(receiver);
           setSenderID(sender);
           setRedirect(purpose);
-          selectChat({ chatId: 1, active: true });
+          setSelectedChat({
+            senderId: sender || user?.userId,
+            receiverId: receiver,
+            active: true,
+          });
         }
       }
     }
-  }, [route]);
+  }, [route.params, user?.userId]);
 
   useEffect(() => {
+    // fetching all the inbox messages of the user
     const fetchMessages = async () => {
-      try {
-        setIsLoading(true);
+      setIsLoading(true);
 
-        await fetchInboxMessages(senderID, (item) => {
+      try {
+        await fetchInboxMessages(user?.userId, async (item) => {
           if (item.status === "success") {
+            const newUsersInfo = [];
+
+            for (const data of item.data) {
+              try {
+                // the id of messages receiver
+                const id = data.participants.find(
+                  (index) => index !== senderID || index !== user?.userId
+                );
+
+                const res = await fetchUser(id, user);
+                if (res.status === "success") {
+                  newUsersInfo.push({
+                    id,
+                    name: res.data?.Username,
+                  });
+
+                  setReceiverID(id);
+                }
+
+                // fetch the seen status for inbox to config
+                await fetchSeenChatStatus(
+                  user?.userId,
+                  id,
+                  data?.lastMessageId,
+                  (item) => {
+                    // set the last message id
+                    setSeenMsg({ id: data?.lastMessageId, active: item.data });
+                  }
+                );
+              } catch (err) {
+                console.error(err);
+              }
+            }
+
+            setUserInfo((prev) => [...prev, ...newUsersInfo]);
             setMessages(item.data);
             setIsLoading(false);
           }
@@ -59,7 +120,20 @@ const InboxScreen = ({ route, navigation }) => {
     };
 
     fetchMessages();
-  }, []);
+  }, [user?.userId]);
+
+  const handleChatOpen = (senderId) => {
+    setSelectedChat({
+      senderId: user?.userId,
+      receiverId: senderId,
+      active: true,
+    });
+  };
+
+  const handleCloseChat = () => {
+    setSelectedChat((prev) => ({ ...prev, active: false }));
+    navigation.setParams({ purpose: null }); // Clear route params
+  };
 
   return (
     <View className="w-full h-full bg-white relative ">
@@ -82,50 +156,89 @@ const InboxScreen = ({ route, navigation }) => {
           <Text className="text-xl font-semibold opacity-0">hello</Text>
         </View>
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ gap: 10 }}
-          className=""
-        >
-          {messages.length === 0 && "No messages available"}
-
-          {/* {messages.map((item) => {
-            return (
-              <ChatList
-                status="active"
-                onPress={() => selectChat({ chatId: 1, active: true })}
-              />
-            );
-          })} */}
-          <ChatList
-            status="active"
-            onPress={() => selectChat({ chatId: 1, active: true })}
+        {isLoading ? (
+          <Text className="text-base text-center mt-24">loading...</Text>
+        ) : messages.length === 0 ? (
+          <Text className="text-base text-center mt-24">
+            No messages available
+          </Text>
+        ) : (
+          <MessageList
+            senderId={user?.userId || senderID}
+            receiverId={receiverID}
+            messages={messages}
+            userInfo={userInfo}
+            seen={seenMsg}
+            onChatOpen={handleChatOpen}
           />
-          <ChatList status="expired" />
-        </ScrollView>
-
-        {/* <FlatList
-          renderItem={({ item, index }) => <ChatList key={index} />}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 15 }}
-        /> */}
+        )}
       </View>
 
       {selectedChat.active && (
         <Chat
           navigation={navigation}
           redirect={chatRedirect}
-          chatId={selectedChat.chatId}
-          close={() => selectChat({ active: false })}
+          senderId={selectedChat.senderId}
+          receiverId={selectedChat.receiverId}
+          close={handleCloseChat}
         />
       )}
     </View>
   );
 };
 
-const ChatList = ({ status, onPress }) => {
+const MessageList = ({
+  messages,
+  senderId,
+  receiverId,
+  userInfo,
+  seen,
+  onChatOpen,
+}) => {
+  return (
+    <FlatList
+      data={messages}
+      keyExtractor={(item) => item.id}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ gap: 10 }}
+      renderItem={({ item }) => {
+        // id of the message sender
+        const id = item.participants.find((index) => index !== senderId);
+        // to get the user id and name of the sender
+        const sender = userInfo.find((user) => user.id == id);
+
+        return (
+          <ChatList
+            key={item.id}
+            senderId={senderId}
+            receiverId={receiverId}
+            msgId={item.lastMessageId}
+            status={item.status}
+            lastMessage={item.lastMessage}
+            lastSenderId={item.lastSenderId}
+            senderName={sender?.name}
+            seen={seen}
+            datetime={item.datetime}
+            onPress={() => onChatOpen(id)}
+          />
+        );
+      }}
+    />
+  );
+};
+
+const ChatList = ({
+  senderId,
+  receiverId,
+  msgId,
+  senderName,
+  status,
+  seen,
+  datetime,
+  lastMessage,
+  lastSenderId,
+  onPress,
+}) => {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -139,15 +252,23 @@ const ChatList = ({ status, onPress }) => {
         />
 
         <View>
-          <Text className="text-base font-bold">Lebron James</Text>
-          <Text className="text-sm text-neutral-500">
-            Lorem Ipsum is simply...
+          <Text className="text-base font-bold">{senderName}</Text>
+          <Text className={`text-sm text-neutral-500`}>
+            {lastMessage.length > 30
+              ? lastSenderId === senderId
+                ? "You: " + lastMessage.substring(0, 30) + "..."
+                : lastMessage.substring(0, 30) + "..."
+              : lastSenderId === senderId
+              ? "You: " + lastMessage
+              : lastMessage}
           </Text>
         </View>
       </View>
 
       <View className="flex gap-y-1 items-end">
-        <Text className="text-sm text-neutral-500">Thu</Text>
+        <Text className="text-sm text-neutral-500">
+          {moment(datetime).fromNow()}
+        </Text>
         {status === "active" && (
           <View className="bg-green-500 px-4 rounded-md">
             <Text className="text-white text-sm">Active</Text>
@@ -164,31 +285,129 @@ const ChatList = ({ status, onPress }) => {
   );
 };
 
-const Chat = ({ navigation, redirect, chatId, close }) => {
+const Chat = ({ navigation, redirect, senderId, receiverId, close }) => {
   const scrollViewRef = useRef(null);
   const [msg, setMsg] = useState("");
   const [activeAutoReport, setActiveAutoReport] = useState(false);
   const [useAudioCall, setAudioCall] = useState(false);
-  const [chats, setChat] = useState([
-    {
-      id: 1,
-      msg: "hello world",
-      senderId: "4143234",
-      receiverId: "241413",
-      timestamp: 6519649314931,
-    },
-    {
-      id: 2,
-      msg: "Hello sir",
-      senderId: "241413",
-      receiverId: "4143234",
-      timestamp: 6519649314931,
-    },
-  ]);
+  const [chats, setChat] = useState([]);
+  const [typing, setTyping] = useState({ id: null, active: false });
 
+  const conversationId = [senderId, receiverId].sort().join("_");
+  const [isLoading, setIsLoading] = useState(false);
+  const [msgIds, setMsgIds] = useState(null);
+  const [translatedMessage, setTranslatedMessage] = useState({});
+  const [receiverData, setReceiverData] = useState(null);
+
+  const { user } = useContext(AuthContext);
   const expiredSession = false;
-  const userId = "4143234";
-  const receiverID = "???"; // para itong dalawa lng ipapasa completo ang sender and receiver, mostly ang receiver ay kung sino ang rider na nakalagay sa inbox
+
+  const handleOnChange = async (value) => {
+    setMsg(value);
+    await updateTypingStatus(conversationId, senderId, value !== "");
+  };
+
+  useEffect(() => {
+    const loadReceiverData = async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetchUser(receiverId, user);
+        if (res.status === "success") {
+          setReceiverData(res.data);
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.log(error);
+        setIsLoading(false);
+      }
+    };
+
+    loadReceiverData();
+  }, [receiverId]);
+
+  useEffect(() => {
+    // sender typing functionallity
+    const typingStatus = async () => {
+      try {
+        await fetchTypingStatus(conversationId, (item) => {
+          if (item.status === "success") {
+            setTyping({
+              id: Object.keys(item.data).find((key) => item.data[key] === true),
+              active: item.data[senderId] || false,
+            });
+          }
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    const fetchConvos = async () => {
+      try {
+        await fetchConversations(conversationId, async (item) => {
+          if (item.status === "success") {
+            // fetching message id and receiver Id for updating seen status
+            setMsgIds(
+              item.data.map((msg) => ({
+                id: msg.id,
+                receiverId: msg.receiverId,
+              }))
+            );
+
+            setChat(item.data);
+          }
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    fetchConvos();
+    typingStatus();
+
+    return () => {};
+  }, [senderId, receiverId, conversationId]);
+
+  const updateMsgSeenStatus = async () => {
+    try {
+      for (const data of msgIds) {
+        await updateSeenStatus(conversationId, senderId, data?.id);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleSubmit = async (text) => {
+    try {
+      if (!text || text === "") return;
+
+      const res = await insertChat(senderId, receiverId, text);
+
+      // dissable the typing component
+      typing({ id: 0, active: false });
+      await updateTypingStatus(conversationId, senderId, false);
+
+      // clear input
+      setMsg("");
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const toggleTranslation = async (id, text) => {
+    try {
+      const res = await translateText(text, user);
+
+      if (res.status === "success") {
+        console.log("translate text res: ", res.data);
+
+        setTranslatedMessage((prev) => ({ ...prev, [id]: res.data?.to }));
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   return (
     <View className="w-full h-full bg-white absolute inset-0 z-50">
@@ -210,20 +429,20 @@ const Chat = ({ navigation, redirect, chatId, close }) => {
           </Pressable>
           <View className="flex-row gap-x-6 justify-start items-center">
             {/* {redirect == "chat" && ( */}
-              <TouchableOpacity onPress={() => setAudioCall(true)}>
-                <Svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <Path
-                    d="M12.9998 1.00013C12.9998 0.734916 13.1052 0.480562 13.2927 0.293025C13.4803 0.105489 13.7346 0.000132124 13.9998 0.000132124C16.6511 0.00304372 19.193 1.05755 21.0677 2.93228C22.9424 4.80701 23.9969 7.34886 23.9998 10.0001C23.9998 10.2654 23.8945 10.5197 23.7069 10.7072C23.5194 10.8948 23.2651 11.0001 22.9998 11.0001C22.7346 11.0001 22.4803 10.8948 22.2927 10.7072C22.1052 10.5197 21.9998 10.2654 21.9998 10.0001C21.9975 7.87913 21.1538 5.84568 19.6541 4.34591C18.1543 2.84613 16.1208 2.00251 13.9998 2.00013C13.7346 2.00013 13.4803 1.89478 13.2927 1.70724C13.1052 1.5197 12.9998 1.26535 12.9998 1.00013ZM13.9998 6.00013C15.0607 6.00013 16.0781 6.42156 16.8283 7.17171C17.5784 7.92185 17.9998 8.93927 17.9998 10.0001C17.9998 10.2654 18.1052 10.5197 18.2927 10.7072C18.4803 10.8948 18.7346 11.0001 18.9998 11.0001C19.2651 11.0001 19.5194 10.8948 19.7069 10.7072C19.8945 10.5197 19.9998 10.2654 19.9998 10.0001C19.9983 8.40932 19.3656 6.88412 18.2407 5.75925C17.1159 4.63437 15.5907 4.00172 13.9998 4.00013C13.7346 4.00013 13.4803 4.10549 13.2927 4.29303C13.1052 4.48056 12.9998 4.73492 12.9998 5.00013C12.9998 5.26535 13.1052 5.5197 13.2927 5.70724C13.4803 5.89478 13.7346 6.00013 13.9998 6.00013ZM23.0928 16.7391C23.6723 17.3202 23.9978 18.1074 23.9978 18.9281C23.9978 19.7488 23.6723 20.536 23.0928 21.1171L22.1828 22.1661C13.9928 30.0071 -5.93713 10.0821 1.78286 1.86613L2.93286 0.866132C3.51463 0.302809 4.29479 -0.0088188 5.10456 -0.00133303C5.91433 0.00615273 6.6886 0.332151 7.25986 0.906132C7.29086 0.937132 9.14385 3.34413 9.14385 3.34413C9.69368 3.92176 9.99976 4.68906 9.99845 5.48654C9.99715 6.28401 9.68857 7.05031 9.13685 7.62613L7.97885 9.08213C8.6197 10.6392 9.56192 12.0544 10.7514 13.2462C11.9408 14.4381 13.354 15.3831 14.9098 16.0271L16.3748 14.8621C16.9507 14.3108 17.7169 14.0026 18.5141 14.0015C19.3114 14.0004 20.0784 14.3065 20.6558 14.8561C20.6558 14.8561 23.0618 16.7081 23.0928 16.7391ZM21.7168 18.1931C21.7168 18.1931 19.3238 16.3521 19.2928 16.3211C19.0868 16.1169 18.8085 16.0023 18.5183 16.0023C18.2282 16.0023 17.9499 16.1169 17.7438 16.3211C17.7168 16.3491 15.6998 17.9561 15.6998 17.9561C15.5639 18.0643 15.4022 18.1352 15.2305 18.1619C15.0588 18.1885 14.8832 18.17 14.7208 18.1081C12.7053 17.3577 10.8746 16.1829 9.35269 14.6632C7.83079 13.1436 6.65326 11.3146 5.89986 9.30013C5.83306 9.13559 5.81128 8.95622 5.83676 8.78047C5.86224 8.60472 5.93407 8.43893 6.04486 8.30013C6.04486 8.30013 7.65185 6.28213 7.67885 6.25613C7.88312 6.05012 7.99773 5.77175 7.99773 5.48163C7.99773 5.19152 7.88312 4.91315 7.67885 4.70713C7.64785 4.67713 5.80686 2.28213 5.80686 2.28213C5.59776 2.09464 5.32486 1.99423 5.04411 2.00148C4.76335 2.00873 4.496 2.1231 4.29686 2.32113L3.14686 3.32113C-2.49513 10.1051 14.7758 26.4181 20.7208 20.8001L21.6318 19.7501C21.8453 19.5524 21.9735 19.2794 21.9894 18.9888C22.0053 18.6983 21.9075 18.4129 21.7168 18.1931Z"
-                    fill="#374957"
-                  />
-                </Svg>
-              </TouchableOpacity>
+            <TouchableOpacity onPress={() => setAudioCall(true)}>
+              <Svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <Path
+                  d="M12.9998 1.00013C12.9998 0.734916 13.1052 0.480562 13.2927 0.293025C13.4803 0.105489 13.7346 0.000132124 13.9998 0.000132124C16.6511 0.00304372 19.193 1.05755 21.0677 2.93228C22.9424 4.80701 23.9969 7.34886 23.9998 10.0001C23.9998 10.2654 23.8945 10.5197 23.7069 10.7072C23.5194 10.8948 23.2651 11.0001 22.9998 11.0001C22.7346 11.0001 22.4803 10.8948 22.2927 10.7072C22.1052 10.5197 21.9998 10.2654 21.9998 10.0001C21.9975 7.87913 21.1538 5.84568 19.6541 4.34591C18.1543 2.84613 16.1208 2.00251 13.9998 2.00013C13.7346 2.00013 13.4803 1.89478 13.2927 1.70724C13.1052 1.5197 12.9998 1.26535 12.9998 1.00013ZM13.9998 6.00013C15.0607 6.00013 16.0781 6.42156 16.8283 7.17171C17.5784 7.92185 17.9998 8.93927 17.9998 10.0001C17.9998 10.2654 18.1052 10.5197 18.2927 10.7072C18.4803 10.8948 18.7346 11.0001 18.9998 11.0001C19.2651 11.0001 19.5194 10.8948 19.7069 10.7072C19.8945 10.5197 19.9998 10.2654 19.9998 10.0001C19.9983 8.40932 19.3656 6.88412 18.2407 5.75925C17.1159 4.63437 15.5907 4.00172 13.9998 4.00013C13.7346 4.00013 13.4803 4.10549 13.2927 4.29303C13.1052 4.48056 12.9998 4.73492 12.9998 5.00013C12.9998 5.26535 13.1052 5.5197 13.2927 5.70724C13.4803 5.89478 13.7346 6.00013 13.9998 6.00013ZM23.0928 16.7391C23.6723 17.3202 23.9978 18.1074 23.9978 18.9281C23.9978 19.7488 23.6723 20.536 23.0928 21.1171L22.1828 22.1661C13.9928 30.0071 -5.93713 10.0821 1.78286 1.86613L2.93286 0.866132C3.51463 0.302809 4.29479 -0.0088188 5.10456 -0.00133303C5.91433 0.00615273 6.6886 0.332151 7.25986 0.906132C7.29086 0.937132 9.14385 3.34413 9.14385 3.34413C9.69368 3.92176 9.99976 4.68906 9.99845 5.48654C9.99715 6.28401 9.68857 7.05031 9.13685 7.62613L7.97885 9.08213C8.6197 10.6392 9.56192 12.0544 10.7514 13.2462C11.9408 14.4381 13.354 15.3831 14.9098 16.0271L16.3748 14.8621C16.9507 14.3108 17.7169 14.0026 18.5141 14.0015C19.3114 14.0004 20.0784 14.3065 20.6558 14.8561C20.6558 14.8561 23.0618 16.7081 23.0928 16.7391ZM21.7168 18.1931C21.7168 18.1931 19.3238 16.3521 19.2928 16.3211C19.0868 16.1169 18.8085 16.0023 18.5183 16.0023C18.2282 16.0023 17.9499 16.1169 17.7438 16.3211C17.7168 16.3491 15.6998 17.9561 15.6998 17.9561C15.5639 18.0643 15.4022 18.1352 15.2305 18.1619C15.0588 18.1885 14.8832 18.17 14.7208 18.1081C12.7053 17.3577 10.8746 16.1829 9.35269 14.6632C7.83079 13.1436 6.65326 11.3146 5.89986 9.30013C5.83306 9.13559 5.81128 8.95622 5.83676 8.78047C5.86224 8.60472 5.93407 8.43893 6.04486 8.30013C6.04486 8.30013 7.65185 6.28213 7.67885 6.25613C7.88312 6.05012 7.99773 5.77175 7.99773 5.48163C7.99773 5.19152 7.88312 4.91315 7.67885 4.70713C7.64785 4.67713 5.80686 2.28213 5.80686 2.28213C5.59776 2.09464 5.32486 1.99423 5.04411 2.00148C4.76335 2.00873 4.496 2.1231 4.29686 2.32113L3.14686 3.32113C-2.49513 10.1051 14.7758 26.4181 20.7208 20.8001L21.6318 19.7501C21.8453 19.5524 21.9735 19.2794 21.9894 18.9888C22.0053 18.6983 21.9075 18.4129 21.7168 18.1931Z"
+                  fill="#374957"
+                />
+              </Svg>
+            </TouchableOpacity>
             {/* )} */}
             <Pressable onPress={() => setActiveAutoReport(true)}>
               <LottieView
@@ -241,12 +460,13 @@ const Chat = ({ navigation, redirect, chatId, close }) => {
           <ScrollView
             ref={scrollViewRef}
             showsVerticalScrollIndicator={false}
-            onContentSizeChange={() => {
-              scrollViewRef.current.scrollToEnd({ animated: true });
+            onContentSizeChange={async (width, height) => {
+              scrollViewRef.current?.scrollTo({ y: height, animated: true });
+              await updateMsgSeenStatus();
             }}
             className="px-8"
           >
-            <View className="w-full">
+            <View className="w-full pt-2">
               <View className="w-full flex items-center gap-y-2">
                 <Image
                   source={Profile}
@@ -254,7 +474,7 @@ const Chat = ({ navigation, redirect, chatId, close }) => {
                 />
 
                 <Text className="text-2xl text-center font-bold">
-                  Lebron James
+                  {receiverData?.Username}
                 </Text>
 
                 <ParagraphText
@@ -268,68 +488,86 @@ const Chat = ({ navigation, redirect, chatId, close }) => {
                 </ParagraphText>
               </View>
 
-              <View className="w-full py-8  flex justify-end">
+              <View className="w-full py-8 flex gap-y-4 justify-end">
                 {/* messages */}
-                {chats?.map(({ id, msg, senderId, receiverId, timestamp }) => {
+                {chats?.map((item) => {
                   return (
-                    <View key={id}>
-                      {userId === senderId ? (
+                    <View key={item.id}>
+                      {senderId === item.senderId ? (
                         <View className="w-full flex items-end">
-                          <View className="max-w-['60%']  bg-slate-100 px-4 py-3 rounded-xl">
-                            <Text className="text-black text-sm">{msg}</Text>
+                          <View className="max-w-['80%']  bg-slate-100 px-4 py-3 rounded-xl">
+                            <Text className="text-black text-base">
+                              {item.message}
+                            </Text>
                           </View>
                           <View className="flex flex-row">
                             <Text className="p-1 text-slate-400 text-xs">
-                              2:34pm
+                              {moment(item.datetime).fromNow()}
                             </Text>
-                            <View className="flex flex-row  items-center">
-                              <Svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                xmlSpace="preserve"
-                                width={10}
-                                height={10}
-                                style={{
-                                  enableBackground: "new 0 0 512.19 512.19",
-                                }}
-                                fill="#94a3b8"
-                                viewBox="0 0 512.19 512.19"
-                              >
-                                <Circle cx={256.095} cy={256.095} r={85.333} />
-                                <Path d="M496.543 201.034C463.455 147.146 388.191 56.735 256.095 56.735S48.735 147.146 15.647 201.034c-20.862 33.743-20.862 76.379 0 110.123 33.088 53.888 108.352 144.299 240.448 144.299s207.36-90.411 240.448-144.299c20.862-33.744 20.862-76.38 0-110.123zM256.095 384.095c-70.692 0-128-57.308-128-128s57.308-128 128-128 128 57.308 128 128c-.071 70.663-57.337 127.929-128 128z" />
-                              </Svg>
+                            {item.seen && (
+                              <View className="flex flex-row  items-center">
+                                <Svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  xmlSpace="preserve"
+                                  width={10}
+                                  height={10}
+                                  style={{
+                                    enableBackground: "new 0 0 512.19 512.19",
+                                  }}
+                                  fill="#94a3b8"
+                                  viewBox="0 0 512.19 512.19"
+                                >
+                                  <Circle
+                                    cx={256.095}
+                                    cy={256.095}
+                                    r={85.333}
+                                  />
+                                  <Path d="M496.543 201.034C463.455 147.146 388.191 56.735 256.095 56.735S48.735 147.146 15.647 201.034c-20.862 33.743-20.862 76.379 0 110.123 33.088 53.888 108.352 144.299 240.448 144.299s207.36-90.411 240.448-144.299c20.862-33.744 20.862-76.38 0-110.123zM256.095 384.095c-70.692 0-128-57.308-128-128s57.308-128 128-128 128 57.308 128 128c-.071 70.663-57.337 127.929-128 128z" />
+                                </Svg>
 
-                              <Text className="p-1 text-slate-400 text-xs">
-                                Seen
-                              </Text>
-                            </View>
+                                <Text className="p-1 text-slate-400 text-xs">
+                                  Seen
+                                </Text>
+                              </View>
+                            )}
                           </View>
                         </View>
                       ) : (
                         <View className="w-full flex items-start">
-                          <View className="max-w-['60%'] border border-slate-300 px-4 py-3 rounded-xl">
-                            <Text className="text-black text-sm">{msg}</Text>
-                            <Text className="text-blue-600 underline text-xs">
+                          <View className="max-w-['80%'] border border-slate-300 px-4 py-3 rounded-xl">
+                            <Text className="text-black text-base">
+                              {translatedMessage[item.id] ?? item.message}
+                            </Text>
+                            <Text
+                              onPress={() =>
+                                toggleTranslation(item.id, item.message)
+                              }
+                              className="text-blue-600 underline text-xs"
+                            >
                               See translation
                             </Text>
                           </View>
                           <Text className="p-1 text-neutral-500 text-xs">
-                            2:34pm
+                            {moment(item.datetime).fromNow()}
                           </Text>
                         </View>
                       )}
                     </View>
                   );
                 })}
+
+                {typing.id === receiverId && typing && (
+                  <View>
+                    <LottieView
+                      source={require("../assets/animation/typing.json")}
+                      autoPlay
+                      loop
+                      width={60}
+                      height={60}
+                    />
+                  </View>
+                )}
               </View>
-            </View>
-            <View>
-              <LottieView
-                source={require("../assets/animation/typing.json")}
-                autoPlay
-                loop
-                width={60}
-                height={60}
-              />
             </View>
           </ScrollView>
 
@@ -337,16 +575,19 @@ const Chat = ({ navigation, redirect, chatId, close }) => {
             <ChatSessionExpired />
           ) : (
             <View className="w-full px-6 pb-8 bg-white">
-              <SuggestedChats />
-              <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center justify-between">
+              <SuggestedChats setChat={(text) => handleSubmit(text)} />
+              <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-start justify-between">
                 <TextInput
-                  className="flex-1 "
+                  className="flex-1 text-base"
                   multiline={true}
                   value={msg}
-                  onChangeText={setMsg}
+                  onChangeText={handleOnChange}
                   placeholder="Type your message"
                 />
-                <Pressable className="p-2 bg-blue-50 rounded-xl">
+                <Pressable
+                  onPress={() => handleSubmit(msg)}
+                  className="p-2 bg-blue-50 rounded-xl"
+                >
                   <Svg
                     xmlns="http://www.w3.org/2000/svg"
                     xmlSpace="preserve"

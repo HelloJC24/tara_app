@@ -14,7 +14,6 @@ import InboxScreen from "./screens/inbox";
 import BookingPage from "./screens/map";
 import QrCodeScannerScreen from "./screens/qrcode_scanner";
 import SplashScreen from "./screens/splash";
-import StartPage from "./screens/start";
 import WalletScreen from "./screens/wallet";
 import WebViewerScreen from "./screens/web_viewer";
 const Stack = createNativeStackNavigator();
@@ -60,9 +59,7 @@ const ProtectedRouting = () => {
         </>
       ) : (
         <>
-      
-            <Stack.Screen name="auth" component={AuthScreen} />
-       
+          <Stack.Screen name="auth" component={AuthScreen} />
 
           <Stack.Screen name="webview" component={WebViewerScreen} />
         </>
@@ -80,7 +77,7 @@ export default function App() {
           <NavigationContainer>
             <Stack.Navigator
               initialRouteName="splash"
-              screenOptions={({ navigation }) => ({
+              screenOptions={({ route, navigation }) => ({
                 headerShown: false,
               })}
             >

@@ -1,4 +1,6 @@
+import axios from "axios";
 import * as Location from "expo-location";
+import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import LottieView from "lottie-react-native";
 import React, { useContext, useEffect, useState } from "react";
@@ -6,24 +8,23 @@ import {
   Alert,
   Image,
   Linking,
+  Platform,
   Pressable,
   Text,
   TouchableOpacity,
   View,
-  Platform
 } from "react-native";
 import QRCodeStyled from "react-native-qrcode-styled";
 import Svg, { Path } from "react-native-svg";
+import appJson from "../app.json";
 import TaraLogo from "../assets/tara_icon.png";
 import BottomNavBar from "../components/BottomNavBar";
 import Button from "../components/Button";
-import ParagraphText from "../components/ParagraphText";
-import { InviteGraphic, TaraPermission, TaraGate } from "../components/CustomGraphic";
-import RateUsApp from "../components/RateUsApp";
-import axios from 'axios';
-import appJson from "../app.json";
-const appVersion = appJson.expo.version;
-import * as Notifications from "expo-notifications";
+import {
+  InviteGraphic,
+  TaraGate,
+  TaraPermission,
+} from "../components/CustomGraphic";
 import {
   TaraCar,
   TaraGift,
@@ -31,28 +32,30 @@ import {
   TaraVan,
   TaraWalletIcon,
 } from "../components/CustomIcon";
-import { fetchUser,updateUser } from "../config/hooks";
+import ParagraphText from "../components/ParagraphText";
+import RateUsApp from "../components/RateUsApp";
+import { useToast } from "../components/ToastNotify";
+import { GET_DATA_CONTROL_API } from "../config/constants";
+import { fetchUser, updateUser } from "../config/hooks";
 import { AuthContext } from "../context/authContext";
 import { DataContext } from "../context/dataContext";
-import { GET_DATA_CONTROL_API,ADMIN_TOKEN } from "../config/constants";
-import { useToast } from "../components/ToastNotify";
+const appVersion = appJson.expo.version;
 
 const HomeScreen = ({ navigation }) => {
   const [activeScanFriend, setActiveScanFriend] = useState(false);
   const [rewardsAvailable, SetRewards] = useState(true);
   const [activeRateUs, setActiveRateUs] = useState(false);
-  const [locationPermission,setPermissionAsk] = useState(false);
+  const [locationPermission, setPermissionAsk] = useState(false);
   const [location, setLocation] = useState([]);
-  const [controlData,setControlData] = useState([]);
-  const [gate,setGate] = useState(false);
+  const [controlData, setControlData] = useState([]);
+  const [gate, setGate] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useContext(AuthContext);
   const { data, setData } = useContext(DataContext);
-  const [activaeBooking,setActiveBooking] = useState(false)
-  const [pushToken,setPushToken] = useState(null)
-const toast = useToast();
+  const [activaeBooking, setActiveBooking] = useState(false);
+  const [pushToken, setPushToken] = useState(null);
+  const toast = useToast();
 
-  
   const taraBook = (vehicle) => {
     navigation.navigate("booking", {
       track: user?.userId,
@@ -74,163 +77,148 @@ const toast = useToast();
     });
   };
 
-
-
-
-const newUpdateAvailable = (v) =>{
-  Alert.alert(
-    'Update Available',
-    `You're using old ${v} version. We have our latest ${appVersion} version. Explore new improved update.`,
-    [
-      {
-        text: 'Later',
-        type: 'cancel'
-      },
-      {
-        text: 'Update',
-        onPress: () => Linking.openURL("https://taranapo.com/download/"),
-      }
-      
-    ],
-  );
-}
-
-
- useEffect(() => {
-  async function getCurrentLocation() {
-    let { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      setPermissionAsk(true);
-      Alert.alert(
-        'Permission Denied',
-        'We cannot proceed performing our services without location access.',
-        [
-          {
-            text: 'Close',
-            type: 'cancel'
-          }
-        ],
-      );
-      return;
-    }else{
-      setPermissionAsk(false);
-    }
-
-    const location = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.High,
-    });
-    
-    if(location.mocked){
-      setPermissionAsk(false);
-    }else{
-      setLocation(location);
-      getControl();
-    }
-    
-  }
-
-  async function getControl() {
-    
-    try {
-      const response = await axios.get(
-        GET_DATA_CONTROL_API,
+  const newUpdateAvailable = (v) => {
+    Alert.alert(
+      "Update Available",
+      `You're using old ${v} version. We have our latest ${appVersion} version. Explore new improved update.`,
+      [
         {
+          text: "Later",
+          type: "cancel",
+        },
+        {
+          text: "Update",
+          onPress: () => Linking.openURL("https://taranapo.com/download/"),
+        },
+      ]
+    );
+  };
+
+  useEffect(() => {
+    async function getCurrentLocation() {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setPermissionAsk(true);
+        Alert.alert(
+          "Permission Denied",
+          "We cannot proceed performing our services without location access.",
+          [
+            {
+              text: "Close",
+              type: "cancel",
+            },
+          ]
+        );
+        return;
+      } else {
+        setPermissionAsk(false);
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      if (location.mocked) {
+        setPermissionAsk(false);
+      } else {
+        setLocation(location);
+        getControl();
+      }
+    }
+
+    async function getControl() {
+      try {
+        const response = await axios.get(GET_DATA_CONTROL_API, {
           params: {
-            origin:location
+            origin: location,
           },
           headers: {
-              'Auth': `Bearer ${user?.accessToken}`,
-              'Content-Type': 'application/json',
-            },
-        }
-      );
-   
-      if (response.data) {
+            Auth: `Bearer ${user?.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.data) {
           setControlData(response.data.data);
           const supportedLocations = response.data.data.supported_location;
-          setGate(response.data.data.gate)
-          if(location.coords){
-          const { latitude, longitude } = location.coords;
-          const isSupported = supportedLocations.some((location) => {
-            return (
-              latitude >= location.minLat &&
-              latitude <= location.maxLat &&
-              longitude >= location.minLng &&
-              longitude <= location.maxLng
-            );
-          });
+          setGate(response.data.data.gate);
+          if (location.coords) {
+            const { latitude, longitude } = location.coords;
+            const isSupported = supportedLocations.some((location) => {
+              return (
+                latitude >= location.minLat &&
+                latitude <= location.maxLat &&
+                longitude >= location.minLng &&
+                longitude <= location.maxLng
+              );
+            });
 
-          if (!isSupported) {
-            //not supported
-            setGate(true)
-          } 
+            if (!isSupported) {
+              //not supported
+              setGate(true);
+            }
           }
 
-            if(Platform.OS == 'android'){
-              if(response.data.data.version_app_android != appVersion){
-                newUpdateAvailable(response.data.data.version_app_android);
-              }
+          if (Platform.OS == "android") {
+            if (response.data.data.version_app_android != appVersion) {
+              newUpdateAvailable(response.data.data.version_app_android);
             }
-           
-            if(Platform.OS == 'ios'){
-              if(response.data.data.version_app_ios != appVersion){
-                newUpdateAvailable(response.data.data.version_app_ios);
-              }
-            }
-           
+          }
 
-      } else {
-          
+          if (Platform.OS == "ios") {
+            if (response.data.data.version_app_ios != appVersion) {
+              newUpdateAvailable(response.data.data.version_app_ios);
+            }
+          }
+        } else {
+        }
+      } catch (error) {
+        console.error(error);
       }
-    } catch (error) {
-      console.error(error);
     }
-  }
 
+    //setup for push notifications
+    setTimeout(async () => {
+      registerForPushNotificationsAsync().then((token) => savePushToken(token));
 
-  //setup for push notifications
-  setTimeout(async () => {
-    registerForPushNotificationsAsync().then((token) => savePushToken(token));
+      const notificationListener =
+        Notifications.addNotificationReceivedListener((notification) => {
+          console.log("Notification received:", notification);
+        });
 
-    const notificationListener = Notifications.addNotificationReceivedListener(
-      (notification) => {
-        console.log("Notification received:", notification);
-      }
-    );
+      const responseListener =
+        Notifications.addNotificationResponseReceivedListener((response) => {
+          console.log("Notification interacted with:", response);
+        });
 
-    const responseListener = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        console.log("Notification interacted with:", response);
-      }
-    );
+      return () => {
+        Notifications.removeNotificationSubscription(notificationListener);
+        Notifications.removeNotificationSubscription(responseListener);
+      };
+    }, 2000);
 
-    return () => {
-      Notifications.removeNotificationSubscription(notificationListener);
-      Notifications.removeNotificationSubscription(responseListener);
+    const savePushToken = async (pt) => {
+      //toast("success", pt.data,user);
+      const savingPush = await updateUser(user?.userId, "OSID", pt.data, user);
+      const saveloc = `${location.coords.latitude},${coords.longitude}`;
+      console.log("location:", saveloc);
+      const savingLocation = await updateUser(
+        user?.userId,
+        "Location",
+        saveloc
+      );
+      console.log("saving push:", savingPush);
     };
-  }, 2000);
 
-  const savePushToken = async (pt) =>{
-    //toast("success", pt.data,user);
-    const savingPush = await updateUser(user?.userId,"OSID",pt.data,user)
-    const saveloc = `${location.coords.latitude},${coords.longitude}`;
-    console.log("location:",saveloc)
-    const savingLocation = await updateUser(user?.userId,"Location",saveloc)
-    console.log("saving push:",savingPush)
-  }
-
-  getCurrentLocation();
-}, [locationPermission,setGate,setLocation,user?.accessToken]);
-
-
+    getCurrentLocation();
+  }, [locationPermission, setGate, setLocation, user?.accessToken]);
 
   useEffect(() => {
     // fetching user data
     const getUser = async () => {
-      
       try {
         setIsLoading(true);
-        const res = await fetchUser(user?.userId,user);
+        const res = await fetchUser(user?.userId, user);
         ///console.log(res)
         if (res.status === "success") {
           //console.log(res.data)
@@ -239,10 +227,12 @@ const newUpdateAvailable = (v) =>{
             user: res.data,
           }));
 
-          setActiveBooking(res.data.ActiveBooking == 'N/A' ? false : true);
-          setActiveRateUs(res.data.ReviewUs == 'N/A' ? false : true)
+          console.log(res.data);
+
+          setActiveBooking(res.data.ActiveBooking == "N/A" ? false : true);
+          setActiveRateUs(res.data.ReviewUs == "N/A" ? false : true);
           //if active fetch rides details
-          setGate(res.data.Status == 'Active' ? false : true)
+          setGate(res.data.Status == "Active" ? false : true);
           setIsLoading(false);
         }
       } catch (error) {
@@ -275,10 +265,12 @@ const newUpdateAvailable = (v) =>{
                 <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm10 12a9.938 9.938 0 0 1-1.662 5.508l-1.192-1.193a.5.5 0 0 1-.146-.353V15a3 3 0 0 0-3-3h-3a1 1 0 0 1-1-1v-.5a.5.5 0 0 1 .5-.5A2.5 2.5 0 0 0 15 7.5v-1a.5.5 0 0 1 .5-.5h1.379a2.516 2.516 0 0 0 1.767-.732l.377-.377A9.969 9.969 0 0 1 22 12Zm-19.951.963 3.158 3.158A2.978 2.978 0 0 0 7.329 17H10a1 1 0 0 1 1 1v3.949a10.016 10.016 0 0 1-8.951-8.986ZM13 21.949V18a3 3 0 0 0-3-3H7.329a1 1 0 0 1-.708-.293l-4.458-4.458A9.978 9.978 0 0 1 17.456 3.63l-.224.224a.507.507 0 0 1-.353.146H15.5A2.5 2.5 0 0 0 13 6.5v1a.5.5 0 0 1-.5.5 2.5 2.5 0 0 0-2.5 2.5v.5a3 3 0 0 0 3 3h3a1 1 0 0 1 1 1v.962a2.516 2.516 0 0 0 .732 1.767l1.337 1.337A9.971 9.971 0 0 1 13 21.949Z" />
               </Svg>
             </Pressable>
-       
-                {
-                  rewardsAvailable || controlData.rewards ? (
-                    <Pressable onPress={()=>OpenRewards()} className="pb-1.5 bg-white rounded-lg">
+
+            {rewardsAvailable || controlData.rewards ? (
+              <Pressable
+                onPress={() => OpenRewards()}
+                className="pb-1.5 bg-white rounded-lg"
+              >
                 <LottieView
                   source={require("../assets/animation/taragift.json")}
                   autoPlay
@@ -295,24 +287,20 @@ const newUpdateAvailable = (v) =>{
           </View>
         </View>
 
-        {
-          controlData.length == 0 ? (
-            <View className="my-4 bg-gray-200 rounded-lg w-56 h-6"></View>
-          ):(
-            <ParagraphText
-          padding="py-4 pr-16"
-          fontSize="lg"
-          align="left"
-          textColor="text-neutral-700"
-        >
-          {controlData.greetings}
-        </ParagraphText>
-          )
-        }
+        {controlData.length == 0 ? (
+          <View className="my-4 bg-gray-200 rounded-lg w-56 h-6"></View>
+        ) : (
+          <ParagraphText
+            padding="py-4 pr-16"
+            fontSize="lg"
+            align="left"
+            textColor="text-neutral-700"
+          >
+            {controlData.greetings}
+          </ParagraphText>
+        )}
 
-        <View>
-          
-        </View>
+        <View></View>
 
         <View
           className="w-full border-t border-x border-slate-100 p-3 shadow-md shadow-neutral-500 bg-white rounded-2xl 
@@ -328,15 +316,13 @@ const newUpdateAvailable = (v) =>{
                 Wallet
               </Text>
               <View className="flex flex-row gap-x-1 items-center">
-                {
-                  isLoading ? (
-                    <View className="bg-gray-200 rounded-lg w-10 h-6"></View>
-                  ):(
-                    <Text className="text-xl font-medium">
-                  &#8369;{data?.user?.Wallet}.00
-                </Text>
-                  )
-                }
+                {isLoading ? (
+                  <View className="bg-gray-200 rounded-lg w-10 h-6"></View>
+                ) : (
+                  <Text className="text-xl font-medium">
+                    &#8369;{data?.user?.Wallet}.00
+                  </Text>
+                )}
                 <TouchableOpacity onPress={() => navigation.navigate("wallet")}>
                   <Svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -375,88 +361,68 @@ const newUpdateAvailable = (v) =>{
           </Text>
 
           <View className="w-full flex flex-row justify-between items-center py-2 px-4">
-      
+            {location.length == 0 || controlData.service_status1 == false ? (
+              <Pressable
+                onPress={() => setPermissionAsk(true)}
+                className="flex gap-y-1"
+              >
+                <View className="opacity-50 flex justify-center items-center pt-2 w-20 h-20 bg-slate-200 rounded-full">
+                  <TaraMotor size="55" />
+                </View>
+                <Text className="text-base text-center text-gray-200">
+                  {controlData.service_name1 ?? "TaraRide"}
+                </Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => taraBook(2)} className="flex gap-y-1">
+                <View className="flex justify-center items-center pt-2 w-20 h-20 bg-slate-200 rounded-full">
+                  <TaraMotor size="55" />
+                </View>
+                <Text className="text-base text-center text-blue-500">
+                  {controlData.service_name1 ?? "TaraRide"}
+                </Text>
+              </Pressable>
+            )}
 
-            {
-              location.length == 0 || controlData.service_status1 == false ? (
-
-            <Pressable onPress={()=>setPermissionAsk(true)} className="flex gap-y-1">
-              <View className="opacity-50 flex justify-center items-center pt-2 w-20 h-20 bg-slate-200 rounded-full">
-                <TaraMotor size="55" />
-              </View>
-              <Text className="text-base text-center text-gray-200">
-                {controlData.service_name1 ?? 'TaraRide'}
-              </Text>
-            </Pressable>
-
-
-              ):(
-
-
-            <Pressable onPress={()=>taraBook(2)} className="flex gap-y-1">
-              <View className="flex justify-center items-center pt-2 w-20 h-20 bg-slate-200 rounded-full">
-                <TaraMotor size="55" />
-              </View>
-              <Text className="text-base text-center text-blue-500">
-              {controlData.service_name1 ?? 'TaraRide'}
-              </Text>
-            </Pressable>
-
-            )
-            }
-
-
-
-              {
-                location.length == 0 || controlData.service_status2 == false ? (
-                  <Pressable onPress={()=>setPermissionAsk(true)}>
-                  <View className="opacity-50 flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
+            {location.length == 0 || controlData.service_status2 == false ? (
+              <Pressable onPress={() => setPermissionAsk(true)}>
+                <View className="opacity-50 flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
                   <TaraCar size="65" />
-                  </View>
-                  <Text className="text-base text-center text-gray-200">
-                  {controlData.service_name2 ?? 'TaraCar'}
-                  </Text>
-                </Pressable> 
-                ):(
-                      <Pressable onPress={()=>taraBook(4)} className="flex gap-y-1">
-                            <View className="flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
-                            <TaraCar size="65" />
-                            </View>
-                            <Text className="text-base text-center text-blue-500">
-                            {controlData.service_name2 ?? 'TaraCar'}
-                            </Text>
-                          </Pressable>
+                </View>
+                <Text className="text-base text-center text-gray-200">
+                  {controlData.service_name2 ?? "TaraCar"}
+                </Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => taraBook(4)} className="flex gap-y-1">
+                <View className="flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
+                  <TaraCar size="65" />
+                </View>
+                <Text className="text-base text-center text-blue-500">
+                  {controlData.service_name2 ?? "TaraCar"}
+                </Text>
+              </Pressable>
+            )}
 
-              )
-              }
-                
-
-        {
-          location.length == 0 || controlData.service_status3 == false ? (
-            <Pressable onPress={()=>setPermissionAsk(true)}>
-            <View className="opacity-50 flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
-            <TaraVan size="65" />
-            </View>
-            <Text className="text-base text-center text-gray-200">
-            {controlData.service_name3 ?? 'TaraVan'}
-            </Text>
-          </Pressable>
-          ):(
-
-      <Pressable onPress={()=>taraBook(5)} className="flex gap-y-1">
-              <View className="flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
-              <TaraVan size="65" />
-              </View>
-              <Text className="text-base text-center text-blue-500">
-              {controlData.service_name3 ?? 'TaraVan'}
-              </Text>
-            </Pressable>
-
-          )
-          }
-                
-
-
+            {location.length == 0 || controlData.service_status3 == false ? (
+              <Pressable onPress={() => setPermissionAsk(true)}>
+                <View className="opacity-50 flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
+                  <TaraVan size="65" />
+                </View>
+                <Text className="text-base text-center text-gray-200">
+                  {controlData.service_name3 ?? "TaraVan"}
+                </Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => taraBook(5)} className="flex gap-y-1">
+                <View className="flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
+                  <TaraVan size="65" />
+                </View>
+                <Text className="text-base text-center text-blue-500">
+                  {controlData.service_name3 ?? "TaraVan"}
+                </Text>
+              </Pressable>
+            )}
           </View>
         </View>
 
@@ -473,10 +439,11 @@ const newUpdateAvailable = (v) =>{
       )}
       {activeRateUs && <RateUsApp close={() => setActiveRateUs(false)} />}
 
-      {locationPermission && ( <AllowLocationPrompt close={()=>setPermissionAsk(false)} />)}
+      {locationPermission && (
+        <AllowLocationPrompt close={() => setPermissionAsk(false)} />
+      )}
 
-      { gate && (<GatePrompt />)}
-       
+      {gate && <GatePrompt />}
     </View>
   );
 };
@@ -640,7 +607,6 @@ const AllowLocationPrompt = ({ close }) => {
   );
 };
 
-
 const GatePrompt = () => {
   return (
     <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
@@ -648,8 +614,6 @@ const GatePrompt = () => {
         className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
       flex gap-y-4"
       >
-       
-
         <View className="relative w-full flex justify-center items-center p-4">
           <TaraGate size={200} />
         </View>
@@ -671,7 +635,6 @@ const GatePrompt = () => {
   );
 };
 
-
 async function registerForPushNotificationsAsync() {
   let token;
   if (Platform.OS === "android") {
@@ -688,7 +651,6 @@ async function registerForPushNotificationsAsync() {
     });
   }
 
-  
   const { status } = await Notifications.requestPermissionsAsync();
   if (status !== "granted") {
     //failed
@@ -698,10 +660,9 @@ async function registerForPushNotificationsAsync() {
   token = await Notifications.getExpoPushTokenAsync({
     projectId: "9666c06c-78e4-4768-baba-4035a03729fb",
   });
- 
+
   return token;
 }
-
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -710,6 +671,5 @@ Notifications.setNotificationHandler({
     shouldSetBadge: true,
   }),
 });
-
 
 export default HomeScreen;
