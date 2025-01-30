@@ -6,6 +6,7 @@ export const GET_USER_API = "https://dwayon.tech/api/User/get";
 export const UPDATE_USER_API = "https://dwayon.tech/api/User/update/";
 export const GET_DATA_CONTROL_API = "https://dwayon.tech/api/dataControl/";
 export const GET_HISTORY_API = "https://dwayon.tech/api/History/Get/";
+export const TRANSLATE_TEXT_API = "https://dwayon.tech/api/translation/";
 export const ADMIN_TOKEN = "9Siqh4JevTVGWe2ILC0MBfWvYA93";
 export const CORRECTOR = "https://dwayon.tech/api/correction/username/";
 export const EMAILOTP = "https://taranapo.com/api/mail-sender/";
@@ -18,4 +19,4 @@ export const GENERATE_PUBLIC_TOKEN =
   "https://dwayon.tech/api/authorization/create/";
 export const UPDATE_SETTINGS = "https://dwayon.tech/api/Settings/update/";
 export const REFERRAL_API = "https://dwayon.tech/api/referral/validate/";
-export const TRANSLATE_TEXT_API = "https://dwayon.tech/api/translation/";
+export const TRANSFER_AMOUNT = "https://dwayon.tech/api/Payment/transfer/";

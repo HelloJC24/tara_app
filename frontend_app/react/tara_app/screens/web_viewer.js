@@ -1,12 +1,49 @@
 import { StatusBar} from "expo-status-bar";
-import React, { useState } from "react";
+import React, { useState,useContext,useEffect,useRef } from "react";
 import { View,Pressable,Linking } from "react-native";
 import { WebView } from "react-native-webview";
 import Svg, { Path, Rect } from "react-native-svg";
+import { AuthContext } from "../context/authContext";
+import { DataContext } from "../context/dataContext";
+import { fetchUser} from "../config/hooks";
 
 const WebViewerScreen = ({ route,navigation }) => {
+   const { user } = useContext(AuthContext);
   const { url } = route.params;
   const [loading,setIsLoading] = useState(false)
+ const webViewRef = useRef(null);
+  const { data, setData } = useContext(DataContext);
+
+
+  useEffect(()=>{
+    const jsonData = JSON.stringify({ 
+        message: "Tara APP",
+        access: user
+    });
+    // console.log(jsonData)
+    webViewRef.current?.injectJavaScript(`
+        document.dispatchEvent(new MessageEvent('message', { data: '${jsonData}' }));
+        true; // Suppress warnings
+    `);
+},[loading])
+
+
+
+const handleWebViewMessage = async (event) => {
+  const data = JSON.parse(event.nativeEvent.data);
+  if(data.message == 'close'){
+    const res = await fetchUser(user?.userId,user);
+    if (res.status === "success") {
+      setData((prevData) => ({
+        ...prevData,
+        user: res.data,
+      }));
+    navigation.goBack();
+  }
+}
+  };
+
+
   return (
     <View className="flex-1 bg-white relative">
       <StatusBar style="dark" />
@@ -39,10 +76,12 @@ const WebViewerScreen = ({ route,navigation }) => {
 </View>
 
       <WebView
+        ref={webViewRef}
         source={{ uri: url }}
+        onLoadStart={() => setIsLoading(true)}
         onLoadEnd={() => setIsLoading(false)}
         javaScriptEnabled={true}
-        domStorageEnabled={true}
+        onMessage={handleWebViewMessage}
         onError={(syntheticEvent) => {
           const { nativeEvent } = syntheticEvent;
           console.warn("WebView error: ", nativeEvent);

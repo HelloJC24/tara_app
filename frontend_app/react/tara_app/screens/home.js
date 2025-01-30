@@ -16,10 +16,10 @@ import {
 } from "react-native";
 import QRCodeStyled from "react-native-qrcode-styled";
 import Svg, { Path } from "react-native-svg";
-import appJson from "../app.json";
 import TaraLogo from "../assets/tara_icon.png";
 import BottomNavBar from "../components/BottomNavBar";
 import Button from "../components/Button";
+import { HelloVisitor } from "../components/Cards";
 import {
   InviteGraphic,
   TaraGate,
@@ -39,7 +39,6 @@ import { GET_DATA_CONTROL_API } from "../config/constants";
 import { fetchUser, updateUser } from "../config/hooks";
 import { AuthContext } from "../context/authContext";
 import { DataContext } from "../context/dataContext";
-const appVersion = appJson.expo.version;
 
 const HomeScreen = ({ navigation }) => {
   const [activeScanFriend, setActiveScanFriend] = useState(false);
@@ -50,7 +49,7 @@ const HomeScreen = ({ navigation }) => {
   const [controlData, setControlData] = useState([]);
   const [gate, setGate] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { user } = useContext(AuthContext);
+  const { setUser, user } = useContext(AuthContext);
   const { data, setData } = useContext(DataContext);
   const [activaeBooking, setActiveBooking] = useState(false);
   const [pushToken, setPushToken] = useState(null);
@@ -92,6 +91,15 @@ const HomeScreen = ({ navigation }) => {
         },
       ]
     );
+  };
+
+  const goLogin = (page) => {
+    setUser((prevState) => ({
+      ...prevState,
+      userId: null,
+      accessToken: null,
+      history: page,
+    }));
   };
 
   useEffect(() => {
@@ -287,7 +295,7 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {controlData.length == 0 ? (
+        {controlData.length == 0 && user.userId != "visitor" ? (
           <View className="my-4 bg-gray-200 rounded-lg w-56 h-6"></View>
         ) : (
           <ParagraphText
@@ -296,7 +304,8 @@ const HomeScreen = ({ navigation }) => {
             align="left"
             textColor="text-neutral-700"
           >
-            {controlData.greetings}
+            {controlData.greetings ??
+              "Hello there visitors! Mostly you see our weather forecast here.."}
           </ParagraphText>
         )}
 
@@ -316,11 +325,11 @@ const HomeScreen = ({ navigation }) => {
                 Wallet
               </Text>
               <View className="flex flex-row gap-x-1 items-center">
-                {isLoading ? (
+                {isLoading && user.userId != "visitor" ? (
                   <View className="bg-gray-200 rounded-lg w-10 h-6"></View>
                 ) : (
                   <Text className="text-xl font-medium">
-                    &#8369;{data?.user?.Wallet}.00
+                    &#8369;{data?.user?.Wallet ?? 0}.00
                   </Text>
                 )}
                 <TouchableOpacity onPress={() => navigation.navigate("wallet")}>
@@ -426,7 +435,7 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <BottomNavBar />
+        <BottomNavBar access={user} />
       </View>
       {activaeBooking && <ExistingBooking />}
 
@@ -444,6 +453,12 @@ const HomeScreen = ({ navigation }) => {
       )}
 
       {gate && <GatePrompt />}
+
+      {user?.userId == "visitor" && (
+        <View className="fixed bottom-[200px] p-4">
+          <HelloVisitor uwu={goLogin} />
+        </View>
+      )}
     </View>
   );
 };

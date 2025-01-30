@@ -733,7 +733,7 @@ className="bg-white"
 onLoad={()=>setWebLoad(true)}
 onTouchStart={()=>draggingMap()}
 onTouchEnd={()=>draggingStop()}
-cacheEnabled={false}
+cacheEnabled={true}
 
 />
 

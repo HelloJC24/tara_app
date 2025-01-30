@@ -26,9 +26,11 @@ import {
   GET_HISTORY_API,
   GET_SETTINGS_API,
   GET_USER_API,
+  PAYMENT_HISTORY,
   REFERRAL_API,
   SCAN_ID_API,
   SMSOTP,
+  TRANSFER_AMOUNT,
   TRANSLATE_TEXT_API,
   UPDATE_SETTINGS,
   UPDATE_USER_API,
@@ -702,6 +704,30 @@ export const referAFriend = async (userID, friend, user) => {
     );
 
     console.log(callcheck.data);
+    return callcheck.data;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+export const getPaymentHistory = async (userID, start, user) => {
+  try {
+    const callcheck = await axios.get(
+      `${PAYMENT_HISTORY}?user_id=${userID}&start_date=${start}`,
+      await config(user)
+    );
+    return callcheck.data;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+export const sendTransfer2Friend = async (userID, friend, amount, user) => {
+  try {
+    const callcheck = await axios.get(
+      `${TRANSFER_AMOUNT}?userid=${userID}&friend=${friend}&amount=${amount}`,
+      await config(user)
+    );
     return callcheck.data;
   } catch (error) {
     console.log(error);
