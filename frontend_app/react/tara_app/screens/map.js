@@ -3,7 +3,7 @@ import { WebView } from 'react-native-webview';
 import Svg, { Circle, Path,Rect,Defs, Filter, FeGaussianBlur } from "react-native-svg";
 import LottieView from 'lottie-react-native';
 import BottomSheet from "@devvie/bottom-sheet";
-import { useRef,useEffect, useState, use } from "react";
+import { useRef,useEffect, useState, useContext } from "react";
 import Button from "../components/Button";
 import animationMarker from '../assets/animation/marker.json';
 import { 
@@ -22,12 +22,17 @@ TaraCar,
 TaraMotor,
 TaraVan
 } from "../components/CustomIcon";
-import { LocationCard } from "../components/Cards";
+import { LocationCard, LocationCardDrag } from "../components/Cards";
 import {Slider} from '@miblanchard/react-native-slider';
 import axios from 'axios';
 import * as Location from 'expo-location';
 import { useToast } from "../components/ToastNotify";
 import QRCodeStyled from 'react-native-qrcode-styled';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUserSettings,updateSettings } from "../config/hooks";
+import { AuthContext } from "../context/authContext";
+import { DataContext } from "../context/dataContext";
+import { hookConf } from "../config/hooks";
 
 const BookingPage = ({route,navigation}) =>{
  const sheetRef = useRef(null);
@@ -72,7 +77,17 @@ const [location, setLocation] = useState([])
 const [showCurrentLocation,setCurrentLocation] = useState(false);
 const toast = useToast();
 const [slideGuide,setSlideGuide] = useState(true);
-const [generateQR,setGenerateQR] = useState(false)
+const [generateQR,setGenerateQR] = useState(false);
+const [modeofpayment,setModeofPayment] = useState(1) //0 cash 1 is wallet and GET WHAT DEFAULT PAYMENT SET
+const [walletBalance,setWalletBalance] = useState("454.00");
+const [cardCoor,setcardCoord] = useState([])
+const [draglocaname,setdragLocName] = useState("Unknown location")
+const [vehiclePrompt,readVehicleProm] = useState(false)
+const [slideTut,setSlideTutor] = useState(false)
+const [slidedontshow,setSlideDontShow] = useState(false)
+const { user,setUser } = useContext(AuthContext);
+const { data } = useContext(DataContext);
+const [authToken,setAuthToken] = useState(null)
 
 const showToast = (type,msg) => {
 toast(type, msg);
@@ -80,6 +95,19 @@ toast(type, msg);
 
 
 useEffect(()=>{
+//get tutorials
+const getData = async () => {
+    try {
+      const value = await AsyncStorage.getItem('slide-guide');
+      //console.log("storage",value)
+      if (value == 'true') {
+        setSlideGuide(false)
+      }
+    } catch (e) {
+      console.log(e)
+    }
+  };
+  getData();
 const {wheels,start} = route.params;
 if(route.params){
 addVehicle(wheels)
@@ -92,9 +120,41 @@ switch (wheels) {
     case 5:
         return selectActiveMotor(false)
 }
-
 }
-},[route])
+
+
+
+
+},[route,setSlideTutor])
+
+//pull settings
+useEffect(()=>{
+const pullSettings = async () =>{
+    console.log("pulling settings")
+    const sets = await getUserSettings(data?.user?.UserID,user);
+    if(sets.message == 'No settings found for the provided UserID or TaraID.'){
+    //create
+    //console.log("creating a settings")
+    //const weeh = await createSettings(data?.user?.UserID,user);
+    }else{
+    //load settings
+    if(sets.data[0].PaymentType == 'wallet'){
+        setModeofPayment(1)
+    }else{
+        setModeofPayment(0)
+    }
+    }
+}
+
+
+//token
+const readyToken = async () =>{
+    setAuthToken(await hookConf(user))
+}
+
+readyToken();
+pullSettings();
+},[data,user])
 
 
 
@@ -120,7 +180,7 @@ setFareRate(fareAPI.data.data.amount)
 
 calculateMetric();
 
-},[dropName,dropCoordinates])
+},[dropCoordinates])
 
 const myPinLocation = async () =>{
         const location = await Location.getCurrentPositionAsync({
@@ -128,12 +188,14 @@ const myPinLocation = async () =>{
         });
         if(location.mocked){
             //exit
+            return;
         }else{
             setLocation(location);
             setCurrentLocation(true);
             //replace start
             setMyLocation(`${location.coords.latitude}>>>${location.coords.longitude}`)
             //provide name in the pickup
+            return `${location.coords.latitude},${location.coords.longitude}`;
         }
         
         
@@ -170,6 +232,11 @@ const RequestVehicle = () =>{
     showToast("try_again","This is vehicle is not available.");
 }
 
+const myPaymentMethed = (pt) =>{
+setModeofPayment(pt);
+sheetRef3.current.close();
+}
+
 const goSearchRider = async () =>{
 //connect to API
 setSearching(true);
@@ -179,11 +246,13 @@ const cancelSearch = () =>{
     setSearching(false);
 }
 
-const selectCurrentLocation = () =>{
+const selectCurrentLocation = async () =>{
     sheetRef.current?.close();
     setSuggest(false);
-    myPinLocation();
+    const myCULocation = await myPinLocation();
     //run location permission
+    setPickupCoordinates(myCULocation)
+    setPickupName('Current Location')
 }
 
 const selectPinMap = () =>{
@@ -209,8 +278,40 @@ const InputLocation = async (e) =>{
     await searchLocations(e);
 }
 
+const checkSlidePrompt = () =>{
+    setSlideGuide(false)
+    setSlideTutor(true);
+
+}
+
+const okImfine = async () =>{
+    setSlideDontShow(slidedontshow ? false: true)
+    if(!slidedontshow){
+        try {
+            await AsyncStorage.setItem('slide-guide', 'true');
+            console.log("Saved")
+          } catch (e) {
+            // saving error
+            console.log("dont save")
+          }
+    }else{
+        console.log("reset")
+        await AsyncStorage.removeItem('slide-guide');
+    }
+}
+
 const selectThisLocation = () =>{
     setMapPin(false)
+    const theStopDrag = `${cardCoor.lat},${cardCoor.lng}`
+    if(infoMode == 1){
+        //pickup
+        setPickupCoordinates(theStopDrag);
+        setPickupName(draglocaname)
+    }else{
+        //drop
+        setDropCoordinates(theStopDrag);
+        setDropName(draglocaname)
+    }
 }
 
 const openBoxOffer = () =>{
@@ -257,9 +358,53 @@ const QRBooking = () =>{
     }
 }
 
+
+  //ANIMATION MARK
+const draggingMap = () =>{
+    if (lottieRef.current) {
+        lottieRef.current.play(25, undefined); 
+      }
+    if(!MapPin){
+    setMinizeView(true);
+    }
+}
+
+const draggingStop = async () =>{
+    const mapboxCeb = `${cardCoor.lat},${cardCoor.lng}`
+    if(MapPin){
+   //run API
+   try {
+    const response = await axios.get(
+      `https://dwayon.tech/api/locations/google/`,
+      {
+        params: {
+          coordinates:mapboxCeb
+        },
+        headers:{
+            Auth: authToken
+        }
+      }
+    );
+ 
+    if (response.data) {
+        setdragLocName(response.data.name);
+    } else {
+        setdragLocName('Unknown location');
+    }
+  } catch (error) {
+    console.error(error);
+  }
+    }
+}
+
+
 const handleWebViewMessage = (event) => {
 const data = JSON.parse(event.nativeEvent.data);
-//Alert.alert("Message from Web Page", data.message);
+if(MapPin){
+    //Alert.alert("Message from Web Page", data.message);
+    setcardCoord(JSON.parse(data.message))
+    //run API
+}
 };
 
 
@@ -276,6 +421,7 @@ useEffect(()=>{
         viewriders: viewRiderMap,
         stop: 0,
         meme: showCurrentLocation,
+        drag: MapPin,
         timestamp: new Date().toISOString()
     });
     // console.log(jsonData)
@@ -292,20 +438,12 @@ useEffect(()=>{
     viewRiderMap,
     setViewRiders,
     showCurrentLocation,
-    setCurrentLocation])
+    setCurrentLocation,
+    MapPin,
+    setMapPin
+])
 
 
-  //ANIMATIOn
-
-const defaultOptions = {
-    animationData: animationMarker,
-    autoplay: false, // Prevent autoplay
-    loop:false,
-    speed: 1,
-    rendererSettings: {
-      preserveAspectRatio: "xMidYMid slice"
-    }
-  };
 
 
 
@@ -461,11 +599,11 @@ const CustomThumb = () => (
   const searchLocations = async (place) => {
     try {
       const response = await axios.get(
-        `https://onthewaypo.com/OTW/api/locations/`,
+        `https://onthewaypo.com/OTW/api/locations/google.php`,
         {
           params: {
             search: infoInput,
-            track:myLocation
+            start:myLocation
           },
         }
       );
@@ -561,9 +699,10 @@ Quick Book
 <LottieView
 source={require('../assets/animation/marker.json')}
 ref={lottieRef}
-options={defaultOptions}
 width={120}
 height={120}
+autoPlay={false} // Prevent autoplay
+loop={false} // Disable looping
 />
 </View>
     )
@@ -592,8 +731,9 @@ javaScriptEnabled={true}
 onMessage={handleWebViewMessage}
 className="bg-white"
 onLoad={()=>setWebLoad(true)}
-onTouchStart={()=>setMinizeView(true)}
-cacheEnabled={false}
+onTouchStart={()=>draggingMap()}
+onTouchEnd={()=>draggingStop()}
+cacheEnabled={true}
 
 />
 
@@ -632,9 +772,9 @@ cacheEnabled={false}
       : searching == true
       ? 'bottom-[280px]'
       : offerCom == true
-      ? 'bottom-[580px]'
+      ? 'bottom-[615px]'
       : calculated == true
-      ? 'bottom-[520px]'
+      ? 'bottom-[570px]'
       : 'bottom-[350px]'
   } `}
 >
@@ -894,7 +1034,7 @@ className="z-50"
 
     ): pickupName ? (
         <TouchableOpacity onPress={()=>selectLocation(1)} className="w-80">
-        <Text numberOfLines={1} ellipsizeMode="tail" className="font-semibold text-gray-800 text-lg">{pickupName}</Text>
+        <Text numberOfLines={1} ellipsizeMode="tail" className={`font-semibold ${pickupName == 'Current Location' ? 'text-green-600' : 'text-gray-800'} text-lg`}>{pickupName}</Text>
     </TouchableOpacity>
     
     ):(
@@ -953,6 +1093,12 @@ className="z-50"
     calculated &&  minimizeView == false && searching == false && rider == false && (
         <View className="mx-2.5 mb-2.5">
     <View className="bg-white rounded-xl p-2 border border-gray-200 shadow-lg">
+        <View className="flex-row justify-between items-center px-2 py-1.5">
+        <Text className="font-medium text-lg ">Additional vehicle types?</Text>
+        <TouchableOpacity onPress={()=>readVehicleProm(true)}>
+        <TaraNotice size={20} color="#d1d5db" />
+        </TouchableOpacity>
+            </View>
 <View className="p-2.5 w-full flex-row flex-wrap gap-x-6 gap-y-4
 ">
 
@@ -1100,8 +1246,8 @@ className="z-50"
 {
     slideGuide && offerCom && (
         <>
-        <Pressable onPress={()=>setSlideGuide(false)} className="h-full w-full bg-gray-100 rounded-xl absolute z-30 opacity-50"></Pressable>
-<Pressable onPress={()=>setSlideGuide(false)} className="inset-0 z-40 flex-row justify-center w-full h-full absolute top-16 -left-10">
+        <Pressable onPress={()=>checkSlidePrompt()} className="h-full w-full bg-gray-100 rounded-xl absolute z-30 opacity-50"></Pressable>
+<Pressable onPress={()=>checkSlidePrompt()} className="inset-0 z-40 flex-row justify-center w-full h-full absolute top-16 -left-10">
     <LottieView
     source={require('../assets/animation/slide.json')}
     autoPlay
@@ -1261,23 +1407,9 @@ fill="#22c55e"
     !viewRiderMap ? (
 <Pressable onTouchStart={()=>setMinizeView(false)}  className=" rounded-t-3xl border-t border-x border-gray-200 h-full p-4 z-50 bg-white ">
 <View   className="relative mt-2 flex-row justify-center items-center w-full">
-    {
-        searching ? (
-            <View className="absolute">
-<LottieView
-source={require('../assets/animation/loading.json')}
-autoPlay
-loop
-width={300}
-height={300}
-/>
-</View>
-
-        ):(
+ 
 <View className="w-32 bg-slate-300 p-1 flex-row justify-center items-center rounded-xl"></View >
-        )
-    }
-
+ 
 </View >
 
 <View className="py-8 flex-row justify-between items-center">
@@ -1297,6 +1429,9 @@ height={300}
 
 
 <TouchableOpacity onPress={()=>sheetRef3.current?.open()}>
+
+{
+    modeofpayment == 0 ? (
 <View className="flex-row justify-start items-center gap-x-2">
 <TaraCash size={28} />
 <Text className="text-slate-800 text-xl font-semibold">Cash</Text>
@@ -1311,6 +1446,25 @@ height={300}
 </Svg>
 
 </View>
+    ):(
+<View className="flex-row justify-start items-center gap-x-2">
+<TaraLogo size={28} />
+<Text className="text-slate-800 text-xl font-semibold">Wallet</Text>
+<Svg
+              xmlns="http://www.w3.org/2000/svg"
+              width={28}
+              height={28}
+              viewBox="0 0 24 24"
+              fill="#3b82f6"
+            >
+<Path d="M15.4,9.88,10.81,5.29a1,1,0,0,0-1.41,0,1,1,0,0,0,0,1.42L14,11.29a1,1,0,0,1,0,1.42L9.4,17.29a1,1,0,0,0,1.41,1.42l4.59-4.59A3,3,0,0,0,15.4,9.88Z"/>
+</Svg>
+
+</View>
+    )
+}
+
+
 </TouchableOpacity>
 
 
@@ -1427,9 +1581,23 @@ height={400}
 </View >
 <View className="my-2.5">
 
-<LocationCard infoMode={infoMode} />
+<LocationCardDrag
+infoMode={infoMode}
+DragLocationName={draglocaname}
+data={cardCoor}
+/>
 
-
+{
+    draglocaname == 'Error: INVALID_REQUEST' || draglocaname == 'Unknown location' ? (
+<Button
+bgColor="bg-slate-200"
+textColor="text-white"
+fontSize="md"
+bwidth="w-full mt-2"
+>
+Select this location
+</Button>
+    ):(
 <Button
 onPress={() => selectThisLocation()}
 bgColor="bg-blue-500"
@@ -1439,6 +1607,10 @@ bwidth="w-full mt-2"
 >
 Select this location
 </Button>
+    )
+}
+
+
     </View>
 </View>
     </View>
@@ -1481,17 +1653,11 @@ Select this location
     <Text className="text-xl font-medium text-gray-800">{infoMode == 1 ? 'Pickup Location' : 'Drop-off Location'}</Text>
 
     <View className="bg-slate-200 rounded-lg p-1.5">
-    <Svg
-    xmlns="http://www.w3.org/2000/svg"
-    width={20}
-    height={20}
-    viewBox="0 0 24 24"
-    fill="#404040"
->
-    <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm0 22a10 10 0 1 1 10-10 10.011 10.011 0 0 1-10 10Z" />
-    <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
-    <Rect width={2} height={2} x={11} y={17} rx={1} />
-            </Svg>
+    <Svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<Path d="M12 8.00049C11.2089 8.00049 10.4355 8.23508 9.77772 8.67461C9.11993 9.11414 8.60723 9.73885 8.30448 10.4698C8.00173 11.2007 7.92252 12.0049 8.07686 12.7808C8.2312 13.5568 8.61216 14.2695 9.17157 14.8289C9.73098 15.3883 10.4437 15.7693 11.2196 15.9236C11.9956 16.078 12.7998 15.9988 13.5307 15.696C14.2616 15.3933 14.8864 14.8806 15.3259 14.2228C15.7654 13.565 16 12.7916 16 12.0005C16 10.9396 15.5786 9.92221 14.8284 9.17206C14.0783 8.42192 13.0609 8.00049 12 8.00049ZM12 14.0005C11.6044 14.0005 11.2178 13.8832 10.8889 13.6634C10.56 13.4437 10.3036 13.1313 10.1522 12.7659C10.0009 12.4004 9.96126 11.9983 10.0384 11.6103C10.1156 11.2223 10.3061 10.866 10.5858 10.5863C10.8655 10.3066 11.2219 10.1161 11.6098 10.0389C11.9978 9.96175 12.3999 10.0014 12.7654 10.1527C13.1308 10.3041 13.4432 10.5604 13.6629 10.8893C13.8827 11.2182 14 11.6049 14 12.0005C14 12.5309 13.7893 13.0396 13.4142 13.4147C13.0391 13.7898 12.5304 14.0005 12 14.0005Z" fill="#374957"/>
+<Path d="M21.294 13.9L20.85 13.644C21.0499 12.5564 21.0499 11.4416 20.85 10.354L21.294 10.098C21.6355 9.90102 21.9348 9.63871 22.1748 9.32606C22.4149 9.01341 22.591 8.65654 22.6932 8.27582C22.7953 7.8951 22.8215 7.49799 22.7702 7.10716C22.7188 6.71633 22.591 6.33944 22.394 5.998C22.1971 5.65656 21.9348 5.35727 21.6221 5.1172C21.3095 4.87714 20.9526 4.70101 20.5719 4.59886C20.1911 4.49672 19.794 4.47056 19.4032 4.52189C19.0124 4.57321 18.6355 4.70102 18.294 4.898L17.849 5.155C17.0086 4.43692 16.0427 3.88025 15 3.513V3C15 2.20435 14.684 1.44129 14.1214 0.87868C13.5588 0.31607 12.7957 0 12 0C11.2044 0 10.4413 0.31607 9.87872 0.87868C9.31611 1.44129 9.00004 2.20435 9.00004 3V3.513C7.95743 3.88157 6.99189 4.4396 6.15204 5.159L5.70504 4.9C5.01548 4.50218 4.19612 4.39457 3.42723 4.60086C2.65833 4.80715 2.00287 5.31044 1.60504 6C1.20722 6.68956 1.09962 7.50892 1.30591 8.27782C1.5122 9.04672 2.01548 9.70218 2.70504 10.1L3.14904 10.356C2.94915 11.4436 2.94915 12.5584 3.14904 13.646L2.70504 13.902C2.01548 14.2998 1.5122 14.9553 1.30591 15.7242C1.09962 16.4931 1.20722 17.3124 1.60504 18.002C2.00287 18.6916 2.65833 19.1948 3.42723 19.4011C4.19612 19.6074 5.01548 19.4998 5.70504 19.102L6.15004 18.845C6.99081 19.5632 7.95702 20.1199 9.00004 20.487V21C9.00004 21.7956 9.31611 22.5587 9.87872 23.1213C10.4413 23.6839 11.2044 24 12 24C12.7957 24 13.5588 23.6839 14.1214 23.1213C14.684 22.5587 15 21.7956 15 21V20.487C16.0427 20.1184 17.0082 19.5604 17.848 18.841L18.295 19.099C18.9846 19.4968 19.804 19.6044 20.5729 19.3981C21.3418 19.1918 21.9972 18.6886 22.395 17.999C22.7929 17.3094 22.9005 16.4901 22.6942 15.7212C22.4879 14.9523 21.9846 14.2968 21.295 13.899L21.294 13.9ZM18.746 10.124C19.0847 11.3511 19.0847 12.6469 18.746 13.874C18.6869 14.0876 18.7004 14.3147 18.7844 14.5198C18.8684 14.7249 19.0181 14.8963 19.21 15.007L20.294 15.633C20.5239 15.7656 20.6916 15.9841 20.7603 16.2403C20.829 16.4966 20.7932 16.7697 20.6605 16.9995C20.5279 17.2293 20.3095 17.397 20.0532 17.4658C19.7969 17.5345 19.5239 17.4986 19.294 17.366L18.208 16.738C18.0159 16.6267 17.7923 16.5826 17.5723 16.6124C17.3523 16.6423 17.1485 16.7445 16.993 16.903C16.103 17.8117 14.9816 18.46 13.75 18.778C13.5351 18.8333 13.3446 18.9585 13.2086 19.1339C13.0727 19.3094 12.9989 19.525 12.999 19.747V21C12.999 21.2652 12.8937 21.5196 12.7062 21.7071C12.5186 21.8946 12.2643 22 11.999 22C11.7338 22 11.4795 21.8946 11.2919 21.7071C11.1044 21.5196 10.999 21.2652 10.999 21V19.748C10.9992 19.526 10.9254 19.3104 10.7894 19.1349C10.6535 18.9595 10.463 18.8343 10.248 18.779C9.01639 18.4597 7.89537 17.81 7.00604 16.9C6.85057 16.7415 6.64678 16.6393 6.4268 16.6094C6.20682 16.5796 5.98315 16.6237 5.79104 16.735L4.70704 17.362C4.59327 17.4287 4.46743 17.4722 4.33677 17.4901C4.2061 17.508 4.0732 17.4998 3.9457 17.4661C3.8182 17.4324 3.69862 17.3738 3.59386 17.2937C3.4891 17.2136 3.40122 17.1135 3.33528 16.9993C3.26934 16.8851 3.22664 16.759 3.20964 16.6282C3.19264 16.4974 3.20168 16.3646 3.23623 16.2373C3.27079 16.11 3.33017 15.9909 3.41098 15.8866C3.49178 15.7824 3.5924 15.6952 3.70704 15.63L4.79104 15.004C4.98299 14.8933 5.13272 14.7219 5.2167 14.5168C5.30069 14.3117 5.31417 14.0846 5.25504 13.871C4.9164 12.6439 4.9164 11.3481 5.25504 10.121C5.31311 9.90788 5.29898 9.68153 5.21486 9.47729C5.13074 9.27305 4.98136 9.10241 4.79004 8.992L3.70604 8.366C3.47623 8.23339 3.30851 8.01492 3.23978 7.75865C3.17105 7.50239 3.20693 7.22931 3.33954 6.9995C3.47215 6.76969 3.69062 6.60197 3.94689 6.53324C4.20316 6.46451 4.47623 6.50039 4.70604 6.633L5.79204 7.261C5.98362 7.37251 6.20682 7.41721 6.42657 7.38807C6.64632 7.35893 6.85015 7.25759 7.00604 7.1C7.89613 6.19134 9.01747 5.54302 10.249 5.225C10.4647 5.16956 10.6556 5.04375 10.7917 4.8675C10.9277 4.69125 11.001 4.47464 11 4.252V3C11 2.73478 11.1054 2.48043 11.2929 2.29289C11.4805 2.10536 11.7348 2 12 2C12.2653 2 12.5196 2.10536 12.7071 2.29289C12.8947 2.48043 13 2.73478 13 3V4.252C12.9999 4.47396 13.0737 4.68964 13.2096 4.86508C13.3456 5.04052 13.5361 5.16573 13.751 5.221C14.9831 5.54015 16.1044 6.18988 16.994 7.1C17.1495 7.25847 17.3533 7.36069 17.5733 7.39057C17.7933 7.42044 18.0169 7.37626 18.209 7.265L19.293 6.638C19.4068 6.5713 19.5327 6.52777 19.6633 6.5099C19.794 6.49204 19.9269 6.50019 20.0544 6.5339C20.1819 6.56761 20.3015 6.6262 20.4062 6.70631C20.511 6.78642 20.5989 6.88646 20.6648 7.00067C20.7307 7.11488 20.7734 7.24101 20.7904 7.37179C20.8074 7.50257 20.7984 7.63542 20.7639 7.76269C20.7293 7.88997 20.6699 8.00915 20.5891 8.11337C20.5083 8.2176 20.4077 8.30482 20.293 8.37L19.209 8.996C19.0181 9.10671 18.8691 9.27748 18.7854 9.48169C18.7016 9.68591 18.6878 9.9121 18.746 10.125V10.124Z" fill="#374957"/>
+</Svg>
+
     </View>
     </View>
 
@@ -1556,6 +1722,7 @@ height={40}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
             <LocationCard
+            autoDrop={setInfoMode}
             sheet={sheetRef}
             infoMode={infoMode}
             data={item}
@@ -1654,7 +1821,7 @@ style={{ backgroundColor: "#fff",zIndex:999 }}
 
 
 <View className="mb-4">
-<TouchableOpacity>
+<TouchableOpacity onPress={()=>myPaymentMethed(0)}>
 <View className="flex-row justify-between items-center gap-x-2 py-4">
 
 <View className="flex-row justify-start items-center gap-x-4"> 
@@ -1662,44 +1829,83 @@ style={{ backgroundColor: "#fff",zIndex:999 }}
 <Text className="text-blue-500 text-xl font-semibold">Cash</Text>
 </View>  
 
-<View className="h-6 w-6 border border-blue-500 rounded-full flex justify-center items-center">
+{
+    modeofpayment == 0 ? (
+        <View className="h-6 w-6 border border-blue-500 rounded-full flex justify-center items-center">
     <View className="h-4 w-4 bg-blue-500 rounded-full"></View>
 </View>
+    ):(
+        <View className="h-6 w-6 border border-gray-300 rounded-full flex justify-center items-center">
+        <View className="h-4 w-4 bg-gray-100 rounded-full"></View>
+    </View>    
+    )
+}
 
 </View>
 </TouchableOpacity>
 
+{
+    walletBalance == '0.00' || fareRate > walletBalance ? (
+<View>
+<View className="flex-row justify-between items-center gap-x-2 py-4">
 
-<TouchableOpacity>
+<View className="flex-row justify-start items-center gap-x-4"> 
+ <TaraWalletIcon color="#94a3b8" size={25} />
+ <View>
+<Text className="text-gray-300 text-xl font-semibold">Tara Wallet <Text className="text-gray-800">(&#8369;{walletBalance})</Text></Text>
+<Text className="text-xs">You don't have enough balance.</Text>
+</View>
+</View>  
+
+<Pressable onPress={()=>navigation.navigate("wallet")} className="px-2.5 rounded-full flex justify-center items-center">
+    <View className="px-6 py-2.5 bg-blue-500 rounded-full">
+        <Text className="text-white font-medium">Top up</Text>
+    </View>
+</Pressable>
+
+</View>
+</View>
+    ):(
+<TouchableOpacity onPress={()=>myPaymentMethed(1)}>
 <View className="flex-row justify-between items-center gap-x-2 py-4">
 
 <View className="flex-row justify-start items-center gap-x-4"> 
  <TaraWalletIcon color="#404040" size={25} />
  <View>
-<Text className="text-blue-500 text-xl font-semibold">Tara Wallet <Text className="text-gray-800">(&#8369;0.00)</Text></Text>
+<Text className="text-blue-500 text-xl font-semibold">Tara Wallet <Text className="text-gray-800">(&#8369;{walletBalance})</Text></Text>
 <Text className="text-xs">Will deduct only once you're dropped.</Text>
 </View>
 </View>  
 
-<View className="h-6 w-6 border border-gray-300 rounded-full flex justify-center items-center">
-    <View className="h-4 w-4 bg-gray-100 rounded-full"></View>
+{
+    modeofpayment == 1 ? (
+        <View className="h-6 w-6 border border-blue-500 rounded-full flex justify-center items-center">
+    <View className="h-4 w-4 bg-blue-500 rounded-full"></View>
 </View>
+    ):(
+        <View className="h-6 w-6 border border-gray-300 rounded-full flex justify-center items-center">
+        <View className="h-4 w-4 bg-gray-100 rounded-full"></View>
+    </View>    
+    )
+}
 
 </View>
 </TouchableOpacity>
+    )
+}
+
 
 
 </View>
 
-
-            <Button
-onPress={() => sheetRef3.current?.close()  }
-bgColor="bg-blue-500"
-textColor="text-white"
+<Button
+onPress={() => sheetRef3.current?.close()}
+bgColor="bg-slate-100"
+textColor="text-slate-800"
 fontSize="md"
 bwidth="w-full mt-2"
 >
-Confirm
+Close
 </Button>
 </View>
 </View>
@@ -1707,6 +1913,8 @@ Confirm
 
 
 {generateQR && <GenerateQRBooking QR={"sdds"} close={setGenerateQR} />}
+{vehiclePrompt  && <VehicleNotice close={readVehicleProm} />}
+{slideTut && <OffeSlideNotice click={okImfine} mode={slidedontshow} close={setSlideTutor} />}
 
 </>
 
@@ -1775,6 +1983,72 @@ const GenerateQRBooking = ({QR, close }) => {
       </View>
     );
   };
+
+const VehicleNotice = ({close}) =>{
+    return (
+      
+              <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
+                <View
+                  className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
+                flex gap-y-4"
+                >
+                  <Text className="text-center text-2xl font-bold">
+                  Selection of ride categories
+                  </Text>
+                  <Text>You can select multiple vehicle types, and the system will prioritize whichever is available first. This allows you to search once while maximizing your chances of finding a ride quickly.</Text>
+                  <View className="w-full flex gap-y-4">
+            <Button
+            onPress={()=>close(false)}
+              bgColor="bg-slate-200"
+              textColor="text-neutral-700"
+            >
+              OK! Got it
+            </Button>
+          </View>
+                  </View>
+                  </View>
+    )
+}
+
+const OffeSlideNotice = ({click,mode,close}) =>{
+    return (
+      
+              <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
+                <View
+                  className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
+                flex gap-y-4"
+                >
+                  <View className="flex-row justify-start gap-x-2.5 items-center">
+                    <Pressable onPress={()=>click()}>
+                    {
+                        mode ? (
+                        <View className="flex-row justify-center items-center border border-gray-300 h-8 w-8 rounded-xl">
+                        <View className="h-4 w-4 bg-blue-500 rounded"></View>
+                        </View>
+                        ):(
+                            <View className="border border-gray-300 h-8 w-8 rounded-xl">
+                        
+                            </View>
+                        )
+                    }
+                    </Pressable>
+                  <Text>Don't show this slide guide again.</Text>
+                  </View>
+                  <View className="w-full flex gap-y-4">
+            <Button
+            onPress={()=>close(false)}
+              bgColor="bg-slate-200"
+              textColor="text-neutral-700"
+            >
+              Close
+            </Button>
+          </View>
+                  </View>
+                  </View>
+    )
+}
+
+
 
 
 export default BookingPage;

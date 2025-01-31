@@ -1,16 +1,18 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useRef, useState } from "react";
-import { Image, Text, View, Animated } from "react-native";
+import React, { useEffect, useRef, useState,useContext } from "react";
+import { Image, Text, View, Animated, ActivityIndicator,Modal } from "react-native";
 import AppIcon from "../assets/splash-icon.png";
 import Button from "../components/Button";
 import { SearchingGraphic,TaraCamPermission } from "../components/CustomGraphic";
 import LottieView from 'lottie-react-native';
 import ParagraphText from "../components/ParagraphText";
+import { referAFriend } from "../config/hooks"
+import { AuthContext } from "../context/authContext";
+import { DataContext } from "../context/dataContext";
+import { useToast } from "../components/ToastNotify";
 
-
-
-const QrCodeScannerScreen = ({route}) => {
+const QrCodeScannerScreen = ({navigation,route}) => {
   const [permission, requestPermission] = useCameraPermissions();
   const [imageUri, setImageUri] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -23,7 +25,10 @@ const QrCodeScannerScreen = ({route}) => {
   const [cameraAnimate,setCamAnimate] = useState(false)
   const [scanMode,setScanMode] = useState('');
   const scaleValue = useRef(new Animated.Value(1)).current; 
-
+  const toast = useToast();
+   const { user,setUser } = useContext(AuthContext);
+   const { data,setData } = useContext(DataContext);
+  
 
   //STF - referral scan
   //STBR - scan rider
@@ -41,6 +46,10 @@ const QrCodeScannerScreen = ({route}) => {
     }else{
       setHasPermission(false)
     }
+
+
+
+
 
   },[route.params,permission])
 
@@ -67,21 +76,80 @@ const QrCodeScannerScreen = ({route}) => {
   };
 
 
-  const handleBarCodeScanned = (e) => {
-    const { type, data } = e;
-    if(type == 'qr'){
-      setScanStatus("QR code found!")
-      zoomIn();
-      setCamAnimate(true)
-    }else{
-      setScanStatus("Where is it? QR?")
-      setCamAnimate(false)
-      zoomOut();
-    }
-    console.log(data)
-    //call API
-  };
+  const [hasScanned, setHasScanned] = useState(false);
 
+  const handleBarCodeScanned = async (e) => {
+    if (hasScanned) return;
+
+    setHasScanned(true); // Prevent further scans
+    const meme = user.userId;
+    const { type, data } = e;
+  
+
+ 
+    if (type == 'qr') {
+      setScanStatus("QR code found!");
+      zoomIn();
+      setCamAnimate(true);
+      
+  
+      if (scanMode == 'STF') {
+        if (!data.startsWith("U")) {
+          setScanStatus("Not Tara QR");
+          setTimeout(() => setScanStatus("Looking for Tara QR"), 2000);
+          setHasScanned(false); 
+          return;
+        }
+        setIsLoading(true);
+        const refer_res = await referAFriend(meme, data, user);
+        setIsLoading(false);
+  
+        if (refer_res.status === 0) {
+          toast("try_again", refer_res.message);
+        } else if (refer_res.status === 1) {
+          toast("try_again", refer_res.message);
+        } else {
+          toast("error", "Something is wrong. Try again later.");
+        }
+  
+        setScanStatus("Looking for QR");
+        
+      }else if(scanMode == 'STR'){
+        if (!data.startsWith("U")) {
+          setScanStatus("Not Tara QR");
+          setTimeout(() => setScanStatus("Looking for your friend QR"), 2000);
+          setHasScanned(false); 
+          return;
+        }
+        setData((prevState) => ({
+          ...prevState,
+          friend: data,
+        }));
+        navigation.goBack();
+      }else if(scanMode == 'STBR'){
+        if (!data.startsWith("TARA")) {
+          setScanStatus("Not rider QR");
+          setTimeout(() => setScanStatus("Looking for Rider QR"), 2000);
+          setHasScanned(false); 
+          return;
+        }
+
+        setScanStatus("Found a rider!");
+      
+      }else{
+
+      }
+    } else {
+      setScanStatus("Where is it? QR?");
+      setCamAnimate(false);
+      zoomOut();
+      setIsLoading(false);
+    }
+  
+    // Allow scanning again after some time
+    setTimeout(() => setHasScanned(false), 2000); // Adjust delay as needed
+  };
+  
 
 
 
@@ -102,7 +170,7 @@ const QrCodeScannerScreen = ({route}) => {
             isRiderFound ? "bg-black/30" : ""
           }`}
         >
-          <Text className="text-center text-3xl font-semibold text-white">
+          <Text className="my-4 text-center text-3xl font-semibold text-white">
             {ScanStatus}
           </Text>
           <Animated.View
@@ -112,12 +180,34 @@ const QrCodeScannerScreen = ({route}) => {
           },
         ]}
       >
-          <View className={`${cameraAnimate ? 'w-[250px] h-[250px]' : 'w-[320px] h-[320px]'} rounded-xl relative z-30`}>
-            <View className="absolute top-10 left-4 w-8 h-8 border-t-4 border-l-4 rounded-tl-xl border-white" />
-            <View className="absolute top-10 right-4 w-8 h-8 border-t-4 border-r-4 rounded-tr-xl border-white" />
-            <View className="absolute bottom-10 left-4 w-8 h-8 border-b-4 border-l-4 rounded-bl-xl border-white" />
-            <View className="absolute bottom-10 right-4 w-8 h-8 border-b-4 border-r-4 rounded-br-xl border-white" />
-          </View>
+
+        {
+          ScanStatus == 'Not Tara QR' || ScanStatus == 'Not rider QR' ? (
+            <LottieView
+            source={require("../assets/animation/notok.json")}
+            autoPlay
+            loop
+            width={400}
+            height={250}
+          />
+          ):(
+          //   <View className={`${cameraAnimate ? 'w-[250px] h-[250px]' : 'w-[320px] h-[320px]'} rounded-xl relative z-30`}>
+          //   <View className="absolute top-10 left-4 w-8 h-8 border-t-4 border-l-4 rounded-tl-xl border-white" />
+          //   <View className="absolute top-10 right-4 w-8 h-8 border-t-4 border-r-4 rounded-tr-xl border-white" />
+          //   <View className="absolute bottom-10 left-4 w-8 h-8 border-b-4 border-l-4 rounded-bl-xl border-white" />
+          //   <View className="absolute bottom-10 right-4 w-8 h-8 border-b-4 border-r-4 rounded-br-xl border-white" />
+          // </View>
+          <LottieView
+          source={require("../assets/animation/fucos.json")}
+          autoPlay
+          loop
+          width={400}
+          height={250}
+        />
+          )
+        }
+      
+         
           </Animated.View>
 
           {hasPermission && <AskCameraPermission onRequestPermission={requestPermission} />}
@@ -142,6 +232,7 @@ const QrCodeScannerScreen = ({route}) => {
      
         </View>
       </CameraView>
+      {isLoading && <LoadingView />}
     </View>
   );
 };
@@ -198,6 +289,21 @@ const ScanPayModal = () => {
   );
 };
 
+const LoadingView = () =>{
+  return (
+    <View className="absolute z-50 inset-0 h-full w-screen bg-white">
+      <View className="flex-row justify-center items-center h-full">
+        <LottieView
+          source={require("../assets/animation/loading.json")}
+          autoPlay
+          loop
+          width={400}
+          height={250}
+        />
+      </View>
+    </View>
+  )
+}
 
 const AskCameraPermission = ({onRequestPermission}) =>{
   return (

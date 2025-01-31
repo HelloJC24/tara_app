@@ -26,7 +26,7 @@ const ReportProblemScreen = ({ navigation, ...props }) => {
 
   return (
     <View className="w-full h-full bg-white absolute inset-0 z-50">
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <View className="h-full flex justify-between items-center px-6 py-10">
         <View className="w-full">
           <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">

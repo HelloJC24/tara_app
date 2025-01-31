@@ -1,4 +1,6 @@
+import axios from "axios";
 import * as Location from "expo-location";
+import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import LottieView from "lottie-react-native";
 import React, { useContext, useEffect, useState } from "react";
@@ -6,6 +8,7 @@ import {
   Alert,
   Image,
   Linking,
+  Platform,
   Pressable,
   Text,
   TouchableOpacity,
@@ -16,7 +19,12 @@ import Svg, { Path } from "react-native-svg";
 import TaraLogo from "../assets/tara_icon.png";
 import BottomNavBar from "../components/BottomNavBar";
 import Button from "../components/Button";
-import { InviteGraphic, TaraPermission } from "../components/CustomGraphic";
+import { HelloVisitor } from "../components/Cards";
+import {
+  InviteGraphic,
+  TaraGate,
+  TaraPermission,
+} from "../components/CustomGraphic";
 import {
   TaraCar,
   TaraGift,
@@ -26,22 +34,26 @@ import {
 } from "../components/CustomIcon";
 import ParagraphText from "../components/ParagraphText";
 import RateUsApp from "../components/RateUsApp";
-import { fetchDataControl, fetchUser } from "../config/hooks";
+import { useToast } from "../components/ToastNotify";
+import { GET_DATA_CONTROL_API } from "../config/constants";
+import { fetchUser, updateUser } from "../config/hooks";
 import { AuthContext } from "../context/authContext";
 import { DataContext } from "../context/dataContext";
 
 const HomeScreen = ({ navigation }) => {
   const [activeScanFriend, setActiveScanFriend] = useState(false);
   const [rewardsAvailable, SetRewards] = useState(true);
-
-  const [activeRateUs, setActiveRateUs] = useState(true);
+  const [activeRateUs, setActiveRateUs] = useState(false);
   const [locationPermission, setPermissionAsk] = useState(false);
   const [location, setLocation] = useState([]);
-
+  const [controlData, setControlData] = useState([]);
+  const [gate, setGate] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
-  const { user } = useContext(AuthContext);
+  const { setUser, user } = useContext(AuthContext);
   const { data, setData } = useContext(DataContext);
+  const [activaeBooking, setActiveBooking] = useState(false);
+  const [pushToken, setPushToken] = useState(null);
+  const toast = useToast();
 
   const taraBook = (vehicle) => {
     navigation.navigate("booking", {
@@ -62,6 +74,32 @@ const HomeScreen = ({ navigation }) => {
     navigation.navigate("qrcode", {
       mode: "STF",
     });
+  };
+
+  const newUpdateAvailable = (v) => {
+    Alert.alert(
+      "Update Available",
+      `You're using old ${v} version. We have our latest ${appVersion} version. Explore new improved update.`,
+      [
+        {
+          text: "Later",
+          type: "cancel",
+        },
+        {
+          text: "Update",
+          onPress: () => Linking.openURL("https://taranapo.com/download/"),
+        },
+      ]
+    );
+  };
+
+  const goLogin = (page) => {
+    setUser((prevState) => ({
+      ...prevState,
+      userId: null,
+      accessToken: null,
+      history: page,
+    }));
   };
 
   useEffect(() => {
@@ -92,46 +130,117 @@ const HomeScreen = ({ navigation }) => {
         setPermissionAsk(false);
       } else {
         setLocation(location);
+        getControl();
       }
     }
 
-    getCurrentLocation();
-  }, [locationPermission]);
-
-  useEffect(() => {
-    //fetching data control
-    const getDataControl = async () => {
+    async function getControl() {
       try {
-        const res = await fetchDataControl();
+        const response = await axios.get(GET_DATA_CONTROL_API, {
+          params: {
+            origin: location,
+          },
+          headers: {
+            Auth: `Bearer ${user?.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        });
 
-        if (res.status === "success") {
-          setData((prevData) => ({
-            ...prevData,
-            control: res.data,
-          }));
-          console.log("data control: ", data?.control);
+        if (response.data) {
+          setControlData(response.data.data);
+          const supportedLocations = response.data.data.supported_location;
+          setGate(response.data.data.gate);
+          if (location.coords) {
+            const { latitude, longitude } = location.coords;
+            const isSupported = supportedLocations.some((location) => {
+              return (
+                latitude >= location.minLat &&
+                latitude <= location.maxLat &&
+                longitude >= location.minLng &&
+                longitude <= location.maxLng
+              );
+            });
+
+            if (!isSupported) {
+              //not supported
+              setGate(true);
+            }
+          }
+
+          if (Platform.OS == "android") {
+            if (response.data.data.version_app_android != appVersion) {
+              newUpdateAvailable(response.data.data.version_app_android);
+            }
+          }
+
+          if (Platform.OS == "ios") {
+            if (response.data.data.version_app_ios != appVersion) {
+              newUpdateAvailable(response.data.data.version_app_ios);
+            }
+          }
+        } else {
         }
       } catch (error) {
-        console.log(error);
+        console.error(error);
       }
+    }
+
+    //setup for push notifications
+    setTimeout(async () => {
+      registerForPushNotificationsAsync().then((token) => savePushToken(token));
+
+      const notificationListener =
+        Notifications.addNotificationReceivedListener((notification) => {
+          console.log("Notification received:", notification);
+        });
+
+      const responseListener =
+        Notifications.addNotificationResponseReceivedListener((response) => {
+          console.log("Notification interacted with:", response);
+        });
+
+      return () => {
+        Notifications.removeNotificationSubscription(notificationListener);
+        Notifications.removeNotificationSubscription(responseListener);
+      };
+    }, 2000);
+
+    const savePushToken = async (pt) => {
+      //toast("success", pt.data,user);
+      const savingPush = await updateUser(user?.userId, "OSID", pt.data, user);
+      const saveloc = `${location.coords.latitude},${coords.longitude}`;
+      console.log("location:", saveloc);
+      const savingLocation = await updateUser(
+        user?.userId,
+        "Location",
+        saveloc
+      );
+      console.log("saving push:", savingPush);
     };
 
-    getDataControl();
-  }, []);
+    getCurrentLocation();
+  }, [locationPermission, setGate, setLocation, user?.accessToken]);
 
   useEffect(() => {
     // fetching user data
     const getUser = async () => {
       try {
         setIsLoading(true);
-        const res = await fetchUser(user?.userId);
-
+        const res = await fetchUser(user?.userId, user);
+        ///console.log(res)
         if (res.status === "success") {
+          //console.log(res.data)
           setData((prevData) => ({
             ...prevData,
             user: res.data,
           }));
 
+          console.log(res.data);
+
+          setActiveBooking(res.data.ActiveBooking == "N/A" ? false : true);
+          setActiveRateUs(res.data.ReviewUs == "N/A" ? false : true);
+          //if active fetch rides details
+          setGate(res.data.Status == "Active" ? false : true);
           setIsLoading(false);
         }
       } catch (error) {
@@ -165,7 +274,7 @@ const HomeScreen = ({ navigation }) => {
               </Svg>
             </Pressable>
 
-            {rewardsAvailable ? (
+            {rewardsAvailable || controlData.rewards ? (
               <Pressable
                 onPress={() => OpenRewards()}
                 className="pb-1.5 bg-white rounded-lg"
@@ -186,14 +295,21 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <ParagraphText
-          padding="py-4 pr-16"
-          fontSize="lg"
-          align="left"
-          textColor="text-neutral-700"
-        >
-          It's kind of sunny and cloudy today! Enjoy the trip..
-        </ParagraphText>
+        {controlData.length == 0 && user.userId != "visitor" ? (
+          <View className="my-4 bg-gray-200 rounded-lg w-56 h-6"></View>
+        ) : (
+          <ParagraphText
+            padding="py-4 pr-16"
+            fontSize="lg"
+            align="left"
+            textColor="text-neutral-700"
+          >
+            {controlData.greetings ??
+              "Hello there visitors! Mostly you see our weather forecast here.."}
+          </ParagraphText>
+        )}
+
+        <View></View>
 
         <View
           className="w-full border-t border-x border-slate-100 p-3 shadow-md shadow-neutral-500 bg-white rounded-2xl 
@@ -209,9 +325,13 @@ const HomeScreen = ({ navigation }) => {
                 Wallet
               </Text>
               <View className="flex flex-row gap-x-1 items-center">
-                <Text className="text-xl font-medium">
-                  &#8369; {isLoading ? "..." : data?.user?.Wallet}
-                </Text>
+                {isLoading && user.userId != "visitor" ? (
+                  <View className="bg-gray-200 rounded-lg w-10 h-6"></View>
+                ) : (
+                  <Text className="text-xl font-medium">
+                    &#8369;{data?.user?.Wallet ?? 0}.00
+                  </Text>
+                )}
                 <TouchableOpacity onPress={() => navigation.navigate("wallet")}>
                   <Svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -250,7 +370,7 @@ const HomeScreen = ({ navigation }) => {
           </Text>
 
           <View className="w-full flex flex-row justify-between items-center py-2 px-4">
-            {location.length == 0 ? (
+            {location.length == 0 || controlData.service_status1 == false ? (
               <Pressable
                 onPress={() => setPermissionAsk(true)}
                 className="flex gap-y-1"
@@ -259,7 +379,7 @@ const HomeScreen = ({ navigation }) => {
                   <TaraMotor size="55" />
                 </View>
                 <Text className="text-base text-center text-gray-200">
-                  {data?.control?.service_name1 || "TaraRide"}
+                  {controlData.service_name1 ?? "TaraRide"}
                 </Text>
               </Pressable>
             ) : (
@@ -268,18 +388,18 @@ const HomeScreen = ({ navigation }) => {
                   <TaraMotor size="55" />
                 </View>
                 <Text className="text-base text-center text-blue-500">
-                  {data?.control?.service_name1 || "TaraRide"}
+                  {controlData.service_name1 ?? "TaraRide"}
                 </Text>
               </Pressable>
             )}
 
-            {location.length == 0 ? (
+            {location.length == 0 || controlData.service_status2 == false ? (
               <Pressable onPress={() => setPermissionAsk(true)}>
                 <View className="opacity-50 flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
                   <TaraCar size="65" />
                 </View>
                 <Text className="text-base text-center text-gray-200">
-                  {data?.control?.service_name2 || "TaraCar"}
+                  {controlData.service_name2 ?? "TaraCar"}
                 </Text>
               </Pressable>
             ) : (
@@ -288,18 +408,18 @@ const HomeScreen = ({ navigation }) => {
                   <TaraCar size="65" />
                 </View>
                 <Text className="text-base text-center text-blue-500">
-                  {data?.control?.service_name2 || "TaraCar"}
+                  {controlData.service_name2 ?? "TaraCar"}
                 </Text>
               </Pressable>
             )}
 
-            {location.length == 0 ? (
+            {location.length == 0 || controlData.service_status3 == false ? (
               <Pressable onPress={() => setPermissionAsk(true)}>
                 <View className="opacity-50 flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
                   <TaraVan size="65" />
                 </View>
                 <Text className="text-base text-center text-gray-200">
-                  {data?.control?.service_name3 || "TaraVan"}
+                  {controlData.service_name3 ?? "TaraVan"}
                 </Text>
               </Pressable>
             ) : (
@@ -308,16 +428,16 @@ const HomeScreen = ({ navigation }) => {
                   <TaraVan size="65" />
                 </View>
                 <Text className="text-base text-center text-blue-500">
-                  {data?.control?.service_name3 || "TaraVan"}
+                  {controlData.service_name3 ?? "TaraVan"}
                 </Text>
               </Pressable>
             )}
           </View>
         </View>
 
-        <BottomNavBar />
+        <BottomNavBar access={user} />
       </View>
-      {/* <ExistingBooking /> */}
+      {activaeBooking && <ExistingBooking />}
 
       {activeScanFriend && (
         <FriendsWithBenefits
@@ -330,6 +450,14 @@ const HomeScreen = ({ navigation }) => {
 
       {locationPermission && (
         <AllowLocationPrompt close={() => setPermissionAsk(false)} />
+      )}
+
+      {gate && <GatePrompt />}
+
+      {user?.userId == "visitor" && (
+        <View className="fixed bottom-[200px] p-4">
+          <HelloVisitor uwu={goLogin} />
+        </View>
       )}
     </View>
   );
@@ -398,12 +526,12 @@ const FriendsWithBenefits = ({ openQR, QR, close }) => {
 
         <View className="relative w-full flex justify-center items-center p-4">
           <InviteGraphic size={300} />
-          <View className="absolute bottom-7">
+          <View className="absolute bottom-5">
             <QRCodeStyled
               data={QR}
               style={{ backgroundColor: "transparent" }}
               padding={10}
-              pieceSize={5}
+              pieceSize={4.5}
               pieceCornerType="rounded"
               color={"#020617"}
               pieceScale={1.02}
@@ -493,5 +621,70 @@ const AllowLocationPrompt = ({ close }) => {
     </View>
   );
 };
+
+const GatePrompt = () => {
+  return (
+    <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
+      <View
+        className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
+      flex gap-y-4"
+      >
+        <View className="relative w-full flex justify-center items-center p-4">
+          <TaraGate size={200} />
+        </View>
+
+        <Text className="text-center text-2xl font-bold">
+          Not available right now
+        </Text>
+
+        <ParagraphText
+          align="center"
+          fontSize="sm"
+          textColor="text-neutral-700"
+          padding="px-2"
+        >
+          We are sorry but we are not currently available in your location..
+        </ParagraphText>
+      </View>
+    </View>
+  );
+};
+
+async function registerForPushNotificationsAsync() {
+  let token;
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync("petpew", {
+      name: "petpew",
+      sound: "petpew.mp3",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: "#beda31",
+      audioAttributes: {
+        usage: Notifications.AndroidAudioUsage.ALARM,
+        contentType: Notifications.AndroidAudioContentType.SONIFICATION,
+      },
+    });
+  }
+
+  const { status } = await Notifications.requestPermissionsAsync();
+  if (status !== "granted") {
+    //failed
+    return;
+  }
+
+  token = await Notifications.getExpoPushTokenAsync({
+    projectId: "9666c06c-78e4-4768-baba-4035a03729fb",
+  });
+
+  return token;
+}
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 export default HomeScreen;

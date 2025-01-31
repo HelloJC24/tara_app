@@ -13,6 +13,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Path, Rect } from "react-native-svg";
+import TaraLogo from "../assets/tara_icon.png";
 
 const ToastContext = createContext();
 
@@ -80,6 +81,7 @@ const ToastNotify = ({ status, msg }) => {
 };
 
 const ToastIcon = ({ status }) => {
+  
   if (status === "success") {
     return (
       <View className="bg-green-200 p-3 rounded-xl">
@@ -174,6 +176,10 @@ const ToastIcon = ({ status }) => {
       </View>
     );
   }
+
+
+
+
 
   return null;
 };

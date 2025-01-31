@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "547357077789",
+    "firebase_url": "https://tara-app-fb985-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "tara-app-fb985",
+    "storage_bucket": "tara-app-fb985.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:547357077789:android:52fd1d6ee6a61dfec071f4",
+        "android_client_info": {
+          "package_name": "com.kiefers.tara_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAQTPqEBICMuJfR030PvuzE6BBgjz1IWZY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

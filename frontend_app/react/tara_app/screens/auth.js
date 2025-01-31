@@ -1,14 +1,17 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
+import * as Device from "expo-device";
 import { StatusBar } from "expo-status-bar";
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import {
   BackHandler,
   Image,
+  Keyboard,
   Linking,
   Pressable,
   Text,
   TextInput,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
@@ -22,12 +25,30 @@ import ParagraphText from "../components/ParagraphText";
 import QuickTipsBottomSheet from "../components/QuickTipsBottomSheet";
 import ReportProblemScreen from "../components/ReportContainer";
 import { useToast } from "../components/ToastNotify";
-import { createAccount } from "../config/hooks";
+import { generateOTP } from "../config/functions";
+import {
+  checkUserAccount,
+  confirmOTPProcess,
+  createAccount,
+  sendOTPAccount,
+  updateUser,
+  userNameAgent,
+} from "../config/hooks";
 import { AuthContext } from "../context/authContext";
+import { DataContext } from "../context/dataContext";
 
 const AuthScreen = () => {
   const [stage, setStage] = useState(0);
   const navigation = useNavigation();
+  const { user } = useContext(AuthContext);
+
+  useEffect(() => {
+    if (user?.history == "login") {
+      setStage(1);
+    } else if (user?.history == "create") {
+      setStage(2);
+    }
+  }, [user]);
 
   const seeHelp = () => {
     setStage(3);
@@ -75,9 +96,18 @@ const AuthScreen = () => {
 
 const MainAuthScreen = ({ help, setStage }) => {
   const toast = useToast();
-
+  const { user, setUser } = useContext(AuthContext);
+  const { data, setData } = useContext(DataContext);
   const showToast = () => {
     toast("success", "This is a success toast message.");
+  };
+
+  const VisitasGuest = () => {
+    setUser((prevState) => ({
+      ...prevState,
+      userId: "visitor",
+      accessToken: "accessToken",
+    }));
   };
 
   return (
@@ -138,7 +168,7 @@ const MainAuthScreen = ({ help, setStage }) => {
             Create new account
           </Button>
           <Button
-            onPress={showToast}
+            onPress={VisitasGuest}
             bgColor="bg-yellow-100"
             textColor="text-amber-600"
           >
@@ -283,20 +313,40 @@ const CreateAccountScreen = ({ help, ...props }) => {
 const SetUsernameScreen = ({ sethelp, ...props }) => {
   const [username, setUsername] = useState(props.scannedUsername);
   const [isLoading, setIsLoading] = useState(false);
+  const [allowed, setAllowed] = useState(true);
+  const [errorName, setErrorName] = useState(
+    "Name looks good! Try to correct if needed."
+  );
 
   const toast = useToast();
 
-  const onSubmit = () => {
+  const onSubmit = async () => {
     setIsLoading(true);
-    setTimeout(() => {
-      console.log("fake submmiting...");
-      toast("success", "User created successfully");
+    props.setScannedUsername(username);
+    setIsLoading(false);
+    props.nextPage();
+  };
 
-      // set the new custom username
-      props.setScannedUsername(username);
-      setIsLoading(false);
-      props.nextPage();
-    }, 3000);
+  const handleTextChange = (input) => {
+    setUsername(input); // Update the state with the new text
+    setAllowed(false);
+    setErrorName("Hmm.. checking..");
+  };
+
+  const detectCorrection = async () => {
+    const state_edit = await userNameAgent(props.scannedUsername, username);
+    //console.log(state_edit)
+    if (state_edit.grant == "FALSE") {
+      setAllowed(false);
+      toast(
+        "error",
+        `The new name is not similar from ${props.scannedUsername}`
+      );
+      setErrorName(`Wait! That's not close to ${props.scannedUsername}`);
+    } else {
+      setAllowed(true);
+      setErrorName("Name looks good! Try to correct if needed.");
+    }
   };
 
   return (
@@ -328,10 +378,11 @@ const SetUsernameScreen = ({ sethelp, ...props }) => {
             </View>
 
             <TextInput
-              className="flex-1 w-full text-lg text-blue-500"
+              className="flex-1 w-full text-xl font-medium text-blue-500"
               value={username}
-              onChangeText={setUsername}
-              placeholder=""
+              onChangeText={handleTextChange}
+              onBlur={(e) => detectCorrection(e)}
+              placeholder="Juan Dela Cruz"
             />
           </View>
 
@@ -339,9 +390,11 @@ const SetUsernameScreen = ({ sethelp, ...props }) => {
             align="center"
             fontSize="sm"
             padding="py-2 px-6"
-            textColor="text-neutral-700"
+            textColor={
+              allowed ? "text-neutral-700" : "text-red-600 font-medium"
+            }
           >
-            Name looks good! Try to correct if needed.
+            {errorName}
           </ParagraphText>
         </View>
         <View></View>
@@ -349,9 +402,15 @@ const SetUsernameScreen = ({ sethelp, ...props }) => {
         <View></View>
 
         <View className="w-full flex gap-y-4 p-2">
-          <Button onPress={onSubmit}>
-            {isLoading ? "Creating account..." : "Create Account"}
-          </Button>
+          {allowed ? (
+            <Button onPress={onSubmit}>
+              {isLoading ? "Creating account..." : "Create Account"}
+            </Button>
+          ) : (
+            <Button bgColor="bg-slate-200" textColor="text-white">
+              Create Account
+            </Button>
+          )}
 
           <ParagraphText align="center" fontSize="sm" padding="px-4">
             Learn how we protect your personal{" "}
@@ -374,6 +433,11 @@ const TermsAndConditionScreen = ({ scannedUsername, ...props }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const toast = useToast();
+  const [deviceId, setDeviceId] = useState(null);
+  useEffect(() => {
+    const id = Device.deviceId;
+    setDeviceId(id); // This is the unique device ID
+  }, []);
 
   const { setUser } = useContext(AuthContext);
 
@@ -392,14 +456,20 @@ const TermsAndConditionScreen = ({ scannedUsername, ...props }) => {
   const registerAccount = async () => {
     try {
       setIsSubmitting(true);
-      console.log(scannedUsername);
-      const res = await createAccount(scannedUsername);
-      console.log("Create user res: ", res.data);
-      if (res.status === "success") {
+      //console.log(scannedUsername);
+      const res = await createAccount(scannedUsername, deviceId);
+      //console.log("Create user res: ", res);
+      if (res.status == "success") {
         setUser({ userId: res.data?.UserID });
+        //save UID
+        await AsyncStorage.setItem("uid", res.data?.UID);
+        //save token
         initFirstApp();
 
         setIsSubmitting(false);
+      } else {
+        setIsSubmitting(false);
+        toast("error", "Something went wrong, try again!");
       }
     } catch (error) {
       console.error(error);
@@ -435,9 +505,7 @@ const TermsAndConditionScreen = ({ scannedUsername, ...props }) => {
         <View className="bg-white h-full w-screen pb-10">
           <WebView
             style={{ flex: 1, backgroundColor: "white" }}
-            source={{
-              uri: "https://taranapo.com/terms-and-conditions/",
-            }}
+            source={{ uri: "https://taranapo.com/terms-and-conditions/" }}
             onLoadEnd={() => setIsLoading(true)}
             onLoadStart={() => setIsLoading(false)}
             javaScriptEnabled={true}
@@ -447,9 +515,13 @@ const TermsAndConditionScreen = ({ scannedUsername, ...props }) => {
         </View>
 
         <View className="p-6 bg-white absolute bottom-0 w-full flex gap-y-4">
-          <Button onPress={registerAccount}>
-            {isSubmitting ? "Submitting..." : "I Accept and wish to proceed"}
-          </Button>
+          {isSubmitting ? (
+            <Button>Please wait</Button>
+          ) : (
+            <Button onPress={registerAccount}>
+              I Accept and wish to proceed
+            </Button>
+          )}
 
           <ParagraphText align="center" fontSize="sm" padding="px-4">
             By clickng the proceed you are also agreeing to our{" "}
@@ -470,10 +542,13 @@ const TermsAndConditionScreen = ({ scannedUsername, ...props }) => {
 };
 
 // SignUp Page
-
 const SignUpScreen = ({ help, ...props }) => {
   const [activeOTPScreen, setActiveOTPScreen] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  const [loadingCheck, setCheckLoading] = useState(false);
+  const [OTP, setOTP] = useState("");
+  const toast = useToast();
+  const [tempUserID, setUserTempID] = useState(null);
 
   const handleBackPress = () => {
     if (props.back && !activeOTPScreen) {
@@ -493,199 +568,335 @@ const SignUpScreen = ({ help, ...props }) => {
     };
   }, [activeOTPScreen]);
 
+  const checkButton = async () => {
+    Keyboard.dismiss();
+    if (inputValue.length > 0) {
+      setCheckLoading(true);
+
+      const check_response = await checkUserAccount(inputValue);
+
+      if (check_response.message) {
+        if (check_response.message == "User not found.") {
+          setCheckLoading(false);
+          toast("error", "This user is not link to any account.");
+        } else if (check_response.message == "User found.") {
+          const xtop = generateOTP();
+          //console.log(xtop)
+          setOTP(xtop);
+          //update
+          setUserTempID(check_response.data.UserID);
+          const otp_response = await updateUser(
+            check_response.data.UserID,
+            "OTP",
+            xtop
+          );
+          if (otp_response.status == "success") {
+            //send OTP
+            const sender_otp = await sendOTPAccount(inputValue, xtop);
+            if (sender_otp.status == "ok") {
+              setActiveOTPScreen(true);
+            }
+          } else {
+            toast("try_again", "Something is wrong. Please try again.");
+          }
+          setCheckLoading(false);
+        }
+      } else {
+        setCheckLoading(false);
+      }
+    }
+  };
+
   return (
     <View className="w-full h-full bg-white absolute inset-0">
       <StatusBar style="dark" />
-      <View className="h-full flex justify-between items-center px-6 py-10">
-        <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
-          <Pressable onPress={props.back}>
-            <Svg
-              xmlns="http://www.w3.org/2000/svg"
-              width={30}
-              height={30}
-              viewBox="0 0 24 24"
-              fill="#374957"
+      <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+        <View className="h-full flex justify-between items-center px-6 py-10">
+          <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
+            <Pressable onPress={props.back}>
+              <Svg
+                xmlns="http://www.w3.org/2000/svg"
+                width={30}
+                height={30}
+                viewBox="0 0 24 24"
+                fill="#374957"
+              >
+                <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
+              </Svg>
+            </Pressable>
+            <Pressable
+              onPress={() => help()}
+              className="p-1 bg-slate-200 rounded-lg"
             >
-              <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
-            </Svg>
-          </Pressable>
-          <Pressable
-            onPress={() => help()}
-            className="p-1 bg-slate-200 rounded-lg"
-          >
-            <Svg
-              xmlns="http://www.w3.org/2000/svg"
-              width={20}
-              height={20}
-              viewBox="0 0 24 24"
-              fill="#374957"
-            >
-              <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm0 22a10 10 0 1 1 10-10 10.011 10.011 0 0 1-10 10Z" />
-              <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
-              <Rect width={2} height={2} x={11} y={17} rx={1} />
-            </Svg>
-          </Pressable>
-        </View>
-
-        <View className="w-full">
-          <Text className="text-center text-2xl text-black p-4 font-semibold">
-            Welcome Back!
-          </Text>
-
-          <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
-            <View className="p-2">
-              <TaraLogo size={40} />
-            </View>
-
-            <TextInput
-              className="flex-1 w-full text-lg"
-              value={inputValue}
-              onChangeText={setInputValue}
-              placeholder="Email or phone number"
-            />
+              <Svg
+                xmlns="http://www.w3.org/2000/svg"
+                width={20}
+                height={20}
+                viewBox="0 0 24 24"
+                fill="#374957"
+              >
+                <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm0 22a10 10 0 1 1 10-10 10.011 10.011 0 0 1-10 10Z" />
+                <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
+                <Rect width={2} height={2} x={11} y={17} rx={1} />
+              </Svg>
+            </Pressable>
           </View>
 
-          <ParagraphText
-            align="center"
-            fontSize="sm"
-            padding="py-2 px-6"
-            textColor="text-neutral-700"
-          >
-            Make sure you linked an email or phone number to your account.
-          </ParagraphText>
-        </View>
-        <View></View>
-        <View></View>
-        <View></View>
-
-        <View className="w-full flex gap-y-4 p-2">
-          <Button onPress={() => setActiveOTPScreen(true)}>Sign in</Button>
-
-          <ParagraphText align="center" fontSize="sm" padding="px-4">
-            Learn how to recover your account{" "}
-            <Text
-              onPress={() =>
-                Linking.openURL("https://taranapo.com/account-recovery/")
-              }
-              className="text-blue-500 font-semibold"
-            >
-              effectively here.
+          <View className="w-full">
+            <Text className="text-center text-2xl text-black p-4 font-semibold">
+              Welcome Back!
             </Text>
-          </ParagraphText>
-        </View>
-      </View>
 
+            <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
+              <View className="p-2">
+                <TaraLogo size={40} />
+              </View>
+
+              <TextInput
+                className="flex-1 w-full text-lg"
+                value={inputValue}
+                onChangeText={setInputValue}
+                placeholder="Email or phone number"
+              />
+            </View>
+
+            <ParagraphText
+              align="center"
+              fontSize="sm"
+              padding="py-2 px-6"
+              textColor="text-neutral-700"
+            >
+              Make sure you linked an email or phone number to your account.
+            </ParagraphText>
+          </View>
+          <View></View>
+          <View></View>
+          <View></View>
+
+          <View className="w-full flex gap-y-4 p-2">
+            {loadingCheck ? (
+              <Button>Signing in..</Button>
+            ) : (
+              <Button onPress={() => checkButton()}>Sign in</Button>
+            )}
+
+            <ParagraphText align="center" fontSize="sm" padding="px-4">
+              Learn how to recover your account{" "}
+              <Text
+                onPress={() =>
+                  Linking.openURL("https://taranapo.com/account-recovery/")
+                }
+                className="text-blue-500 font-semibold"
+              >
+                effectively here.
+              </Text>
+            </ParagraphText>
+          </View>
+        </View>
+      </TouchableWithoutFeedback>
       {activeOTPScreen && (
-        <OTPScreen sethelp={help} back={() => setActiveOTPScreen(false)} />
+        <OTPScreen
+          request={true}
+          verify={inputValue}
+          user={tempUserID}
+          sethelp={help}
+          back={() => setActiveOTPScreen(false)}
+        />
       )}
     </View>
   );
 };
 
-const OTPScreen = ({ sethelp, ...props }) => {
+const OTPScreen = ({ request, verify, user, sethelp, ...props }) => {
   const [inputValue, setInputValue] = useState("");
+  const [waitingState, setWaiting] = useState(false);
   const { setUser } = useContext(AuthContext);
+  const [countdown, setCountdown] = useState(60); // 2 minutes in seconds
+  const timerRef = useRef(null);
+  const [requestOTP, sendRequest] = useState(false);
+  const [retrySending, setRetrySending] = useState(false);
+  const toast = useToast();
 
-  const saveDevice = async (value) => {
-    try {
-      await AsyncStorage.setItem("register", value);
-    } catch (e) {
-      // saving error
+  if (countdown === 0) {
+    sendRequest(false);
+    setCountdown(60);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+  }
+
+  useEffect(() => {
+    if (request) {
+      runTimer();
+    }
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
+
+  const validateOTPCode = async () => {
+    Keyboard.dismiss();
+    if (inputValue) {
+      setWaiting(true);
+      const hmmotp = await confirmOTPProcess(user, inputValue);
+      setUser((prevState) => ({
+        ...prevState,
+        userId: user,
+      }));
+      if (hmmotp.status == "error") {
+        toast("wrong_code", hmmotp.msg);
+        setWaiting(false);
+      }
     }
   };
 
-  const validateOTPCode = async () => {
-    await saveDevice("true");
-    setUser({ accessToken: true });
+  const reSendOTP = async () => {
+    Keyboard.dismiss();
+    setRetrySending(true);
+    const xtop = generateOTP();
+    const otp_response = await updateUser(user, "OTP", xtop);
+    if (otp_response.status == "success") {
+      //send OTP
+      const sender_otp = await sendOTPAccount(verify, xtop);
+      if (sender_otp.status == "ok" || sender_otp.status == "success") {
+        toast("success", "We sent a new one time password.");
+        runTimer();
+        setRetrySending(false);
+      }
+    }
+  };
+
+  const runTimer = () => {
+    sendRequest(true);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+
+    timerRef.current = setInterval(() => {
+      setCountdown((prevCountdown) => {
+        if (prevCountdown <= 1) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+          return 0;
+        }
+        return prevCountdown - 1;
+      });
+    }, 1000);
   };
 
   return (
     <View className="w-full h-full bg-white absolute inset-0 z-50">
       <StatusBar style="dark" />
-      <View className="h-full flex justify-between items-center px-6 py-10">
-        <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
-          <Pressable onPress={props.back}>
-            <Svg
-              xmlns="http://www.w3.org/2000/svg"
-              width={30}
-              height={30}
-              viewBox="0 0 24 24"
-              fill="#374957"
+      <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+        <View className="h-full flex justify-between items-center px-6 py-10">
+          <View className="w-full flex flex-row gap-x-3 items-center justify-between py-2">
+            <Pressable onPress={props.back}>
+              <Svg
+                xmlns="http://www.w3.org/2000/svg"
+                width={30}
+                height={30}
+                viewBox="0 0 24 24"
+                fill="#374957"
+              >
+                <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
+              </Svg>
+            </Pressable>
+            <Pressable
+              onPress={() => sethelp()}
+              className="p-1 bg-slate-200 rounded-lg"
             >
-              <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
-            </Svg>
-          </Pressable>
-          <Pressable
-            onPress={() => sethelp()}
-            className="p-1 bg-slate-200 rounded-lg"
-          >
-            <Svg
-              xmlns="http://www.w3.org/2000/svg"
-              width={20}
-              height={20}
-              viewBox="0 0 24 24"
-              fill="#374957"
-            >
-              <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm0 22a10 10 0 1 1 10-10 10.011 10.011 0 0 1-10 10Z" />
-              <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
-              <Rect width={2} height={2} x={11} y={17} rx={1} />
-            </Svg>
-          </Pressable>
-        </View>
-
-        <View className="w-full z-50">
-          <Text className="text-center text-2xl text-black p-4 font-semibold">
-            One Time Password
-          </Text>
-
-          <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
-            <View className="p-2">
-              <TaraLogo size={40} />
-            </View>
-
-            <TextInput
-              className={`w-full text-2xl ${inputValue ? "font-bold" : ""}`}
-              type="number"
-              keyboardType="number-pad"
-              maxLength={6}
-              value={inputValue}
-              onChangeText={setInputValue}
-              placeholder="e.g 08269"
-            />
+              <Svg
+                xmlns="http://www.w3.org/2000/svg"
+                width={20}
+                height={20}
+                viewBox="0 0 24 24"
+                fill="#374957"
+              >
+                <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm0 22a10 10 0 1 1 10-10 10.011 10.011 0 0 1-10 10Z" />
+                <Path d="M12.717 5.063A4 4 0 0 0 8 9a1 1 0 0 0 2 0 2 2 0 0 1 2.371-1.967 2.024 2.024 0 0 1 1.6 1.595 2 2 0 0 1-1 2.125A3.954 3.954 0 0 0 11 14.257V15a1 1 0 0 0 2 0v-.743a1.982 1.982 0 0 1 .93-1.752 4 4 0 0 0-1.213-7.442Z" />
+                <Rect width={2} height={2} x={11} y={17} rx={1} />
+              </Svg>
+            </Pressable>
           </View>
 
-          <ParagraphText
-            align="center"
-            fontSize="sm"
-            padding="py-2 px-6"
-            textColor="text-neutral-700"
-          >
-            We sent a 6-digits code in both email and phone number. Please check
-            and enter here.
-          </ParagraphText>
-        </View>
-        <View></View>
-        <View></View>
-        <View></View>
-        <View className="w-full flex gap-y-4 p-2">
-          <Button bgColor="bg-slate-200" textColor="text-neutral-700">
-            Request another in 2mins
-          </Button>
-          <Button onPress={() => validateOTPCode()}>Verify Code</Button>
-
-          <ParagraphText align="center" fontSize="sm" padding="px-4">
-            Learn how to recover your account{" "}
-            <Text
-              onPress={() =>
-                Linking.openURL("https://taranapo.com/account-recovery/")
-              }
-              className="text-blue-500 font-semibold"
-            >
-              effectively here.
+          <View className="w-full z-50">
+            <Text className="text-center text-2xl text-black p-4 font-semibold">
+              One Time Password
             </Text>
-          </ParagraphText>
+
+            <View className="w-full border border-slate-400 p-2 rounded-2xl flex flex-row gap-x-2 items-center">
+              <View className="p-2">
+                <TaraLogo size={40} />
+              </View>
+
+              <TextInput
+                className={`w-full text-2xl ${inputValue ? "font-bold" : ""}`}
+                type="number"
+                keyboardType="number-pad"
+                maxLength={5}
+                value={inputValue}
+                onChangeText={setInputValue}
+                placeholder="e.g 08269"
+              />
+            </View>
+
+            <ParagraphText
+              align="center"
+              fontSize="sm"
+              padding="py-2 px-6"
+              textColor="text-neutral-700"
+            >
+              We sent a 5-digits code in your email or phone number. Please
+              check and enter here.
+            </ParagraphText>
+          </View>
+          <View></View>
+          <View></View>
+          <View></View>
+          <View className="w-full flex gap-y-4 p-2">
+            {!waitingState &&
+              (requestOTP ? (
+                <Button bgColor="bg-slate-200" textColor="text-neutral-700">
+                  Request in {countdown}s
+                </Button>
+              ) : retrySending ? (
+                <Button bgColor="bg-slate-100" textColor="text-neutral-400">
+                  Sending new OTP..
+                </Button>
+              ) : (
+                <Button
+                  onPress={() => reSendOTP()}
+                  bgColor="bg-slate-200"
+                  textColor="text-neutral-700"
+                >
+                  Request new OTP
+                </Button>
+              ))}
+
+            {waitingState ? (
+              <Button bgColor="bg-slate-200" textColor="text-white">
+                Please wait ..
+              </Button>
+            ) : (
+              <Button onPress={() => validateOTPCode()}>Verify Code</Button>
+            )}
+
+            <ParagraphText align="center" fontSize="sm" padding="px-4">
+              Learn how to recover your account{" "}
+              <Text
+                onPress={() =>
+                  Linking.openURL("https://taranapo.com/account-recovery/")
+                }
+                className="text-blue-500 font-semibold"
+              >
+                effectively here.
+              </Text>
+            </ParagraphText>
+          </View>
         </View>
-      </View>
+      </TouchableWithoutFeedback>
     </View>
   );
 };

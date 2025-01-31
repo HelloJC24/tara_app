@@ -2,9 +2,9 @@
   "expo": {
     "name": "Tara Rides",
     "slug": "tara",
-    "version": "1.2.0",
+    "version": "1.7.0",
     "orientation": "portrait",
-    "icon": "./assets/APKICON.png",
+    "icon": "./assets/tararides.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -16,15 +16,17 @@
       "supportsTablet": true
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/apk-icon.png",
+        "foregroundImage": "./assets/tararides.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.NOTIFICATIONS"
       ],
       "package": "com.kiefers.tara_app"
     },
@@ -42,6 +44,23 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to perform better user services performance."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/favicon.png",
+          "color": "#ffffff",
+          "sounds": [ "./petpew.mp3"],
+          "enableBackgroundRemoteNotifications": true
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
         }
       ]
     ],
