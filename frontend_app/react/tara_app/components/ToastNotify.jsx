@@ -1,9 +1,9 @@
 import React, {
   createContext,
   useCallback,
-  useContext,
   useEffect,
   useState,
+  useContext
 } from "react";
 import { Text, View } from "react-native";
 import Animated, {
@@ -13,6 +13,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Path, Rect } from "react-native-svg";
+import TaraLogo from "../assets/tara_icon.png";
 
 const ToastContext = createContext();
 
@@ -74,12 +75,13 @@ const ToastNotify = ({ status, msg }) => {
       className="mt-2 rounded-2xl shadow-xl shadow-black flex flex-row gap-x-4 items-center p-4 bg-white z-[100]"
     >
       <ToastIcon status={status} />
-      <Text className="flex-1 text-base">{msg}</Text>
+      <Text className="flex-1 text-base font-medium">{msg}</Text>
     </Animated.View>
   );
 };
 
 const ToastIcon = ({ status }) => {
+  
   if (status === "success") {
     return (
       <View className="bg-green-200 p-3 rounded-xl">
@@ -174,6 +176,10 @@ const ToastIcon = ({ status }) => {
       </View>
     );
   }
+
+
+
+
 
   return null;
 };

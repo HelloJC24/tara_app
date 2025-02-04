@@ -4,6 +4,7 @@ import { Image, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import SplashIcon from "../assets/splash-icon.png";
 import Button from "./Button";
+import {TipGraphic } from "../components/CustomGraphic";
 const QuickTipsBottomSheet = ({ open, onClose, activeScanner }) => {
   const sheetRef = useRef(null);
 
@@ -16,7 +17,7 @@ const QuickTipsBottomSheet = ({ open, onClose, activeScanner }) => {
   return (
     <BottomSheet
       onClose={onClose}
-      animationType="spring"
+      animationType="false"
       ref={sheetRef}
       height={450}
       containerHeight={1000}
@@ -27,12 +28,12 @@ const QuickTipsBottomSheet = ({ open, onClose, activeScanner }) => {
         <Text className="text-2xl font-bold text-center">Quick Tips!</Text>
 
         <View className="py-4 flex justify-center items-center">
-          <Image source={SplashIcon} className="w-48 h-48" />
+          <TipGraphic size={180} />
         </View>
 
         <View className="w-full py-4">
           <Text className="text-lg text-center py-4">
-            Avoid blurry and poor shoots
+            Make sure all information is visible
           </Text>
           <Button hasIcon={true} onPress={activeScanner}>
             <Svg

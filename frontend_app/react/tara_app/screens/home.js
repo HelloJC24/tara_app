@@ -1,25 +1,276 @@
+import axios from "axios";
+import * as Location from "expo-location";
+import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import LottieView from "lottie-react-native";
+import React, { useContext, useEffect, useState } from "react";
+import {
+  Alert,
+  Image,
+  Linking,
+  Platform,
+  Pressable,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import QRCodeStyled from "react-native-qrcode-styled";
 import Svg, { Path } from "react-native-svg";
-import AppIcon from "../assets/splash-icon.png";
 import TaraLogo from "../assets/tara_icon.png";
 import BottomNavBar from "../components/BottomNavBar";
 import Button from "../components/Button";
+import { HelloVisitor } from "../components/Cards";
+import {
+  InviteGraphic,
+  TaraGate,
+  TaraPermission,
+  TaraMock
+} from "../components/CustomGraphic";
+import {
+  TaraCar,
+  TaraGift,
+  TaraMotor,
+  TaraVan,
+  TaraWalletIcon,
+} from "../components/CustomIcon";
 import ParagraphText from "../components/ParagraphText";
+import RateUsApp from "../components/RateUsApp";
+import { useToast } from "../components/ToastNotify";
+import { GET_DATA_CONTROL_API } from "../config/constants";
+import { fetchUser, updateUser } from "../config/hooks";
+import { AuthContext } from "../context/authContext";
+import { DataContext } from "../context/dataContext";
+import appJson from "../app.json";
+import { formatMoney } from "../config/functions";
+import { BookingContext } from "../context/bookContext";
 
-const HomeScreen = () => {
+
+const HomeScreen = ({ navigation }) => {
   const [activeScanFriend, setActiveScanFriend] = useState(false);
+  const [rewardsAvailable, SetRewards] = useState(true);
+  const [activeRateUs, setActiveRateUs] = useState(false);
+  const [locationPermission, setPermissionAsk] = useState(false);
+  const [location, setLocation] = useState([]);
+  const [controlData, setControlData] = useState([]);
+  const [gate, setGate] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { setUser, user } = useContext(AuthContext);
+  const { data, setData } = useContext(DataContext);
+  const [activaeBooking, setActiveBooking] = useState(false);
+  const [pushToken, setPushToken] = useState(null);
+  const toast = useToast();
+  const appVersion = appJson.expo.version;
+  const { booking } = useContext(BookingContext);
+
+  const taraBook = (vehicle) => {
+    navigation.navigate("booking", {
+      track: user?.userId,
+      wheels: vehicle,
+      start: location,
+    });
+  };
+
+  const OpenRewards = () => {
+    navigation.navigate("webview", {
+      track: user?.userId,
+      url: `https://taranapo.com/rewards/?taraid=${user?.userId}`,
+    });
+  };
+
+  const openQR = () => {
+    navigation.navigate("qrcode", {
+      mode: "STF",
+    });
+  };
+
+  const newUpdateAvailable = (v) => {
+    Alert.alert(
+      "Update Available",
+      `You're using old ${v} version. We have our latest ${appVersion} version. Explore new improved update.`,
+      [
+        {
+          text: "Later",
+          type: "cancel",
+        },
+        {
+          text: "Update",
+          onPress: () => Linking.openURL("https://taranapo.com/download/"),
+        },
+      ]
+    );
+  };
+
+  const goLogin = (page) => {
+    setUser((prevState) => ({
+      ...prevState,
+      userId: null,
+      accessToken: null,
+      history: page,
+    }));
+  };
+
+  useEffect(() => {
+    async function getCurrentLocation() {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setPermissionAsk(true);
+        Alert.alert(
+          "Permission Denied",
+          "We cannot proceed performing our services without location access.",
+          [
+            {
+              text: "Close",
+              type: "cancel",
+            },
+          ]
+        );
+        return;
+      } else {
+        setPermissionAsk(false);
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      if (location.mocked) {
+        setPermissionAsk(false);
+      } else {
+        setLocation(location);
+        getControl();
+      }
+    }
+
+    async function getControl() {
+      try {
+        const response = await axios.get(GET_DATA_CONTROL_API, {
+          params: {
+            origin: location,
+          },
+          headers: {
+            Auth: `Bearer ${user?.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.data) {
+          setControlData(response.data.data);
+          const supportedLocations = response.data.data.supported_location;
+          setGate(response.data.data.gate);
+          if (location.coords) {
+            const { latitude, longitude } = location.coords;
+            const isSupported = supportedLocations.some((location) => {
+              return (
+                latitude >= location.minLat &&
+                latitude <= location.maxLat &&
+                longitude >= location.minLng &&
+                longitude <= location.maxLng
+              );
+            });
+
+            if (!isSupported) {
+              //not supported
+              setGate(true);
+            }
+          }
+
+          if (Platform.OS == "android") {
+            if (response.data.data.version_app_android != appVersion) {
+              newUpdateAvailable(response.data.data.version_app_android);
+            }
+          }
+
+          if (Platform.OS == "ios") {
+            if (response.data.data.version_app_ios != appVersion) {
+              newUpdateAvailable(response.data.data.version_app_ios);
+            }
+          }
+        } else {
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    //setup for push notifications
+    setTimeout(async () => {
+      registerForPushNotificationsAsync().then((token) => savePushToken(token));
+
+      const notificationListener =
+        Notifications.addNotificationReceivedListener((notification) => {
+          console.log("Notification received:", notification);
+        });
+
+      const responseListener =
+        Notifications.addNotificationResponseReceivedListener((response) => {
+          console.log("Notification interacted with:", response);
+        });
+
+      return () => {
+        Notifications.removeNotificationSubscription(notificationListener);
+        Notifications.removeNotificationSubscription(responseListener);
+      };
+    }, 2000);
+
+    const savePushToken = async (pt) => {
+      //toast("success", pt.data,user);
+      const savingPush = await updateUser(user?.userId, "OSID", pt.data, user);
+      const saveloc = `${location.coords.latitude},${coords.longitude}`;
+      console.log("location:", saveloc);
+      const savingLocation = await updateUser(
+        user?.userId,
+        "Location",
+        saveloc
+      );
+      console.log("saving push:", savingPush);
+    };
+
+    getCurrentLocation();
+  }, [locationPermission, setGate, setLocation, user?.accessToken]);
+
+  useEffect(() => {
+    // fetching user data
+    const getUser = async () => {
+      try {
+        setIsLoading(true);
+        const res = await fetchUser(user?.userId, user);
+        ///console.log(res)
+        if (res.status === "success") {
+          //console.log(res.data)
+          setData((prevData) => ({
+            ...prevData,
+            user: res.data,
+          }));
+
+          //console.log(res.data);
+          //get if active booking
+
+          setActiveBooking(res.data.ActiveBooking == "N/A" ? false : true);
+          setActiveRateUs(res.data.ReviewUs == "N/A" ? false : true);
+          //if active fetch rides details
+          setGate(res.data.Status == "Active" ? false : true);
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    console.log(booking)
+    getUser();
+  }, [user?.userId]);
 
   return (
     <View className="w-full h-full bg-white relative">
       <StatusBar style="dark" />
       <View className="w-full h-full p-6 ">
         <View className="w-full flex flex-row gap-x-3 items-center justify-between pt-10">
-          <Image source={TaraLogo} className="w-32 h-full" />
+          <Image source={TaraLogo} className="w-36 h-full" />
 
           <View className="flex flex-row gap-x-3 items-center justify-between">
-            <View className="p-1 bg-slate-200 rounded-lg">
+            <Pressable
+              onPress={() => Linking.openURL("https://taranapo.com")}
+              className="p-1 bg-slate-200 rounded-lg"
+            >
               <Svg
                 xmlns="http://www.w3.org/2000/svg"
                 width={20}
@@ -29,30 +280,44 @@ const HomeScreen = () => {
               >
                 <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0Zm10 12a9.938 9.938 0 0 1-1.662 5.508l-1.192-1.193a.5.5 0 0 1-.146-.353V15a3 3 0 0 0-3-3h-3a1 1 0 0 1-1-1v-.5a.5.5 0 0 1 .5-.5A2.5 2.5 0 0 0 15 7.5v-1a.5.5 0 0 1 .5-.5h1.379a2.516 2.516 0 0 0 1.767-.732l.377-.377A9.969 9.969 0 0 1 22 12Zm-19.951.963 3.158 3.158A2.978 2.978 0 0 0 7.329 17H10a1 1 0 0 1 1 1v3.949a10.016 10.016 0 0 1-8.951-8.986ZM13 21.949V18a3 3 0 0 0-3-3H7.329a1 1 0 0 1-.708-.293l-4.458-4.458A9.978 9.978 0 0 1 17.456 3.63l-.224.224a.507.507 0 0 1-.353.146H15.5A2.5 2.5 0 0 0 13 6.5v1a.5.5 0 0 1-.5.5 2.5 2.5 0 0 0-2.5 2.5v.5a3 3 0 0 0 3 3h3a1 1 0 0 1 1 1v.962a2.516 2.516 0 0 0 .732 1.767l1.337 1.337A9.971 9.971 0 0 1 13 21.949Z" />
               </Svg>
-            </View>
-            <View className="p-1 bg-amber-200 rounded-lg">
-              <Svg
-                xmlns="http://www.w3.org/2000/svg"
-                width={20}
-                height={20}
-                data-name="Layer 1"
-                viewBox="0 0 24 24"
-                fill="#fbbf24"
+            </Pressable>
+
+            {rewardsAvailable || controlData.rewards ? (
+              <Pressable
+                onPress={() => OpenRewards()}
+                className="pb-1.5 bg-white rounded-lg"
               >
-                <Path d="M2 15h9v9H7a5 5 0 0 1-5-5Zm22-4a2 2 0 0 1-2 2h-9V8.957c-.336.026-.671.043-1 .043s-.664-.017-1-.043V13H2a2 2 0 0 1-2-2 4 4 0 0 1 4-4h1.738A5.137 5.137 0 0 1 4 3a1 1 0 0 1 2 0c0 2.622 2.371 3.53 4.174 3.841A9.332 9.332 0 0 1 9 3a3 3 0 0 1 6 0 9.332 9.332 0 0 1-1.174 3.841C15.629 6.53 18 5.622 18 3a1 1 0 0 1 2 0 5.137 5.137 0 0 1-1.738 4H20a4 4 0 0 1 4 4ZM11 3a7.71 7.71 0 0 0 1 3.013A7.71 7.71 0 0 0 13 3a1 1 0 0 0-2 0Zm2 21h4a5 5 0 0 0 5-5v-4h-9Z" />
-              </Svg>
-            </View>
+                <LottieView
+                  source={require("../assets/animation/taragift.json")}
+                  autoPlay
+                  loop
+                  width={40}
+                  height={35}
+                />
+              </Pressable>
+            ) : (
+              <View className="pt-1.5 px-2 bg-white rounded-lg">
+                <TaraGift size={24} />
+              </View>
+            )}
           </View>
         </View>
 
-        <ParagraphText
-          padding="py-4 pr-16"
-          fontSize="lg"
-          align="left"
-          textColor="text-neutral-700"
-        >
-          It's kind of sunny and cloudy today! Enjoy the trip..
-        </ParagraphText>
+        {controlData.length == 0 && user.userId != "visitor" ? (
+          <View className="my-4 bg-gray-200 rounded-lg w-56 h-6"></View>
+        ) : (
+          <ParagraphText
+            padding="py-4 pr-16"
+            fontSize="lg"
+            align="left"
+            textColor="text-neutral-700"
+          >
+            {controlData.greetings ??
+              "Hello there visitors! Mostly you see our weather forecast here.."}
+          </ParagraphText>
+        )}
+
+        <View></View>
 
         <View
           className="w-full border-t border-x border-slate-100 p-3 shadow-md shadow-neutral-500 bg-white rounded-2xl 
@@ -60,36 +325,35 @@ const HomeScreen = () => {
         >
           <View className="flex flex-row gap-x-4 ">
             <View className="border border-slate-300 p-2 rounded-xl">
-              <Svg
-                xmlns="http://www.w3.org/2000/svg"
-                width={30}
-                height={30}
-                data-name="Layer 1"
-                viewBox="0 0 24 24"
-                fill="#64748b"
-              >
-                <Path d="M20.723 7H22a2 2 0 0 0 2-2 4 4 0 0 0-4-4H5a5.006 5.006 0 0 0-5 5v6.515a6.954 6.954 0 0 0 2.05 4.949l.95.95V19.5a3.5 3.5 0 0 0 7 0V19h5v.5a3.5 3.5 0 0 0 7 0V19h1a1 1 0 0 0 1-1v-3.407a7.009 7.009 0 0 0-.922-3.472ZM2 7h6v2H2Zm6 12.5a1.5 1.5 0 0 1-3 0V19h3Zm5-2.5H4.414l-.95-.95A4.967 4.967 0 0 1 2 12.515V11h6a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H2.172A3 3 0 0 1 5 3h15a2 2 0 0 1 2 2h-5a4 4 0 0 0-4 4Zm7.7-6H15V9a2 2 0 0 1 2-2h1.419Zm-.7 8.5a1.5 1.5 0 0 1-3 0V19h3Zm2-2.5h-7v-4h6.739A5 5 0 0 1 22 14.593Z" />
-              </Svg>
+              <TaraWalletIcon color="#404040" size={35} />
             </View>
 
-            <View>
-              <Text className="text-xl font-semibold text-neutral-700">
+            <Pressable onPress={() => navigation.navigate("wallet")}>
+              <Text className="text-lg font-semibold text-neutral-700">
                 Wallet
               </Text>
               <View className="flex flex-row gap-x-1 items-center">
-                <Text className="text-base">₱128.00</Text>
-                <Svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width={15}
-                  height={15}
-                  data-name="Layer 1"
-                  viewBox="0 0 24 24"
-                  fill="#3b82f6"
-                >
-                  <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0zm4 13h-3v3a1 1 0 0 1-2 0v-3H8a1 1 0 0 1 0-2h3V8a1 1 0 0 1 2 0v3h3a1 1 0 0 1 0 2z" />
-                </Svg>
+                {isLoading && user.userId != "visitor" ? (
+                  <View className="bg-gray-200 rounded-lg w-10 h-6"></View>
+                ) : (
+                  <Text className="text-xl font-medium">
+                    &#8369;{formatMoney(data?.user?.Wallet) ?? 0}.00
+                  </Text>
+                )}
+                <TouchableOpacity onPress={() => navigation.navigate("wallet")}>
+                  <Svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width={15}
+                    height={15}
+                    data-name="Layer 1"
+                    viewBox="0 0 24 24"
+                    fill="#3b82f6"
+                  >
+                    <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0zm4 13h-3v3a1 1 0 0 1-2 0v-3H8a1 1 0 0 1 0-2h3V8a1 1 0 0 1 2 0v3h3a1 1 0 0 1 0 2z" />
+                  </Svg>
+                </TouchableOpacity>
               </View>
-            </View>
+            </Pressable>
           </View>
 
           <TouchableOpacity
@@ -108,40 +372,103 @@ const HomeScreen = () => {
             </Svg>
           </TouchableOpacity>
         </View>
-        <View className="w-full py-4">
-          <Text className="text-lg text-neutral-700 py-2">Choose a ride</Text>
+        <View className="mt-4 w-full py-4">
+          <Text className="text-lg font-medium text-neutral-800 py-2">
+            Choose a ride
+          </Text>
 
           <View className="w-full flex flex-row justify-between items-center py-2 px-4">
-            <View className="flex gap-y-1">
-              <View className="w-20 h-20 bg-slate-200 rounded-full"></View>
-              <Text className="text-base text-center text-slate-500">
-                TaraRide
-              </Text>
-            </View>
+            {location.length == 0 || controlData.service_status1 == false ? (
+              <Pressable
+                onPress={() => setPermissionAsk(true)}
+                className="flex gap-y-1"
+              >
+                <View className="opacity-50 flex justify-center items-center pt-2 w-20 h-20 bg-slate-200 rounded-full">
+                  <TaraMotor size="55" />
+                </View>
+                <Text className="text-base text-center text-gray-200">
+                  {controlData.service_name1 ?? "TaraRide"}
+                </Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => taraBook(2)} className="flex gap-y-1">
+                <View className="flex justify-center items-center pt-2 w-20 h-20 bg-slate-200 rounded-full">
+                  <TaraMotor size="55" />
+                </View>
+                <Text className="text-base text-center text-blue-500">
+                  {controlData.service_name1 ?? "TaraRide"}
+                </Text>
+              </Pressable>
+            )}
 
-            <View className="flex gap-y-1">
-              <View className="w-20 h-20 bg-slate-200 rounded-full"></View>
-              <Text className="text-base text-center text-slate-500">
-                TaraCar
-              </Text>
-            </View>
+            {location.length == 0 || controlData.service_status2 == false ? (
+              <Pressable onPress={() => setPermissionAsk(true)}>
+                <View className="opacity-50 flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
+                  <TaraCar size="65" />
+                </View>
+                <Text className="text-base text-center text-gray-200">
+                  {controlData.service_name2 ?? "TaraCar"}
+                </Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => taraBook(4)} className="flex gap-y-1">
+                <View className="flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
+                  <TaraCar size="65" />
+                </View>
+                <Text className="text-base text-center text-blue-500">
+                  {controlData.service_name2 ?? "TaraCar"}
+                </Text>
+              </Pressable>
+            )}
 
-            <View className="flex gap-y-1">
-              <View className="w-20 h-20 bg-slate-200 rounded-full"></View>
-              <Text className="text-base text-center text-slate-500">
-                TaraVan
-              </Text>
-            </View>
+            {location.length == 0 || controlData.service_status3 == false ? (
+              <Pressable onPress={() => setPermissionAsk(true)}>
+                <View className="opacity-50 flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
+                  <TaraVan size="65" />
+                </View>
+                <Text className="text-base text-center text-gray-200">
+                  {controlData.service_name3 ?? "TaraVan"}
+                </Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => taraBook(5)} className="flex gap-y-1">
+                <View className="flex justify-center items-center w-20 h-20 bg-slate-200 rounded-full">
+                  <TaraVan size="65" />
+                </View>
+                <Text className="text-base text-center text-blue-500">
+                  {controlData.service_name3 ?? "TaraVan"}
+                </Text>
+              </Pressable>
+            )}
           </View>
         </View>
 
-        <BottomNavBar />
+        <BottomNavBar access={user} />
       </View>
-      <ExistingBooking />
+      {activaeBooking && <ExistingBooking />}
 
       {activeScanFriend && (
-        <FriendsWithBenefits close={() => setActiveScanFriend(false)} />
+        <FriendsWithBenefits
+          openQR={openQR}
+          QR={data?.user?.UserID}
+          close={() => setActiveScanFriend(false)}
+        />
       )}
+      {activeRateUs && <RateUsApp close={() => setActiveRateUs(false)} />}
+
+      {locationPermission && (
+        <AllowLocationPrompt close={() => setPermissionAsk(false)} />
+      )}
+
+      {gate && <GatePrompt />}
+
+      {user?.userId == "visitor" && (
+        <View className="fixed bottom-[200px] p-4">
+          <HelloVisitor uwu={goLogin} />
+        </View>
+      )}
+
+      {booking?.status == 'searching' && <SearchingBooking location={location} user={user} navigation={navigation} />}
     </View>
   );
 };
@@ -153,10 +480,15 @@ const ExistingBooking = () => {
         flex flex-row items-center justify-between"
     >
       <View className="flex flex-row gap-x-4 items-center ">
-        <Image
-          source={AppIcon}
-          className="w-12 h-12 border border-slate-300 p-2 rounded-xl"
-        />
+        <View className="bg-white rounded-xl p-2.5">
+          <LottieView
+            source={require("../assets/animation/tara.json")}
+            autoPlay
+            loop
+            width={40}
+            height={40}
+          />
+        </View>
 
         <View>
           <Text className="text-lg font-semibold text-white">
@@ -164,16 +496,13 @@ const ExistingBooking = () => {
           </Text>
 
           <View className="flex flex-row gap-x-1 items-center">
-            <Svg
-              xmlns="http://www.w3.org/2000/svg"
-              width={15}
-              height={15}
-              data-name="Layer 1"
-              viewBox="0 0 24 24"
-              fill="#e2e8f0"
-            >
-              <Path d="M24 12a12 12 0 0 1-24 0 1 1 0 0 1 2 0A10 10 0 1 0 12 2a1 1 0 0 1 0-2 12.013 12.013 0 0 1 12 12zm-13.723-1H8a1 1 0 0 0 0 2h2.277A1.994 1.994 0 1 0 13 10.277V7a1 1 0 0 0-2 0v3.277a2 2 0 0 0-.723.723zm-8.45-2.216a1 1 0 1 0-1-1 1 1 0 0 0 1 1zm2.394-3.577a1 1 0 1 0-1-1 1 1 0 0 0 1 1zm3.558-2.366a1 1 0 1 0-1-1 1 1 0 0 0 1 1z" />
-            </Svg>
+            <LottieView
+              source={require("../assets/animation/clock.json")}
+              autoPlay
+              loop
+              width={20}
+              height={20}
+            />
             <Text className="text-base text-slate-200">3mins</Text>
           </View>
         </View>
@@ -194,7 +523,74 @@ const ExistingBooking = () => {
   );
 };
 
-const FriendsWithBenefits = ({ close }) => {
+
+
+const SearchingBooking = ({location,user,navigation}) => {
+
+  const taraBalik = () => {
+    navigation.navigate("booking", {
+      track: user?.userId,
+      wheels: 2,
+      start: location,
+    });
+  };
+
+  
+  
+  return (
+    <Pressable
+      onPress={()=>taraBalik()}
+      className=" absolute bottom-36 left-6 right-6 p-4 shadow-md shadow-neutral-500 bg-[#404040] rounded-2xl 
+        flex flex-row items-center justify-between"
+    >
+      <View className="flex flex-row gap-x-4 items-center ">
+        <View className="relative bg-gray-500 rounded-xl overflow-hidden w-16 h-16">
+          <TaraMock size={100} />
+        <View className="absolute top-0 bottom-0 left-0 right-0 mx-auto inset-1">
+        <LottieView
+            source={require("../assets/animation/tara_search.json")}
+            autoPlay
+            loop
+            width={60}
+            height={60}
+          />
+        </View>
+        </View>
+
+        <View>
+          <Text className="text-lg font-semibold text-white">
+            Searching for drivers..
+          </Text>
+
+          <View className="flex flex-row gap-x-1 items-center">
+            <LottieView
+              source={require("../assets/animation/clock.json")}
+              autoPlay
+              loop
+              width={20}
+              height={20}
+            />
+            <Text className="text-base text-slate-200">Still waiting</Text>
+          </View>
+        </View>
+      </View>
+
+      <View>
+        <Svg
+          xmlns="http://www.w3.org/2000/svg"
+          width={30}
+          height={30}
+          viewBox="0 0 24 24"
+          fill="#fff"
+        >
+          <Path d="m15.75 9.525-4.586-4.586a1.5 1.5 0 0 0-2.121 2.122l4.586 4.585a.5.5 0 0 1 0 .708l-4.586 4.585a1.5 1.5 0 0 0 2.121 2.122l4.586-4.586a3.505 3.505 0 0 0 0-4.95Z" />
+        </Svg>
+      </View>
+    </Pressable>
+  );
+};
+
+const FriendsWithBenefits = ({ openQR, QR, close }) => {
   return (
     <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
       <View
@@ -205,13 +601,35 @@ const FriendsWithBenefits = ({ close }) => {
           Friends with Benefits
         </Text>
 
-        <View className="w-full flex justify-center items-center p-4">
-          <Image
-            source={{
-              uri: "https://pnghq.com/wp-content/uploads/2023/02/minecraft-steve-skin-render-png-3129.png",
-            }}
-            className="w-60 h-72"
-          />
+        <View className="relative w-full flex justify-center items-center p-4">
+          <InviteGraphic size={300} />
+          <View className="absolute bottom-5">
+            <QRCodeStyled
+              data={QR}
+              style={{ backgroundColor: "transparent" }}
+              padding={10}
+              pieceSize={4.5}
+              pieceCornerType="rounded"
+              color={"#020617"}
+              pieceScale={1.02}
+              pieceLiquidRadius={3}
+              logo={{
+                href: require("../assets/tara_app.png"),
+                padding: 4,
+                scale: 1,
+                hidePieces: true,
+              }}
+              errorCorrectionLevel={"H"}
+              innerEyesOptions={{
+                borderRadius: 4,
+                color: "#404040",
+              }}
+              outerEyesOptions={{
+                borderRadius: 12,
+                color: "#ffa114",
+              }}
+            />
+          </View>
         </View>
 
         <ParagraphText
@@ -220,8 +638,8 @@ const FriendsWithBenefits = ({ close }) => {
           textColor="text-neutral-700"
           padding="px-2"
         >
-          Here’s your unique QR code! Anyone who scans it can get between 10 and
-          20 points, and you'll receive the same rewards too.
+          Here’s your unique QR code! Anyone who scans it can get between
+          &#8369;10 and &#8369;20, and you'll receive the same rewards too.
         </ParagraphText>
 
         <Text className="text-center text-base font-semibold text-neutral-700">
@@ -229,7 +647,7 @@ const FriendsWithBenefits = ({ close }) => {
         </Text>
 
         <View className="w-full flex gap-y-4">
-          <Button>Scan a friend</Button>
+          <Button onPress={() => openQR()}>Scan a friend</Button>
           <Button
             onPress={close}
             bgColor="bg-slate-200"
@@ -242,5 +660,108 @@ const FriendsWithBenefits = ({ close }) => {
     </View>
   );
 };
+
+const AllowLocationPrompt = ({ close }) => {
+  return (
+    <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
+      <View
+        className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
+      flex gap-y-4"
+      >
+        <View className="relative w-full flex justify-center items-center p-4">
+          <TaraPermission size={200} />
+        </View>
+
+        <Text className="text-center text-2xl font-bold">
+          Location Permission
+        </Text>
+
+        <ParagraphText
+          align="center"
+          fontSize="sm"
+          textColor="text-neutral-700"
+          padding="px-2"
+        >
+          We need your precise location for a better experience.
+        </ParagraphText>
+
+        <View className="w-full flex gap-y-4">
+          <Button
+            onPress={close}
+            bgColor="bg-slate-200"
+            textColor="text-neutral-700"
+          >
+            Close
+          </Button>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const GatePrompt = () => {
+  return (
+    <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
+      <View
+        className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
+      flex gap-y-4"
+      >
+        <View className="relative w-full flex justify-center items-center p-4">
+          <TaraGate size={200} />
+        </View>
+
+        <Text className="text-center text-2xl font-bold">
+          Not available right now
+        </Text>
+
+        <ParagraphText
+          align="center"
+          fontSize="sm"
+          textColor="text-neutral-700"
+          padding="px-2"
+        >
+          We are sorry but we are not currently available in your location..
+        </ParagraphText>
+      </View>
+    </View>
+  );
+};
+
+async function registerForPushNotificationsAsync() {
+  let token;
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync("petpew", {
+      name: "petpew",
+      sound: "petpew.mp3",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: "#beda31",
+      audioAttributes: {
+        usage: Notifications.AndroidAudioUsage.ALARM,
+        contentType: Notifications.AndroidAudioContentType.SONIFICATION,
+      },
+    });
+  }
+
+  const { status } = await Notifications.requestPermissionsAsync();
+  if (status !== "granted") {
+    //failed
+    return;
+  }
+
+  token = await Notifications.getExpoPushTokenAsync({
+    projectId: "9666c06c-78e4-4768-baba-4035a03729fb",
+  });
+
+  return token;
+}
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 export default HomeScreen;
