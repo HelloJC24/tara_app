@@ -34,6 +34,7 @@ import { AuthContext } from "../context/authContext";
 import { TaraEmpty } from "../components/CustomGraphic";
 import { useToast } from "../components/ToastNotify";
 import { HelloVisitor } from "../components/Cards";
+import { formatMoney } from "../config/functions";
 
 
 const WalletScreen = ({  navigation}) => {
@@ -162,7 +163,7 @@ const WalletScreen = ({  navigation}) => {
 
             <View>
               <Text className="text-2xl font-bold text-center">
-                &#8369; {data?.user?.Wallet ?? 0}.00
+                &#8369; {formatMoney(data?.user?.Wallet) ?? 0}.00
               </Text>
               <Text className="text-base font-normal text-center">
                 Available balance
@@ -174,10 +175,37 @@ const WalletScreen = ({  navigation}) => {
 
           <View className="w-full px-2">
             <View className="w-full py-4 flex flex-row gap-x-4 items-center justify-between">
+
+            {
+              user?.userId == 'visitor' ? (
+                <TouchableOpacity
+                onPress={()=>openPremium()}
+                className="relative flex-1 bg-slate-100 p-3 rounded-xl flex gap-x-4 flex-row items-center justify-center"
+              >
+                <View className="absolute -top-2 -right-1">
+                      <Svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <Path d="M19 8.424V6.99998C19 3.13402 15.866 0 12 0C8.13397 0 5 3.13402 5 6.99998V8.424C3.18003 9.2183 2.00263 11.0143 2 13V19C2.00328 21.76 4.23992 23.9967 6.99997 24H17C19.76 23.9967 21.9966 21.76 22 19V13C21.9974 11.0143 20.8199 9.2183 19 8.424ZM13 17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17V15C11 14.4477 11.4477 14 12 14C12.5523 14 13 14.4477 13 15V17ZM17 8.00002H6.99997V7.00003C6.99997 4.23863 9.23853 2.00002 12 2.00002C14.7614 2.00002 17 4.23858 17 7.00003V8.00002Z" fill="#fbbf24"/>
+                      </Svg>
+                      </View>
+                <Svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width={20}
+                  height={20}
+                  data-name="Layer 1"
+                  viewBox="0 0 24 24"
+                  fill="#93c5fd"
+                >
+                  <Path d="M12 0a12 12 0 1 0 12 12A12.013 12.013 0 0 0 12 0zm0 22a10 10 0 1 1 10-10 10.011 10.011 0 0 1-10 10zm5-10a1 1 0 0 1-1 1h-3v3a1 1 0 0 1-2 0v-3H8a1 1 0 0 1 0-2h3V8a1 1 0 0 1 2 0v3h3a1 1 0 0 1 1 1z" />
+                </Svg>
+
+                <Text className="text-base text-blue-300">Top Up</Text>
+              </TouchableOpacity>
+              ):(
               <TouchableOpacity
                 onPress={() => setActiveTopup(true)}
                 className="flex-1 bg-slate-100 p-3 rounded-xl flex gap-x-4 flex-row items-center justify-center"
               >
+                
                 <Svg
                   xmlns="http://www.w3.org/2000/svg"
                   width={20}
@@ -191,6 +219,9 @@ const WalletScreen = ({  navigation}) => {
 
                 <Text className="text-base text-blue-500">Top Up</Text>
               </TouchableOpacity>
+              )
+            }
+              
 
              {
               user?.userId == 'visitor' ? (
@@ -338,13 +369,13 @@ const TransactionItem = ({ navigation, bookingId, amount, type, invoice,when }) 
       </View>
 
       {type == "Ride" || type == "Transfer" ? (
-        <Text className="font-bold text-base text-gray-500">-&#8369;{amount}</Text>
+        <Text className="font-bold text-base text-gray-500">-&#8369;{formatMoney(amount)}.00</Text>
       ) : type == "Credit" ? (
         <Text className="font-bold text-base text-green-600">
-          +&#8369;{amount}
+          +&#8369;{formatMoney(amount)}.00
         </Text>
       ) : (
-        <Text className="font-bold text-base">&#8369;{amount}</Text>
+        <Text className="font-bold text-base">&#8369;{formatMoney(amount)}.00</Text>
       )}
     </Pressable>
   );
@@ -367,7 +398,6 @@ const ToggleButton = ({upd,change, ...props}) => {
       change("wallet")
       upd(true)
     }
-    
   }
 
   return (
@@ -719,7 +749,7 @@ const { data, setData } = useContext(DataContext);
 
             <Text className="text-sm py-4">
               Available Balance: (
-              <Text className="font-bold">&#8369;{balance?.user?.Wallet ?? 0}.00</Text>)
+              <Text className="font-bold">&#8369;{formatMoney(balance?.user?.Wallet) ?? 0}.00</Text>)
             </Text>
           </View>
         </View>

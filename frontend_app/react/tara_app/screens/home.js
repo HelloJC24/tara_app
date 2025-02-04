@@ -24,6 +24,7 @@ import {
   InviteGraphic,
   TaraGate,
   TaraPermission,
+  TaraMock
 } from "../components/CustomGraphic";
 import {
   TaraCar,
@@ -39,6 +40,10 @@ import { GET_DATA_CONTROL_API } from "../config/constants";
 import { fetchUser, updateUser } from "../config/hooks";
 import { AuthContext } from "../context/authContext";
 import { DataContext } from "../context/dataContext";
+import appJson from "../app.json";
+import { formatMoney } from "../config/functions";
+import { BookingContext } from "../context/bookContext";
+
 
 const HomeScreen = ({ navigation }) => {
   const [activeScanFriend, setActiveScanFriend] = useState(false);
@@ -54,6 +59,8 @@ const HomeScreen = ({ navigation }) => {
   const [activaeBooking, setActiveBooking] = useState(false);
   const [pushToken, setPushToken] = useState(null);
   const toast = useToast();
+  const appVersion = appJson.expo.version;
+  const { booking } = useContext(BookingContext);
 
   const taraBook = (vehicle) => {
     navigation.navigate("booking", {
@@ -235,7 +242,8 @@ const HomeScreen = ({ navigation }) => {
             user: res.data,
           }));
 
-          console.log(res.data);
+          //console.log(res.data);
+          //get if active booking
 
           setActiveBooking(res.data.ActiveBooking == "N/A" ? false : true);
           setActiveRateUs(res.data.ReviewUs == "N/A" ? false : true);
@@ -247,7 +255,7 @@ const HomeScreen = ({ navigation }) => {
         console.log(error);
       }
     };
-
+    console.log(booking)
     getUser();
   }, [user?.userId]);
 
@@ -329,7 +337,7 @@ const HomeScreen = ({ navigation }) => {
                   <View className="bg-gray-200 rounded-lg w-10 h-6"></View>
                 ) : (
                   <Text className="text-xl font-medium">
-                    &#8369;{data?.user?.Wallet ?? 0}.00
+                    &#8369;{formatMoney(data?.user?.Wallet) ?? 0}.00
                   </Text>
                 )}
                 <TouchableOpacity onPress={() => navigation.navigate("wallet")}>
@@ -459,6 +467,8 @@ const HomeScreen = ({ navigation }) => {
           <HelloVisitor uwu={goLogin} />
         </View>
       )}
+
+      {booking?.status == 'searching' && <SearchingBooking location={location} user={user} navigation={navigation} />}
     </View>
   );
 };
@@ -510,6 +520,73 @@ const ExistingBooking = () => {
         </Svg>
       </View>
     </View>
+  );
+};
+
+
+
+const SearchingBooking = ({location,user,navigation}) => {
+
+  const taraBalik = () => {
+    navigation.navigate("booking", {
+      track: user?.userId,
+      wheels: 2,
+      start: location,
+    });
+  };
+
+  
+  
+  return (
+    <Pressable
+      onPress={()=>taraBalik()}
+      className=" absolute bottom-36 left-6 right-6 p-4 shadow-md shadow-neutral-500 bg-[#404040] rounded-2xl 
+        flex flex-row items-center justify-between"
+    >
+      <View className="flex flex-row gap-x-4 items-center ">
+        <View className="relative bg-gray-500 rounded-xl overflow-hidden w-16 h-16">
+          <TaraMock size={100} />
+        <View className="absolute top-0 bottom-0 left-0 right-0 mx-auto inset-1">
+        <LottieView
+            source={require("../assets/animation/tara_search.json")}
+            autoPlay
+            loop
+            width={60}
+            height={60}
+          />
+        </View>
+        </View>
+
+        <View>
+          <Text className="text-lg font-semibold text-white">
+            Searching for drivers..
+          </Text>
+
+          <View className="flex flex-row gap-x-1 items-center">
+            <LottieView
+              source={require("../assets/animation/clock.json")}
+              autoPlay
+              loop
+              width={20}
+              height={20}
+            />
+            <Text className="text-base text-slate-200">Still waiting</Text>
+          </View>
+        </View>
+      </View>
+
+      <View>
+        <Svg
+          xmlns="http://www.w3.org/2000/svg"
+          width={30}
+          height={30}
+          viewBox="0 0 24 24"
+          fill="#fff"
+        >
+          <Path d="m15.75 9.525-4.586-4.586a1.5 1.5 0 0 0-2.121 2.122l4.586 4.585a.5.5 0 0 1 0 .708l-4.586 4.585a1.5 1.5 0 0 0 2.121 2.122l4.586-4.586a3.505 3.505 0 0 0 0-4.95Z" />
+        </Svg>
+      </View>
+    </Pressable>
   );
 };
 

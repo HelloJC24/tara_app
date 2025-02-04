@@ -1,4 +1,4 @@
-import { View, Text,TouchableOpacity, ScrollView, TextInput, Pressable, StyleSheet,Animated,Image,PanResponder,FlatList,Alert } from "react-native";
+import { View, Text,TouchableOpacity, ScrollView, TextInput, Pressable, StyleSheet,Animated,Image,PanResponder,FlatList,Alert,I18nManager,Easing } from "react-native";
 import { WebView } from 'react-native-webview';
 import Svg, { Circle, Path,Rect,Defs, Filter, FeGaussianBlur } from "react-native-svg";
 import LottieView from 'lottie-react-native';
@@ -20,7 +20,14 @@ TaraQR,
 TaraWalletIcon,
 TaraCar,
 TaraMotor,
-TaraVan
+TaraVan,
+TaraMic,
+TaraShield,
+TaraMultiple,
+TaraMagic,
+TaraCube,
+TaraCloud,
+TaraUser
 } from "../components/CustomIcon";
 import { LocationCard, LocationCardDrag } from "../components/Cards";
 import {Slider} from '@miblanchard/react-native-slider';
@@ -29,17 +36,23 @@ import * as Location from 'expo-location';
 import { useToast } from "../components/ToastNotify";
 import QRCodeStyled from 'react-native-qrcode-styled';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserSettings,updateSettings } from "../config/hooks";
+import { getUserSettings,updateSettings,SecureData,createBooking,updateBooking } from "../config/hooks";
 import { AuthContext } from "../context/authContext";
 import { DataContext } from "../context/dataContext";
+import { BookingContext } from "../context/bookContext";
 import { hookConf } from "../config/hooks";
+import { HelloVisitor } from "../components/Cards";
+import { formatMoney } from "../config/functions";
+import { TaraSearch } from "../components/CustomGraphic";
+import { BlurView } from 'expo-blur';
 
 const BookingPage = ({route,navigation}) =>{
  const sheetRef = useRef(null);
  const sheetRef2 = useRef(null);
  const sheetRef3 = useRef(null);
+ const sheetRef4 = useRef(null);
  const lottieRef = useRef(null);
- const [suggest,setSuggest] = useState(false)
+ const [suggest,setSuggest] = useState(false) //AI Suggestions
  const [viewRiderMap,setViewRiders] = useState(false)
  const [vehicleType,setVehicle] = useState(1)
  const [pickupName,setPickupName] = useState("")
@@ -79,15 +92,31 @@ const toast = useToast();
 const [slideGuide,setSlideGuide] = useState(true);
 const [generateQR,setGenerateQR] = useState(false);
 const [modeofpayment,setModeofPayment] = useState(1) //0 cash 1 is wallet and GET WHAT DEFAULT PAYMENT SET
-const [walletBalance,setWalletBalance] = useState("454.00");
 const [cardCoor,setcardCoord] = useState([])
 const [draglocaname,setdragLocName] = useState("Unknown location")
 const [vehiclePrompt,readVehicleProm] = useState(false)
-const [slideTut,setSlideTutor] = useState(false)
+const [slideTut,setSlideTutor] = useState(false) //guide prompt
 const [slidedontshow,setSlideDontShow] = useState(false)
 const { user,setUser } = useContext(AuthContext);
 const { data } = useContext(DataContext);
+const { booking,setBooking } = useContext(BookingContext);
 const [authToken,setAuthToken] = useState(null)
+const [walletBalance,setWalletBalance] = useState("0");
+const [showSettings,setSettings] = useState(false);
+const [multipleBook,setMultipleBook] = useState(false)
+const [theredview,set3dCamera] = useState(false)
+const [weatherba,setWeather] = useState(false)
+const [audioBook,setAudioBook] = useState(false)
+const [carFare4,setCar4Fare] = useState(0); //rate of 4 seater
+const [carFare5,setCar5Fare] = useState(0); //rate of 6 seater
+const [carFare6,setCar6Fare] = useState(0); //rate of van
+const [perKM,setperKM] = useState("0")
+const [baseRate,setBaseRate] = useState("0")
+const [QrBook,setQRBook] = useState("");
+const [draggBlur,setdragBlur] = useState(true)
+const [QRloading,setQRLoading] = useState(false)
+const [startlocation,secureStartLocation] = useState("")
+
 
 const showToast = (type,msg) => {
 toast(type, msg);
@@ -112,6 +141,7 @@ const {wheels,start} = route.params;
 if(route.params){
 addVehicle(wheels)
 setMyLocation(`${start.coords.latitude}>>>${start.coords.longitude}`)
+secureStartLocation(`${start.coords.latitude}>>>${start.coords.longitude}`)
 //setVehicle(wheels)
 //disabling vehicles
 switch (wheels) {
@@ -134,15 +164,39 @@ const pullSettings = async () =>{
     const sets = await getUserSettings(data?.user?.UserID,user);
     if(sets.message == 'No settings found for the provided UserID or TaraID.'){
     //create
-    //console.log("creating a settings")
-    //const weeh = await createSettings(data?.user?.UserID,user);
     }else{
     //load settings
+    //console.log(sets.data[0])
     if(sets.data[0].PaymentType == 'wallet'){
         setModeofPayment(1)
     }else{
         setModeofPayment(0)
     }
+
+    if(sets.data[0].AISuggestions == 1){
+        setSuggest(true)
+    }
+
+
+  
+    if(sets.data[0].multiplebook == 1){
+        setMultipleBook(true)
+    }
+
+    if(sets.data[0].dview == 1){
+        set3dCamera(true)
+    }
+
+    if(sets.data[0].weather == 1){
+        setWeather(true)
+    }
+
+    if(sets.data[0].audio == 1){
+        setAudioBook(true)
+    }
+
+
+
     }
 }
 
@@ -152,33 +206,78 @@ const readyToken = async () =>{
     setAuthToken(await hookConf(user))
 }
 
+
+
+if(booking?.length != 0){
+setSearching(booking?.status == 'searching' ? true : false)
+setBookingID(booking?.bookingid);
+setPickupCoordinates(booking?.pickcoord)
+setPickupName(booking?.pickname)
+setDropCoordinates(booking?.dropcoord)
+setDropName(booking?.dropname)
+setFareRate(booking?.fare_value)
+setModeofPayment(booking?.payment)
+selectMotor(booking?.motor_selection)
+selectVan(booking?.van_selection)
+selectCar6(booking?.car6_selection)
+selectCard4(booking?.car4_selection)
+}
+
+
+
+setWalletBalance(data?.user?.Wallet)
 readyToken();
 pullSettings();
-},[data,user])
+},[data,user,setMultipleBook,set3dCamera,setWeather,setAudioBook])
 
-
+const goLogin = (page) => {
+    setUser((prevState) => ({
+      ...prevState,
+      userId: null,
+      accessToken: null,
+      history: page,
+    }));
+  };
 
 useEffect(()=>{
 const calculateMetric = async ()=>{
 const fareAPI = await axios.get(
-`https://onthewaypo.com/OTW/api/metrics/`,
+`https://dwayon.tech/api/metrics/`,
 {
     params: {
     from: pickupCoordinates,
     to:dropCoordinates
     },
+    headers:{
+        Auth: user?.accessToken
+    }
 }
 );
 
 //console.log(fareAPI.data)
 if(fareAPI.data){
+    //console.log(fareAPI.data.data)
 setFareAPIResponse(fareAPI.data.data)
 setCalculated(true)
+if(booking?.status != 'draft'){
 setFareRate(fareAPI.data.data.amount)
+}else{
+setFareRate(booking?.fare_value)
+//faremetricUI();   
 }
+setCar4Fare(fareAPI.data.data.car4)
+setCar5Fare(fareAPI.data.data.car6)
+setCar6Fare(fareAPI.data.data.car7)
+}
+}
+setMinizeView(false)
+
+if(user?.userId == 'visitor' ){
+    toast("error","Your in visitor mode. Create or login your account first.")
+}else{
+    calculateMetric();
 }
 
-calculateMetric();
 
 },[dropCoordinates])
 
@@ -215,6 +314,7 @@ const selectLocation = (selectMode) =>{
 }
 
 const addVehicle = (vh) =>{
+   
     switch(vh) {
         case 4:
             return pickcar4 ? selectCard4(false) : selectCard4(true)
@@ -225,25 +325,147 @@ const addVehicle = (vh) =>{
         default:
             return pickmotor ? selectMotor(false) : selectMotor(true)
     }
+      
+}
+
+useEffect(()=>{
+    
+        faremetricUI();  
+    
+},[pickVan,pickcard6,pickcar4,pickmotor])
+
+
+const faremetricUI = () =>{
+     //compute
+ var fareOG = fareAPIResponse.amount;
+ var base = fareAPIResponse.base_fare;
+ var rate = fareAPIResponse.per_km;
+
+ if(pickmotor && pickcar4 && pickcard6){
+     fareOG = `${fareAPIResponse.amount}-${fareAPIResponse.car6}`
+     base = `${fareAPIResponse.base_fare}-${fareAPIResponse.base_fare_car6}`;
+     rate = `${fareAPIResponse.per_km}-${fareAPIResponse.per_km_car6}`;
+ }else if(pickmotor && pickcar4){
+     fareOG = `${fareAPIResponse.amount}-${fareAPIResponse.car4}`
+     base = `${fareAPIResponse.base_fare}-${fareAPIResponse.base_fare_car4}`;
+     rate = `${fareAPIResponse.per_km}-${fareAPIResponse.per_km_car4}`;
+ }else if(pickmotor && pickcard6){
+     fareOG = `${fareAPIResponse.amount}-${fareAPIResponse.car6}`
+     base = `${fareAPIResponse.base_fare}-${fareAPIResponse.base_fare_car6}`;
+     rate = `${fareAPIResponse.per_km}-${fareAPIResponse.per_km_car6}`;
+ }else if(pickcar4 && pickcard6){
+     fareOG = `${fareAPIResponse.car4}-${fareAPIResponse.car6}`
+     base = `${fareAPIResponse.base_fare_car4}-${fareAPIResponse.base_fare_car6}`;
+     rate = `${fareAPIResponse.per_km_car4}-${fareAPIResponse.per_km_car6}`;
+ }else if(pickmotor){
+     fareOG = fareAPIResponse.amount
+     base = fareAPIResponse.base_fare;
+     rate = fareAPIResponse.per_km;
+ }else if(pickcar4){
+     fareOG = fareAPIResponse.car4
+     base = fareAPIResponse.base_fare_car4;
+     rate = fareAPIResponse.per_km_car4;
+ }else if(pickcard6){
+     fareOG = fareAPIResponse.car6
+     base = fareAPIResponse.base_fare_car6;
+     rate = fareAPIResponse.per_km_car6;
+ }else if(pickVan){
+     fareOG = fareAPIResponse.can
+     base = fareAPIResponse.base_fare_van;
+     rate = fareAPIResponse.per_km_van;
+ }
+
+
+ setFareRate(fareOG)
+ setperKM(rate)
+ setBaseRate(base)
 
 }
+
 
 const RequestVehicle = () =>{
-    showToast("try_again","This is vehicle is not available.");
+    showToast("try_again","This is vehicle is not available in this selection.");
 }
 
-const myPaymentMethed = (pt) =>{
+const myPaymentMethed = async (pt) =>{
 setModeofPayment(pt);
+
+//0 - cash
+//1 - wallet
+if(bookingID){
+    const cancelres = await updateBooking(bookingID,"Payment_Type",pt,user)
+    console.log(cancelres)
+    sheetRef3.current.close();
+    return;
+}else{
 sheetRef3.current.close();
 }
 
+
+}
+
 const goSearchRider = async () =>{
-//connect to API
+
+//
+if(!pickupCoordinates && !dropCoordinates && !fareRate){
+toast("error","Booking is invalid, please try again.")
+return
+}
+
 setSearching(true);
+saveSessionBooking('searching')
+
+
+//connect to API BUT CHECK IF CREATED< DONT CREATE MORE BOOKING ATTEMPTS
+if(bookingID){
+    const cancelres = await updateBooking(bookingID,"Status","Pending",user)
+    console.log(cancelres)
+    return;
+}
+
+
+const creatingabooking = await createBooking(
+user?.userId,
+fareRate,
+modeofpayment,
+pickupCoordinates,
+dropCoordinates,
+pickupName,
+dropName,
+fareAPIResponse.distance,
+"0",
+"N/A",
+walletBalance,
+"0",
+startlocation,
+user
+);
+
+//update to user local
+setBookingID(creatingabooking.BookingID)
+setBooking((prevState) => ({
+    ...prevState,
+    bookingid: creatingabooking.BookingID
+  }));
+
 }
 
 const cancelSearch = () =>{
+    sheetRef4.current.open();
+    //setSearching(false);
+}
+
+const confirmCancel = async () =>{
+    sheetRef4.current.close();
     setSearching(false);
+    setBooking((prevState) => ({
+        ...prevState,
+        status: 'draft',
+      }));
+    //run api
+    const cancelres = await updateBooking(bookingID,"Status","Cancelled",user)
+    console.log(cancelres)
+  
 }
 
 const selectCurrentLocation = async () =>{
@@ -328,9 +550,68 @@ const closeMap = () =>{
     }else if(viewRiderMap){
         setViewRiders(false)  
     }else{
-        navigation.goBack()
+
+       
+
+        //save?
+        if(calculated && !searching){
+            saveSessionBooking('draft');
+            navigation.goBack()
+            // Alert.alert(
+            //     "Are you planning to come back?",
+            //     "Would you like Tara to save your booking for future use?",
+            //     [
+            //         {
+            //           text: 'Wait',
+            //           type: 'cancel'
+            //         },
+            //         {
+            //             text: "Don't save",
+            //             onPress: async () => {
+            //                 setBooking(null);
+            //                 navigation.goBack()
+            //             },
+            //           },
+            //         {
+            //           text: "Save",
+            //           onPress: async () => {
+            //             saveSessionBooking('draft');
+            //             toast("success","We saved your booking for a while.")
+            //             navigation.goBack()
+            //           },
+            //         },
+            //       ]
+            //     );
+           
+        }else{
+            navigation.goBack()
+        }
+        
     }
 }
+
+
+
+const saveSessionBooking = async (msg) =>{
+    setBooking((prevState) => ({
+        ...prevState,
+        status: msg,
+        pickcoord: pickupCoordinates,
+        pickname: pickupName,
+        dropcoord: dropCoordinates,
+        dropname: dropName,
+        payment: modeofpayment,
+        fare_value: fareRate,
+        motor_selection: pickmotor,
+        car4_selection: pickcar4,
+        car6_selection: pickcard6,
+        van_selection: pickVan,
+        riderid: '',
+        bookingid: bookingID
+      }));
+      
+}
+
 
 
 //SCREEN NAVIGATION
@@ -350,12 +631,25 @@ const openChat = () =>{
         });
 }
 
-const QRBooking = () =>{
-    if(generateQR){
-        setGenerateQR(false)
+const QRBooking = async () =>{
+    setQRLoading(true)
+    const secretQR = `GENERATE>>>${fareRate}>>>${user?.userId}>>>${pickupCoordinates}>>>${dropCoordinates}>>>${modeofpayment}`;
+    const qrwait = await SecureData(0,secretQR,user);
+    if(qrwait.status == 'ok'){
+        setQRBook(qrwait.value)
+        setQRLoading(false)
+        if(generateQR){
+            setGenerateQR(false)
+        }else{
+            setGenerateQR(true)
+        }
     }else{
-        setGenerateQR(true)
+        setQRLoading(false)
+        toast("error","Failed to generate QR booking")
     }
+
+    
+   
 }
 
 
@@ -447,44 +741,73 @@ useEffect(()=>{
 
 
 
+  // Smooth Bouncing Animation
   const translateX = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Create a looping bounce animation
     Animated.loop(
       Animated.sequence([
         Animated.timing(translateX, {
-          toValue: 500, // Move to the right
-          duration: 1500,
+          toValue: 200, // Adjusted for better UX
+          duration: 1200,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(translateX, {
-          toValue: 800, // Move back to the left
-          duration: 800,
+          toValue: 0, // Smooth return
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
       ])
     ).start();
-  }, [translateX]);
- 
+  }, []);
+
+  // Draggable BottomSheet Animation
   const pan = useRef(new Animated.ValueXY()).current;
- 
   const panResponder = PanResponder.create({
     onMoveShouldSetPanResponder: () => true,
     onPanResponderMove: (evt, gestureState) => {
-      if (gestureState.dy > 0) {
-        setMinizeView(true)
+      if (gestureState.dy > 10) {
+        setMinizeView(true); // Slide down
+        setdragBlur(false)
+      } else if (gestureState.dy < -10) {
+        setMinizeView(false); // Slide up
+        setdragBlur(false)
+      }
+      Animated.event([{ dy: pan.y }], { useNativeDriver: false })(gestureState);
+    },
+    onPanResponderRelease: (evt, gestureState) => {
+      if (gestureState.dy < -50) {
+        // If swiped up enough, apply bounce effect
+        Animated.spring(pan, {
+          toValue: { x: 0, y: -1 }, // Moves up and bounces
+          speed: 0, // Faster spring effect
+          bounciness: 1, // More bounce
+          useNativeDriver: true,
+        }).start(() => {
+          // After bounce, settle at final position
+          Animated.spring(pan, {
+            toValue: { x: 0, y: 0 },
+            friction: 3, // Smooth stopping
+            useNativeDriver: true,
+          }).start();
+          setTimeout(() => setdragBlur(true), 500);
+        });
+       
       } else {
-        setMinizeView(false)
+        // Default smooth return when not sliding up
+        Animated.spring(pan, {
+          toValue: { x: 0, y: 0 },
+          friction: 5,
+          useNativeDriver: true,
+        }).start();
+        
       }
     },
-    onPanResponderRelease: () => {
-      Animated.spring(pan, {
-        toValue: { x: 0, y: 0 },
-        useNativeDriver: true,
-      }).start();
-    },
   });
+
+
 
 
   const fadeAnim = useRef(new Animated.Value(0)).current; // Opacity for fade
@@ -625,7 +948,7 @@ const CustomThumb = () => (
 
 return (
     <>
-    <ScrollView>
+    <ScrollView keyboardShouldPersistTaps="handled" >
 <View className="bg-slate-100 h-screen w-screen">
 <View  className="relative h-full w-full">
 
@@ -641,6 +964,18 @@ return (
               <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
             </Svg>
 </TouchableOpacity>
+
+
+{
+    user?.userId == 'visitor' && (
+        <View className="absolute top-24 z-50 w-full p-4">
+       <View className="relative w-full">
+         <HelloVisitor uwu={goLogin} />
+         </View>
+         </View>
+    )
+}
+
 
 
     {
@@ -690,7 +1025,7 @@ Quick Book
 
 
 
-
+{/* map drag marker */}
 <View className="h-screen w-screen relative">
 
 {
@@ -802,9 +1137,21 @@ className="z-50"
         </TouchableOpacity>
     
      ): calculated ? (
-        <Pressable onPress={()=>QRBooking()} className="bg-blue-500 rounded-xl w-16 h-16 flex-row justify-center items-center mb-2 shadow-xl">   
+        QRloading ? (
+            <View className="bg-white rounded-xl w-16 h-16 flex-row justify-center items-center mb-2 shadow-xl">
+                   <LottieView
+                              source={require('../assets/animation/circle.json')}
+                              autoPlay
+                              loop
+                              width={40}
+                              height={40}
+                          />
+            </View>
+        ):(
+            <Pressable onPress={()=>QRBooking()} className="bg-blue-500 rounded-xl w-16 h-16 flex-row justify-center items-center mb-2 shadow-xl">   
         <TaraQR size={25} />  
          </Pressable>
+        )
      ):(
         <Pressable onPress={()=>viewRiders()} className="bg-blue-500 rounded-xl w-16 h-16 flex-row justify-center items-center mb-2 shadow-xl">
         <LottieView
@@ -820,6 +1167,7 @@ className="z-50"
 </View>
     )
 }
+
 
 
 {
@@ -1004,6 +1352,9 @@ className="z-50"
 }
 
 
+
+{/* pickup and drop card ======================================================== */}
+
 {
     !viewRiderMap && (
 <View className="bg-white mb-2 mx-2.5 p-2.5 border border-gray-300 rounded-2xl shadow-lg w-auto relative">
@@ -1017,19 +1368,19 @@ className="z-50"
 }
 
 
-{
+{/* {
     minimizeView && (
-<Pressable onTouchStart={()=>setMinizeView(false)} className="h-full w-full absolute inset-0 z-40">
+<Pressable   className="h-full w-full absolute inset-0 z-40">
 </Pressable>
     )
-}
+} */}
 <View className="bg-white overflow-hidden gap-y-4 py-2.5 px-2">
 <View className="flex-row justify-start items-center gap-x-2 w-full">
 <TaraNavigation size={28} color="#22c55e" />
 {
     searching || rider ? (
-<View className="w-full">
-    <Text numberOfLines={1} ellipsizeMode="tail" className="font-semibold text-gray-800 text-lg">{pickupName}</Text>
+<View className="w-80">
+    <Text numberOfLines={1} ellipsizeMode="tail" className="font-semibold text-red-800 text-lg">{pickupName}</Text>
 </View>
 
     ): pickupName ? (
@@ -1047,11 +1398,14 @@ className="z-50"
 
 {
     calculated && minimizeView == false && searching == false && rider == false ? (
-<View className="flex-row justify-start items-center gap-x-2 w-full pr-4">
-<TouchableOpacity onPress={()=>switchLocations()} className="pl-1.5 flex-row justify-center items-center gap-x-2">
+<View className="relative flex-row justify-start items-center gap-x-2 w-full ">
+<View className="absolute -top-3 -right-4  bottom-0 z-50 w-auto ">
+<TouchableOpacity onPress={()=>switchLocations()} className="w-14 flex-row justify-center items-center">
 <TaraChange size={20} color="#3b82f6" />
 </TouchableOpacity>
-<View className="h-px bg-gray-200 w-full"></View>
+</View>
+
+<View className="h-px bg-gray-200 w-[300px]"></View>
 </View>
     ):(
 <View className="h-px bg-gray-200 w-full"></View>
@@ -1067,7 +1421,7 @@ className="z-50"
 <TaraMarker size={28} color="#ef4444" />
 {
     searching || rider ? (
-<View className="w-full">
+<View className="w-80">
     <Text numberOfLines={1} ellipsizeMode="tail"  className="font-semibold text-gray-800 text-lg">{dropName}</Text>
 </View>
     ): dropName ? (
@@ -1088,6 +1442,9 @@ className="z-50"
     )
 }
 
+
+
+{/* vehicle selection===================================================== */}
 
 {
     calculated &&  minimizeView == false && searching == false && rider == false && (
@@ -1119,7 +1476,15 @@ className="z-50"
     <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
     <TaraMotor size="28" />
     </View>
+    <View>
     <Text className="text-sm font-medium text-gray-800">MotorTaxi</Text>
+    <View className="flex-row justify-center items-center gap-x-1.5">
+    <Text className="text-[10px] font-normal text-gray-500">Good for 2</Text>
+    <TaraUser size={9} />
+    </View>
+    </View>
+   
+    
 </TouchableOpacity>
     ):(
 <TouchableOpacity onPress={()=>RequestVehicle(2)}  className="opacity-50 w-44 flex-row justify-start items-center gap-x-2">
@@ -1128,7 +1493,13 @@ className="z-50"
     <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
     <TaraMotor size="28" />
     </View>
+    <View>
     <Text className="text-sm font-medium text-gray-800">MotorTaxi</Text>
+    <View className="flex-row justify-center items-center gap-x-1.5">
+    <Text className="text-[10px] font-normal text-gray-500">Good for 2</Text>
+    <TaraUser size={9} />
+    </View>
+    </View>
 </TouchableOpacity>
     )
 }
@@ -1151,7 +1522,14 @@ className="z-50"
     <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
     <TaraCar size="28" />
     </View>
-    <Text className="text-sm font-medium text-gray-800">4 seater- Car</Text>
+    <View>
+    <Text className="text-sm font-medium text-gray-800">4 seater - Car</Text>
+    <View className="flex-row justify-start items-center gap-x-1.5">
+    <Text className="text-[10px] font-normal text-gray-500">Good for 3</Text>
+    <TaraUser size={9} />
+    </View>
+    </View>
+    
 </TouchableOpacity>
     ):(
     <TouchableOpacity onPress={()=>RequestVehicle(4)}  className="opacity-50 w-44 flex-row justify-start items-center gap-x-2">
@@ -1160,7 +1538,13 @@ className="z-50"
     <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
     <TaraCar size="28" />
     </View>
-    <Text className="text-sm font-medium text-gray-800">4 seater- Car</Text>
+    <View>
+    <Text className="text-sm font-medium text-gray-800">4 seater - Car</Text>
+    <View className="flex-row justify-start items-center gap-x-1.5">
+    <Text className="text-[10px] font-normal text-gray-500">Good for 3</Text>
+    <TaraUser size={9} />
+    </View>
+    </View>
 </TouchableOpacity>
     )
 }
@@ -1182,7 +1566,13 @@ className="z-50"
     <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
     <TaraCar size="28" />
     </View>
+    <View>
     <Text className="text-sm font-medium text-gray-800">6 seater - Car</Text>
+    <View className="flex-row justify-start items-center gap-x-1.5">
+    <Text className="text-[10px] font-normal text-gray-500">Good for 4</Text>
+    <TaraUser size={9} />
+    </View>
+    </View>
 </TouchableOpacity>
     ):(
 <TouchableOpacity onPress={()=>RequestVehicle(4.5)}  className="opacity-50 w-44 flex-row justify-start items-center gap-x-2">
@@ -1191,7 +1581,13 @@ className="z-50"
     <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
     <TaraCar size="28" />
     </View>
+    <View>
     <Text className="text-sm font-medium text-gray-800">6 seater - Car</Text>
+    <View className="flex-row justify-center items-center gap-x-1.5">
+    <Text className="text-[10px] font-normal text-gray-500">Good for 3</Text>
+    <TaraUser size={9} />
+    </View>
+    </View>
 </TouchableOpacity>
     )
 }
@@ -1215,7 +1611,13 @@ className="z-50"
     <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
     <TaraVan size="28" />
     </View>
+    <View>
     <Text className="text-sm font-medium text-gray-800">Van Express</Text>
+    <View className="flex-row justify-center items-center gap-x-1.5">
+    <Text className="text-[10px] font-normal text-gray-500">Poll sharing</Text>
+    <TaraUser size={9} />
+    </View>
+    </View>
 </TouchableOpacity>
     ):(
         <TouchableOpacity onPress={()=>RequestVehicle(5)} className="opacity-50 w-44 flex-row justify-start items-center gap-x-2">
@@ -1224,7 +1626,13 @@ className="z-50"
     <View className="ml-2 bg-slate-200 w-8 h-8 rounded-full">
     <TaraVan size="28" />
     </View>
+    <View>
     <Text className="text-sm font-medium text-gray-800">Van Express</Text>
+    <View className="flex-row justify-center items-center gap-x-1.5">
+    <Text className="text-[10px] font-normal text-gray-500">Poll sharing</Text>
+    <TaraUser size={9} />
+    </View>
+    </View>
 </TouchableOpacity>
     )
 }
@@ -1238,6 +1646,10 @@ className="z-50"
         </View>
     )
 }
+
+
+{/* offer container ==================================================== */}
+
 
 {
     calculated &&  minimizeView == false && searching == false && rider == false && (
@@ -1264,14 +1676,14 @@ className="z-50"
     <View className="bg-white rounded-xl p-2 border border-gray-200 shadow-lg">
 <View className="p-2">
 
-    <Pressable onPress={()=>openBoxOffer()} className="flex-row justify-between items-center">
+    <Pressable onPress={()=>openBoxOffer()} className="py-1.5 flex-row justify-between items-center">
 
 <View className="flex-row justify-start items-center gap-x-2.5">
 <TaraLogo size={25} />
 <Text className="font-medium text-xl">Make an offer?</Text>
     </View>
 
-<View>
+<TouchableOpacity onPress={()=>openBoxOffer()}>
 {
     offerCom ? (
 <Svg
@@ -1297,7 +1709,7 @@ fill="#3b82f6">
     )
 }
 
-    </View>
+    </TouchableOpacity>
 
         </Pressable>
 
@@ -1305,6 +1717,7 @@ fill="#3b82f6">
     offerCom && (
 <View className="relative">
     <Slider
+    trackStyle={{height:10,borderRadius: 12,backgroundColor: '#e4e4e7'}}
     animateTransitions
     renderAboveThumbComponent={renderAboveThumbComponent}
     renderThumbComponent={CustomThumb}
@@ -1318,7 +1731,7 @@ fill="#3b82f6">
 
 
 
-<View className="flex-row justify-between items-center w-full">
+<View className="mt-1 flex-row justify-between items-center w-full">
 
 
 <View className="relative">
@@ -1417,7 +1830,8 @@ fill="#22c55e"
 
 <View className="flex-row justify-start items-center gap-x-2">
 <TaraInvoice size={20} />
-<Text className="text-slate-800 text-xl font-semibold">&#8369;{fareRate}.00</Text>
+<Text className="text-slate-800 text-xl font-semibold">&#8369;{fareRate ?? 0}.00</Text>
+
 {
     calculated && (
         <TouchableOpacity onPress={()=>sheetRef2.current?.open() }>
@@ -1428,7 +1842,7 @@ fill="#22c55e"
 </View>
 
 
-<TouchableOpacity onPress={()=>sheetRef3.current?.open()}>
+<TouchableOpacity onPress={searching ? ()=>toast('try_again','You cannot update the payment method while searching.') : ()=>sheetRef3.current?.open()}>
 
 {
     modeofpayment == 0 ? (
@@ -1440,7 +1854,7 @@ fill="#22c55e"
               width={28}
               height={28}
               viewBox="0 0 24 24"
-              fill="#3b82f6"
+              fill={searching ? '#cbd5e1' : "#3b82f6"}
             >
 <Path d="M15.4,9.88,10.81,5.29a1,1,0,0,0-1.41,0,1,1,0,0,0,0,1.42L14,11.29a1,1,0,0,1,0,1.42L9.4,17.29a1,1,0,0,0,1.41,1.42l4.59-4.59A3,3,0,0,0,15.4,9.88Z"/>
 </Svg>
@@ -1455,7 +1869,7 @@ fill="#22c55e"
               width={28}
               height={28}
               viewBox="0 0 24 24"
-              fill="#3b82f6"
+              fill={searching ? '#cbd5e1' : "#3b82f6"}
             >
 <Path d="M15.4,9.88,10.81,5.29a1,1,0,0,0-1.41,0,1,1,0,0,0,0,1.42L14,11.29a1,1,0,0,1,0,1.42L9.4,17.29a1,1,0,0,0,1.41,1.42l4.59-4.59A3,3,0,0,0,15.4,9.88Z"/>
 </Svg>
@@ -1554,8 +1968,11 @@ height={400}
 </Animated.View>
 
 
-<View className="h-full w-full z-10  top-20 mx-auto left-0 right-0 bottom-0  absolute">
-<Svg height="100%" width="100%">
+{
+    draggBlur && (
+        <View className="h-full w-full z-10  top-20 mx-auto left-0 right-0 bottom-0  absolute">
+      
+      <Svg height="100%" width="100%">
         <Defs>
           <Filter id="blur">
             <FeGaussianBlur stdDeviation="30" />
@@ -1566,11 +1983,15 @@ height={400}
           y="0"
           width="800"
           height="800"
-          fill="rgba(226, 226, 226, 0.4)" 
+          fill="rgba(208, 205, 205, 0.4)" 
           filter="url(#blur)"
         />
       </Svg>
+
+     
 </View>
+    )
+}
 </View>
 ):(
   
@@ -1652,13 +2073,13 @@ Select this location
 
     <Text className="text-xl font-medium text-gray-800">{infoMode == 1 ? 'Pickup Location' : 'Drop-off Location'}</Text>
 
-    <View className="bg-slate-200 rounded-lg p-1.5">
+    <Pressable onPress={()=>setSettings(true)} className="bg-slate-200 rounded-lg p-1.5">
     <Svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 <Path d="M12 8.00049C11.2089 8.00049 10.4355 8.23508 9.77772 8.67461C9.11993 9.11414 8.60723 9.73885 8.30448 10.4698C8.00173 11.2007 7.92252 12.0049 8.07686 12.7808C8.2312 13.5568 8.61216 14.2695 9.17157 14.8289C9.73098 15.3883 10.4437 15.7693 11.2196 15.9236C11.9956 16.078 12.7998 15.9988 13.5307 15.696C14.2616 15.3933 14.8864 14.8806 15.3259 14.2228C15.7654 13.565 16 12.7916 16 12.0005C16 10.9396 15.5786 9.92221 14.8284 9.17206C14.0783 8.42192 13.0609 8.00049 12 8.00049ZM12 14.0005C11.6044 14.0005 11.2178 13.8832 10.8889 13.6634C10.56 13.4437 10.3036 13.1313 10.1522 12.7659C10.0009 12.4004 9.96126 11.9983 10.0384 11.6103C10.1156 11.2223 10.3061 10.866 10.5858 10.5863C10.8655 10.3066 11.2219 10.1161 11.6098 10.0389C11.9978 9.96175 12.3999 10.0014 12.7654 10.1527C13.1308 10.3041 13.4432 10.5604 13.6629 10.8893C13.8827 11.2182 14 11.6049 14 12.0005C14 12.5309 13.7893 13.0396 13.4142 13.4147C13.0391 13.7898 12.5304 14.0005 12 14.0005Z" fill="#374957"/>
 <Path d="M21.294 13.9L20.85 13.644C21.0499 12.5564 21.0499 11.4416 20.85 10.354L21.294 10.098C21.6355 9.90102 21.9348 9.63871 22.1748 9.32606C22.4149 9.01341 22.591 8.65654 22.6932 8.27582C22.7953 7.8951 22.8215 7.49799 22.7702 7.10716C22.7188 6.71633 22.591 6.33944 22.394 5.998C22.1971 5.65656 21.9348 5.35727 21.6221 5.1172C21.3095 4.87714 20.9526 4.70101 20.5719 4.59886C20.1911 4.49672 19.794 4.47056 19.4032 4.52189C19.0124 4.57321 18.6355 4.70102 18.294 4.898L17.849 5.155C17.0086 4.43692 16.0427 3.88025 15 3.513V3C15 2.20435 14.684 1.44129 14.1214 0.87868C13.5588 0.31607 12.7957 0 12 0C11.2044 0 10.4413 0.31607 9.87872 0.87868C9.31611 1.44129 9.00004 2.20435 9.00004 3V3.513C7.95743 3.88157 6.99189 4.4396 6.15204 5.159L5.70504 4.9C5.01548 4.50218 4.19612 4.39457 3.42723 4.60086C2.65833 4.80715 2.00287 5.31044 1.60504 6C1.20722 6.68956 1.09962 7.50892 1.30591 8.27782C1.5122 9.04672 2.01548 9.70218 2.70504 10.1L3.14904 10.356C2.94915 11.4436 2.94915 12.5584 3.14904 13.646L2.70504 13.902C2.01548 14.2998 1.5122 14.9553 1.30591 15.7242C1.09962 16.4931 1.20722 17.3124 1.60504 18.002C2.00287 18.6916 2.65833 19.1948 3.42723 19.4011C4.19612 19.6074 5.01548 19.4998 5.70504 19.102L6.15004 18.845C6.99081 19.5632 7.95702 20.1199 9.00004 20.487V21C9.00004 21.7956 9.31611 22.5587 9.87872 23.1213C10.4413 23.6839 11.2044 24 12 24C12.7957 24 13.5588 23.6839 14.1214 23.1213C14.684 22.5587 15 21.7956 15 21V20.487C16.0427 20.1184 17.0082 19.5604 17.848 18.841L18.295 19.099C18.9846 19.4968 19.804 19.6044 20.5729 19.3981C21.3418 19.1918 21.9972 18.6886 22.395 17.999C22.7929 17.3094 22.9005 16.4901 22.6942 15.7212C22.4879 14.9523 21.9846 14.2968 21.295 13.899L21.294 13.9ZM18.746 10.124C19.0847 11.3511 19.0847 12.6469 18.746 13.874C18.6869 14.0876 18.7004 14.3147 18.7844 14.5198C18.8684 14.7249 19.0181 14.8963 19.21 15.007L20.294 15.633C20.5239 15.7656 20.6916 15.9841 20.7603 16.2403C20.829 16.4966 20.7932 16.7697 20.6605 16.9995C20.5279 17.2293 20.3095 17.397 20.0532 17.4658C19.7969 17.5345 19.5239 17.4986 19.294 17.366L18.208 16.738C18.0159 16.6267 17.7923 16.5826 17.5723 16.6124C17.3523 16.6423 17.1485 16.7445 16.993 16.903C16.103 17.8117 14.9816 18.46 13.75 18.778C13.5351 18.8333 13.3446 18.9585 13.2086 19.1339C13.0727 19.3094 12.9989 19.525 12.999 19.747V21C12.999 21.2652 12.8937 21.5196 12.7062 21.7071C12.5186 21.8946 12.2643 22 11.999 22C11.7338 22 11.4795 21.8946 11.2919 21.7071C11.1044 21.5196 10.999 21.2652 10.999 21V19.748C10.9992 19.526 10.9254 19.3104 10.7894 19.1349C10.6535 18.9595 10.463 18.8343 10.248 18.779C9.01639 18.4597 7.89537 17.81 7.00604 16.9C6.85057 16.7415 6.64678 16.6393 6.4268 16.6094C6.20682 16.5796 5.98315 16.6237 5.79104 16.735L4.70704 17.362C4.59327 17.4287 4.46743 17.4722 4.33677 17.4901C4.2061 17.508 4.0732 17.4998 3.9457 17.4661C3.8182 17.4324 3.69862 17.3738 3.59386 17.2937C3.4891 17.2136 3.40122 17.1135 3.33528 16.9993C3.26934 16.8851 3.22664 16.759 3.20964 16.6282C3.19264 16.4974 3.20168 16.3646 3.23623 16.2373C3.27079 16.11 3.33017 15.9909 3.41098 15.8866C3.49178 15.7824 3.5924 15.6952 3.70704 15.63L4.79104 15.004C4.98299 14.8933 5.13272 14.7219 5.2167 14.5168C5.30069 14.3117 5.31417 14.0846 5.25504 13.871C4.9164 12.6439 4.9164 11.3481 5.25504 10.121C5.31311 9.90788 5.29898 9.68153 5.21486 9.47729C5.13074 9.27305 4.98136 9.10241 4.79004 8.992L3.70604 8.366C3.47623 8.23339 3.30851 8.01492 3.23978 7.75865C3.17105 7.50239 3.20693 7.22931 3.33954 6.9995C3.47215 6.76969 3.69062 6.60197 3.94689 6.53324C4.20316 6.46451 4.47623 6.50039 4.70604 6.633L5.79204 7.261C5.98362 7.37251 6.20682 7.41721 6.42657 7.38807C6.64632 7.35893 6.85015 7.25759 7.00604 7.1C7.89613 6.19134 9.01747 5.54302 10.249 5.225C10.4647 5.16956 10.6556 5.04375 10.7917 4.8675C10.9277 4.69125 11.001 4.47464 11 4.252V3C11 2.73478 11.1054 2.48043 11.2929 2.29289C11.4805 2.10536 11.7348 2 12 2C12.2653 2 12.5196 2.10536 12.7071 2.29289C12.8947 2.48043 13 2.73478 13 3V4.252C12.9999 4.47396 13.0737 4.68964 13.2096 4.86508C13.3456 5.04052 13.5361 5.16573 13.751 5.221C14.9831 5.54015 16.1044 6.18988 16.994 7.1C17.1495 7.25847 17.3533 7.36069 17.5733 7.39057C17.7933 7.42044 18.0169 7.37626 18.209 7.265L19.293 6.638C19.4068 6.5713 19.5327 6.52777 19.6633 6.5099C19.794 6.49204 19.9269 6.50019 20.0544 6.5339C20.1819 6.56761 20.3015 6.6262 20.4062 6.70631C20.511 6.78642 20.5989 6.88646 20.6648 7.00067C20.7307 7.11488 20.7734 7.24101 20.7904 7.37179C20.8074 7.50257 20.7984 7.63542 20.7639 7.76269C20.7293 7.88997 20.6699 8.00915 20.5891 8.11337C20.5083 8.2176 20.4077 8.30482 20.293 8.37L19.209 8.996C19.0181 9.10671 18.8691 9.27748 18.7854 9.48169C18.7016 9.68591 18.6878 9.9121 18.746 10.125V10.124Z" fill="#374957"/>
 </Svg>
 
-    </View>
+    </Pressable>
     </View>
 
 <View className="mt-6 border border-gray-300 rounded-xl p-2 flex-row justify-start items-center gap-x-2 overflow-hidden">
@@ -1684,6 +2105,25 @@ hasIcon={true}
 <TaraTarget size={15} color={infoMode == 1 ? '#404040' : '#cbd5e1'} />
 <Text className={infoMode == 1 ? 'text-gray-800' : 'text-slate-300'}>Current Location</Text>
 </Button>
+
+{
+    user?.userId == 'visitor' ? (
+<Button
+bgColor="relative bg-slate-100"
+textColor="text-gray-500"
+fontSize="md"
+bwidth="w-48"
+hasIcon={true}
+>
+<View className="absolute -top-4 -right-2">
+<Svg width="17" height="17" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<Path d="M19 8.424V6.99998C19 3.13402 15.866 0 12 0C8.13397 0 5 3.13402 5 6.99998V8.424C3.18003 9.2183 2.00263 11.0143 2 13V19C2.00328 21.76 4.23992 23.9967 6.99997 24H17C19.76 23.9967 21.9966 21.76 22 19V13C21.9974 11.0143 20.8199 9.2183 19 8.424ZM13 17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17V15C11 14.4477 11.4477 14 12 14C12.5523 14 13 14.4477 13 15V17ZM17 8.00002H6.99997V7.00003C6.99997 4.23863 9.23853 2.00002 12 2.00002C14.7614 2.00002 17 4.23858 17 7.00003V8.00002Z" fill="#fbbf24"/>
+</Svg>
+</View>
+<TaraPin size={15} color="#94a3b8" />
+<Text className="text-gray-400">Pin in map</Text>
+</Button>
+    ):(
 <Button
 onPress={() => selectPinMap()}
 bgColor="bg-slate-200"
@@ -1695,6 +2135,11 @@ hasIcon={true}
 <TaraPin size={15} />
 <Text>Pin in map</Text>
 </Button>
+    )
+}
+
+
+
 </View>
 
 
@@ -1708,8 +2153,8 @@ width={40}
 height={40}
 />
 </View> 
-<View>
-    <Text className="font-medium text-gray-800">Are you searching for New Buncag?</Text>
+<View className="w-80">
+    <Text numberOfLines={2} ellipsizeMode="tail" className="font-medium text-gray-800">Our AI predict your destination and it's so awesome!</Text>
     <Text className="font-medium text-sm text-blue-500">AI suggestions</Text>
 </View>
 </TouchableOpacity>
@@ -1764,22 +2209,22 @@ height={40}
 
            <View className="flex-row justify-between items-center">
            <Text className="text-slate-500 font-normal text-lg">Base Fare</Text>
-           <Text className="text-slate-600 font-medium text-lg">&#8369;{fareAPIResponse.base_fare}.00</Text>
+           <Text className="text-slate-600 font-medium text-lg">&#8369;{baseRate ?? 0}.00</Text>
            </View>
 
            <View className="flex-row justify-between items-center">
            <Text className="text-slate-500 font-normal text-lg">Per KM</Text>
-           <Text className="text-slate-600 font-medium text-lg">&#8369;{fareAPIResponse.per_km}.00</Text>
+           <Text className="text-slate-600 font-medium text-lg">&#8369;{perKM ?? 0}.00</Text>
            </View>
 
            <View className="flex-row justify-between items-center">
            <Text className="text-slate-500 font-normal text-lg">Night Diff.</Text>
-           <Text className="text-slate-600 font-medium text-lg">&#8369;{fareAPIResponse.night}.00</Text>
+           <Text className="text-slate-600 font-medium text-lg">&#8369;{fareAPIResponse?.night ?? 0}.00</Text>
            </View>
 
            <View className="flex-row justify-between items-center">
            <Text className="text-slate-500 font-normal text-lg">Total KM.</Text>
-           <Text className="text-slate-600 font-medium text-lg">{fareAPIResponse.distance}</Text>
+           <Text className="text-slate-600 font-medium text-lg">{fareAPIResponse?.distance ?? 0}</Text>
            </View>
 
 
@@ -1852,7 +2297,7 @@ style={{ backgroundColor: "#fff",zIndex:999 }}
 <View className="flex-row justify-start items-center gap-x-4"> 
  <TaraWalletIcon color="#94a3b8" size={25} />
  <View>
-<Text className="text-gray-300 text-xl font-semibold">Tara Wallet <Text className="text-gray-800">(&#8369;{walletBalance})</Text></Text>
+<Text className="text-gray-300 text-xl font-semibold">Tara Wallet <Text className="text-gray-800">(&#8369;{formatMoney(walletBalance)})</Text></Text>
 <Text className="text-xs">You don't have enough balance.</Text>
 </View>
 </View>  
@@ -1872,7 +2317,7 @@ style={{ backgroundColor: "#fff",zIndex:999 }}
 <View className="flex-row justify-start items-center gap-x-4"> 
  <TaraWalletIcon color="#404040" size={25} />
  <View>
-<Text className="text-blue-500 text-xl font-semibold">Tara Wallet <Text className="text-gray-800">(&#8369;{walletBalance})</Text></Text>
+<Text className="text-blue-500 text-xl font-semibold">Tara Wallet <Text className="text-gray-800">(&#8369;{formatMoney(walletBalance)})</Text></Text>
 <Text className="text-xs">Will deduct only once you're dropped.</Text>
 </View>
 </View>  
@@ -1912,9 +2357,46 @@ Close
 </BottomSheet>
 
 
-{generateQR && <GenerateQRBooking QR={"sdds"} close={setGenerateQR} />}
+<BottomSheet
+animationType="false"
+ref={sheetRef4}
+containerHeight={900}
+hideDragHandle={true}
+height={430}
+style={{ backgroundColor: "#fff",zIndex:999 }}
+    >
+        <View>
+<View className="pt-6 flex justify-center items-center w-full">
+   <TaraSearch size={180} />
+</View>
+<View className="px-4">
+
+<Text className="text-center text-sm text-gray-500 font-normal mt-2">There are no penalties for canceling a booking—you have the freedom to cancel as many times as you like. However, once a driver has accepted your booking, cancellation will no longer be possible.</Text>
+<View className="mt-4 py-2 gap-y-2">
+<Button
+onPress={()=>sheetRef4.current.close()}
+bgColor="bg-slate-200"
+textColor="text-neutral-700"
+>
+No, Keep searching
+</Button>
+<Button
+onPress={()=>confirmCancel()}
+bgColor="bg-red-500"
+textColor="text-white"
+>
+Yes, Cancel my booking
+</Button>
+</View>
+</View>
+</View>
+
+    </BottomSheet>
+
+{generateQR && <GenerateQRBooking QR={QrBook} close={setGenerateQR} />}
 {vehiclePrompt  && <VehicleNotice close={readVehicleProm} />}
 {slideTut && <OffeSlideNotice click={okImfine} mode={slidedontshow} close={setSlideTutor} />}
+{showSettings && <SettingsMode navigation={navigation} mic={audioBook} weather={weatherba} view={theredview} multiple={multipleBook} ai={suggest}  close={setSettings} />}
 
 </>
 
@@ -1942,8 +2424,8 @@ const GenerateQRBooking = ({QR, close }) => {
   <QRCodeStyled
     data={QR}
     style={{backgroundColor: 'transparent'}}
-    padding={10}
-    pieceSize={5}
+    padding={8}
+    pieceSize={4}
     pieceCornerType='rounded'
     color={'#020617'}
     pieceScale={1.02}
@@ -2048,6 +2530,175 @@ const OffeSlideNotice = ({click,mode,close}) =>{
     )
 }
 
+
+const ToggleCom = ({state,set}) =>{
+const [isChecked, setIsChecked] = useState(state);
+const toast = useToast();
+const { data } = useContext(DataContext);
+const { user} = useContext(AuthContext);
+
+const changeToggle = async () =>{
+setIsChecked(!isChecked)
+if(isChecked){
+ //off 
+await updateSettings(data?.user?.UserID,set,"0",user)
+     
+}else{
+//on
+await updateSettings(data?.user?.UserID,set,"1",user)
+}
+toast("success", "Settings updated."); 
+}
+   
+
+
+
+    return (
+        <View className="flex-row items-center">
+              <Pressable
+               onPress={() => changeToggle()}
+                className={`relative w-14 h-8 rounded-full ${
+                  isChecked ? "bg-blue-500" : "bg-gray-200"
+                }`}
+              >
+                <View
+                  className={`absolute top-[3px] ${
+                    isChecked
+                      ? I18nManager.isRTL
+                        ? "right-[2px]"
+                        : "left-[25px]"
+                      : "left-[4px]"
+                  } w-6 h-6 bg-white rounded-full transition-transform`}
+                />
+              </Pressable>
+            </View>
+    )
+}
+
+
+const SettingsMode = ({navigation,mic,view,multiple, weather, ai,close}) =>{
+
+    const openTaraSafe = () =>{
+        navigation.navigate('account', {
+            purpose: 'tarasafe',
+            track: "user"
+            });
+    }
+    
+
+    return (
+      
+              <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
+                <View
+                  className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
+                flex gap-y-4"
+                >
+              
+
+                    <View className="gap-y-4">
+
+                    <View className="flex-row justify-between items-center w-full">
+                    <View className="w-72">
+                    
+                    <View className="flex-row justify-start items-center gap-x-2">
+                        <TaraMagic size={20} />
+                        <Text className="text-lg font-medium">AI Suggestions</Text>
+                        </View>
+                    <Text className="text-sm font-normal text-gray-500">Our AI predicts your booking every time you're about to book.</Text>
+                    </View>
+                    
+                    <ToggleCom set="AISuggestions" state={ai} />
+                    </View>
+
+                    <View className="flex-row justify-between items-center w-full">
+                    <View className="w-72">
+                    <View className="flex-row justify-start items-center gap-x-2">
+                        <TaraMultiple size={20} />
+                        <Text className="text-lg font-medium">Multiple Booking</Text>
+                        </View>
+                    <Text className="text-sm font-normal text-gray-500">You can book for yourself and a friend using a single device.</Text>
+                    </View>
+                    <ToggleCom set="multiplebook" state={multiple} />
+                    </View>
+
+                    <View className="flex-row justify-between items-center w-full">
+                    <View className="w-72">
+                    <View className="flex-row justify-start items-center gap-x-2">
+                        <TaraCube size={20} />
+                        <Text className="text-lg font-medium">3D Experience</Text>
+                        </View>
+                    
+                    <Text className="text-sm font-normal text-gray-500">When the rider is on the way, see their live movement in 3D like an aerial camera.</Text>
+                    </View>
+                    <ToggleCom set="dview" state={view} />
+                    </View>
+
+
+                    <View className="flex-row justify-between items-center w-full">
+                    <View className="w-72">
+                    
+                    <View className="flex-row justify-start items-center gap-x-2">
+                        <TaraCloud size={20} />
+                        <Text className="text-lg font-medium">Weather Experience</Text>
+                        </View>
+                    <Text className="text-sm font-normal text-gray-500">View real-time weather conditions directly on the map.</Text>
+                    </View>
+                    <ToggleCom set="weather" state={weather} />
+                    </View>
+
+
+                    <View className="flex-row justify-between items-center w-full">
+                    <View className="w-72">
+                        <View className="flex-row justify-start items-center gap-x-2">
+                        <TaraMic size={20} />
+                        <Text className="text-lg font-medium">Audio Protect</Text>
+                        </View>
+                    
+                    <Text className="text-sm font-normal text-gray-500">Activate audio recording in the rider app for added security.</Text>
+                    </View>
+                    <ToggleCom set="weather" state={mic} />
+                    </View>
+
+
+                    <Pressable onPress={()=>openTaraSafe()} className="flex-row justify-between items-center w-full">
+                    <View className="w-72">
+                    <View className="flex-row justify-start items-center gap-x-2">
+                        <TaraShield size={20} />
+                        <Text className="text-lg font-medium">Tara Safe</Text>
+                        </View>
+                    <Text className="text-sm font-normal text-gray-500">When driver picks you up, we’ll send an SMS or email to your family or friends.</Text>
+                    </View>
+                   <View>
+                   <Svg
+              xmlns="http://www.w3.org/2000/svg"
+              width={28}
+              height={28}
+              viewBox="0 0 24 24"
+              fill="#3b82f6"
+            >
+<Path d="M15.4,9.88,10.81,5.29a1,1,0,0,0-1.41,0,1,1,0,0,0,0,1.42L14,11.29a1,1,0,0,1,0,1.42L9.4,17.29a1,1,0,0,0,1.41,1.42l4.59-4.59A3,3,0,0,0,15.4,9.88Z"/>
+</Svg>
+                   </View>
+                    </Pressable>
+
+
+
+                    </View>
+
+
+                  <View className="w-full flex gap-y-4">
+            <Button
+            onPress={()=>close(false)}
+              bgColor="bg-slate-200"
+              textColor="text-neutral-700"
+            >
+              Close
+            </Button>
+          </View>
+                  </View>
+                  </View>
+    )
+}
 
 
 

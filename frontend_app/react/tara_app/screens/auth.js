@@ -37,6 +37,7 @@ import {
 import { AuthContext } from "../context/authContext";
 import { DataContext } from "../context/dataContext";
 
+
 const AuthScreen = () => {
   const [stage, setStage] = useState(0);
   const navigation = useNavigation();

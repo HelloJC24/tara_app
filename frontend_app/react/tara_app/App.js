@@ -5,6 +5,7 @@ import { Alert, useContext, useEffect, useState } from "react";
 import { ToastProvider } from "./components/ToastNotify";
 import AuthProvider, { AuthContext } from "./context/authContext";
 import DataProvider from "./context/dataContext";
+import BookingProvider from "./context/bookContext";
 import "./global.css";
 import AccountScreen from "./screens/account";
 import AuthScreen from "./screens/auth";
@@ -73,19 +74,21 @@ export default function App() {
   return (
     <AuthProvider>
       <DataProvider>
-        <ToastProvider>
-          <NavigationContainer>
-            <Stack.Navigator
-              initialRouteName="splash"
-              screenOptions={({ route, navigation }) => ({
-                headerShown: false,
-              })}
-            >
-              <Stack.Screen name="splash" component={SplashScreen} />
-              <Stack.Screen name="Main" component={ProtectedRouting} />
-            </Stack.Navigator>
-          </NavigationContainer>
-        </ToastProvider>
+        <BookingProvider>
+          <ToastProvider>
+            <NavigationContainer>
+              <Stack.Navigator
+                initialRouteName="splash"
+                screenOptions={({ route, navigation }) => ({
+                  headerShown: false,
+                })}
+              >
+                <Stack.Screen name="splash" component={SplashScreen} />
+                <Stack.Screen name="Main" component={ProtectedRouting} />
+              </Stack.Navigator>
+            </NavigationContainer>
+          </ToastProvider>
+        </BookingProvider>
       </DataProvider>
     </AuthProvider>
   );

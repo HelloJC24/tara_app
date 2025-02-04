@@ -9,9 +9,10 @@ const thisLocation = () =>{
     if(props.infoMode == 1){
         pickupname(data.Location)
         setPickup(data.NRF)
-        sheet.current?.open()
+        sheet.current?.close()
+        //sheet.current?.open()
         Keyboard.dismiss()
-        autoDrop(2)
+        //autoDrop(2)
     }else{
         //drop
         dropname(data.Location)

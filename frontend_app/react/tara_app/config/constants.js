@@ -15,8 +15,9 @@ export const DECRYPT_API = "https://dwayon.tech/api/encdec/";
 export const PAYMENT_HISTORY = "https://dwayon.tech/api/Payment/pull/";
 export const GET_SETTINGS_API = "https://dwayon.tech/api/Settings/get/";
 export const CREATE_SETTINGS_API = "https://dwayon.tech/api/Settings/create/";
-export const GENERATE_PUBLIC_TOKEN =
-  "https://dwayon.tech/api/authorization/create/";
+export const GENERATE_PUBLIC_TOKEN ="https://dwayon.tech/api/authorization/create/";
 export const UPDATE_SETTINGS = "https://dwayon.tech/api/Settings/update/";
 export const REFERRAL_API = "https://dwayon.tech/api/referral/validate/";
 export const TRANSFER_AMOUNT = "https://dwayon.tech/api/Payment/transfer/";
+export const CREATE_BOOKING = "https://dwayon.tech/api/Booking/create/";
+export const UPDATE_BOOKING = "https://dwayon.tech/api/Booking/update/"

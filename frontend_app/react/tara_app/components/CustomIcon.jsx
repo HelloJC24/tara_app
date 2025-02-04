@@ -21,6 +21,13 @@ import TaraBankIcon from "../assets/custom-svg/bank.svg"
 import TaraBlackQRIcon from "../assets/custom-svg/mamba.svg"
 import TaraSpeed from "../assets/custom-svg/speed-clock.svg"
 import TaraMarkerTime from "../assets/custom-svg/marker-time.svg"
+import MicIcon from "../assets/custom-svg/mic.svg"
+import ShieldIcon from "../assets/custom-svg/shield.svg"
+import MultipleIcon from "../assets/custom-svg/mutiple.svg"
+import MagicIcon from "../assets/custom-svg/magic.svg"
+import CubeIcon from "../assets/custom-svg/cube.svg"
+import CloudIcon from "../assets/custom-svg/cloud.svg"
+import UserIcon from "../assets/custom-svg/user.svg"
 
 export const TaraWalletIcon = (props) => {
   return (
@@ -159,4 +166,52 @@ export const TaraKilometer = (props) => {
     <TaraMarkerTime width={props.size} height={props.size} fill={props.color} />
   );
 }
+
+export const TaraMic = (props) => {
+  return (
+    <MicIcon width={props.size} height={props.size} fill={props.color} />
+  );
+}
+
+export const TaraShield = (props) => {
+  return (
+    <ShieldIcon width={props.size} height={props.size} fill={props.color} />
+  );
+}
+
+export const TaraMultiple = (props) => {
+  return (
+    <MultipleIcon width={props.size} height={props.size} fill={props.color} />
+  );
+}
+
+export const TaraMagic = (props) => {
+  return (
+    <MagicIcon width={props.size} height={props.size} fill={props.color} />
+  );
+}
+
+
+export const TaraCube = (props) => {
+  return (
+    <CubeIcon width={props.size} height={props.size} fill={props.color} />
+  );
+}
+
+
+export const TaraCloud = (props) => {
+  return (
+    <CloudIcon width={props.size} height={props.size} fill={props.color} />
+  );
+}
+
+export const TaraUser = (props) => {
+  return (
+    <UserIcon width={props.size} height={props.size} fill={props.color} />
+  );
+}
+
+
+
+
 

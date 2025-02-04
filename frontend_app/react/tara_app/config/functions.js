@@ -41,4 +41,8 @@ export const generateOTP = () => {
 };
 
 
+export const formatMoney = (num) => {
+  return Number(num).toLocaleString();
+};
+
 

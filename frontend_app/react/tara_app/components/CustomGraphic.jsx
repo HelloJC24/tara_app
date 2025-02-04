@@ -10,6 +10,8 @@ import AskLocation from "../assets/graphic/location-permi.svg"
 import AskCamera from "../assets/graphic/camera-permission.svg"
 import AskGate from "../assets/graphic/sadsad.svg"
 import EmptyIcon from "../assets/graphic/empty.svg"
+import SearchBa from "../assets/graphic/search.svg"
+import MockMap from "../assets/graphic/device.svg"
 
 export const InviteGraphic = (props) => {
     return (
@@ -85,3 +87,15 @@ return (
 <EmptyIcon width={props.size} height={props.size} fill={props.color} />
 );
 }
+
+export const TaraSearch = (props) => {
+return (
+<SearchBa width={props.size} height={props.size} fill={props.color} />
+);
+}
+
+export const TaraMock = (props) => {
+    return (
+    <MockMap width={props.size} height={props.size} fill={props.color} />
+    );
+    }

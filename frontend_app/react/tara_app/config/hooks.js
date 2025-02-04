@@ -35,6 +35,8 @@ import {
   UPDATE_SETTINGS,
   UPDATE_USER_API,
   UPLOAD_IMG_API,
+  CREATE_BOOKING,
+  UPDATE_BOOKING
 } from "./constants";
 import { auth, db } from "./firebase-config";
 import { validateInputType } from "./functions";
@@ -644,6 +646,10 @@ export const createSettings = async (userID, user) => {
       ui_mode: "light",
       autopickup: false,
       marketing: true,
+      multiplebook: 1,
+      dview: 0,
+      weather: 0,
+      audio:1
     };
 
     // Send user data to external API
@@ -733,3 +739,83 @@ export const sendTransfer2Friend = async (userID, friend, amount, user) => {
     console.log(error);
   }
 };
+
+
+export const createBooking = async (userID, amount, payment, pickcoord,dropcoord, pickname,dropname,dist,discount,coupon,wallet,tip,start, user) => {
+  try {
+    const user_booking = {
+        UserID: userID,
+        RiderID: "N/A",
+        Status: "Pending",
+        Amount: amount,
+        Payment_Type: payment,
+        Booking_Type: "Ride",
+        PaymentID: "N/A",
+        Pick_Coordinate: pickcoord ,
+        PickLocation: pickname,
+        Drop_Coordinate: dropcoord,
+        Drop_Location: dropname,
+        Distance: dist,
+        Discount: discount,
+        Coupon: coupon,
+        Multiple: "N/A",
+        ChatRoomID: "N/A",
+        LastWallet: wallet,
+        Tip: tip,
+        Stand:start
+    };
+
+    // Send user data to external API
+    const res = await axios.post(
+      CREATE_BOOKING,
+      user_booking,
+      await config(user)
+    );
+
+    return res.data;
+  } catch (e) {}
+};
+
+export const SecureData = async (mode,data,user) =>{
+  var method = 'encrypt';
+  if(mode == 1){
+    method = 'decrypt';
+  }
+  try {
+    const resdec = await axios.get(`${DECRYPT_API}?${method}=${data}`,await config(user));
+
+    return resdec.data;
+
+  }catch(e){
+    console.error(e)
+  }
+}
+
+export const updateBooking = async (bookingID,target_column,value,user) =>{
+   try {
+     const newData = {
+      BookingID: bookingID,
+       target_columns: {
+         [target_column]: value,
+       },
+     };
+     //console.log(newData);
+     const res = await axios.post(
+       `${UPDATE_BOOKING}`,
+       newData,
+       await config(user ?? null)
+     );
+ 
+     return {
+       status: "success",
+       message: res.data.message,
+     };
+   } catch (error) {
+     console.error("Error updating booking:", error);
+     return {
+       status: "error",
+       message: error.message,
+     };
+   }
+}
+
