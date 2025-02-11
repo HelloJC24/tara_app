@@ -407,11 +407,8 @@ const HomeScreen = ({ navigation }) => {
           </Text>
 
           <View className="py-4">
-            <BookingCard bookingID={"abc1234"} />
+            <BookingCard bookingID={"abc1234"} navigation={navigation} />
           </View>
-          <Pressable onPress={() => navigation.navigate("booking")}>
-            <View style={{ height: 50, width: 50, backgroundColor: "red" }} />
-          </Pressable>
           {/* <FlatList
             data={historyList}
             renderItem={({ item, index }) => (

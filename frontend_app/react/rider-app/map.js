@@ -20,6 +20,8 @@ import {
     TaraWalletIcon,
     TaraCar,
     TaraMotor,
+    TaraKilometer,
+    TaraSpeedClock,
     TaraVan
 } from "../components/CustomIcon";
 import { LocationCard, LocationCardDrag } from "../components/Cards";
@@ -773,7 +775,7 @@ const BookingPage = ({ route, navigation }) => {
                                         : minimizeView == true && rider == true
                                             ? 'bottom-[270px]'
                                             : minimizeView == true
-                                                ? 'bottom-[200px]'
+                                                ? 'bottom-[20px]'
                                                 : rider == true
                                                     ? 'bottom-[610px]'
                                                     : searching == true
@@ -782,7 +784,7 @@ const BookingPage = ({ route, navigation }) => {
                                                             ? 'bottom-[615px]'
                                                             : calculated == true
                                                                 ? 'bottom-[570px]'
-                                                                : 'bottom-[350px]'
+                                                                : 'bottom-[460px]'
                                     } `}
                             >
 
@@ -794,231 +796,27 @@ const BookingPage = ({ route, navigation }) => {
                                 >
                                     <View >
 
-
-
-
-                                        {
-                                            bookState == 3 && (
-                                                <View className="mx-2.5 mb-2.5">
-                                                    <View className="relative">
-                                                        <View className="p-2.5 bg-white shadow-lg rounded-xl border border-gray-300  w-full">
-
-
-                                                            <View className="px-1.5 w-full flex-row justify-between items-center">
-
-                                                                <View className="flex-row justify-items items-center gap-x-2">
-                                                                    <LottieView
-                                                                        source={require('../assets/animation/safety-tara.json')}
-                                                                        autoPlay
-                                                                        loop
-                                                                        width={35}
-                                                                        height={35}
-                                                                    />
-                                                                    <View>
-                                                                        <Text className="font-medium text-xl">Tara Safe</Text>
-                                                                        {
-                                                                            taraSafe ? (
-                                                                                <Text className="font-normal text-xs">We sent notification to your Tara Safe contacts.</Text>
-                                                                            ) : (
-                                                                                <Text className="font-normal text-xs">Notify your favorite person for every booking.</Text>
-                                                                            )
-                                                                        }
-                                                                    </View>
-
-                                                                </View>
-
-                                                                {
-                                                                    taraSafe ? (
-                                                                        <View className="bg-green-500 px-2 py-1.5 rounded-lg">
-                                                                            <Text className="font-medium text-white text-center text-sm">Activated</Text>
-                                                                        </View>
-                                                                    ) : (
-                                                                        <Pressable onPress={() => openTaraSafe()} className="bg-blue-500 px-2 py-1.5 rounded-lg">
-                                                                            <Text className="font-medium text-blue-100 text-center text-sm">Try now</Text>
-                                                                        </Pressable>
-                                                                    )
-                                                                }
-
-                                                            </View>
-
-                                                        </View>
-                                                    </View>
-                                                </View>
-                                            )
-                                        }
-
-
-
-
-
-
-                                        {
-                                            calculated && minimizeView == false && searching == false && rider == false && (
-                                                <View className="mx-2.5 mb-2.5 relative">
-
-                                                    {
-                                                        slideGuide && offerCom && (
-                                                            <>
-                                                                <Pressable onPress={() => checkSlidePrompt()} className="h-full w-full bg-gray-100 rounded-xl absolute z-30 opacity-50"></Pressable>
-                                                                <Pressable onPress={() => checkSlidePrompt()} className="inset-0 z-40 flex-row justify-center w-full h-full absolute top-16 -left-10">
-                                                                    <LottieView
-                                                                        source={require('../assets/animation/slide.json')}
-                                                                        autoPlay
-                                                                        loop
-                                                                        width={100}
-                                                                        height={80}
-                                                                    />
-                                                                </Pressable>
-                                                            </>
-                                                        )
-                                                    }
-
-
-                                                    <View className="bg-white rounded-xl p-2 border border-gray-200 shadow-lg">
-                                                        <View className="p-2">
-
-                                                            <Pressable onPress={() => openBoxOffer()} className="flex-row justify-between items-center">
-
-                                                                <View className="flex-row justify-start items-center gap-x-2.5">
-                                                                    <TaraLogo size={25} />
-                                                                    <Text className="font-medium text-xl">Make an offer?</Text>
-                                                                </View>
-
-                                                                <View>
-                                                                    {
-                                                                        offerCom ? (
-                                                                            <Svg
-                                                                                xmlns="http://www.w3.org/2000/svg"
-                                                                                width={25}
-                                                                                height={25}
-                                                                                data-name="Layer 1"
-                                                                                viewBox="0 0 24 24"
-                                                                                fill="#3b82f6"
-                                                                            >
-                                                                                <Path d="M17.9998 15.5C17.8682 15.5008 17.7377 15.4756 17.6159 15.4258C17.494 15.3761 17.3832 15.3027 17.2898 15.21L12.7098 10.6201C12.6168 10.5263 12.5062 10.4519 12.3844 10.4012C12.2625 10.3504 12.1318 10.3243 11.9998 10.3243C11.8678 10.3243 11.7371 10.3504 11.6152 10.4012C11.4934 10.4519 11.3828 10.5263 11.2898 10.6201L6.70979 15.21C6.52149 15.3984 6.26609 15.5041 5.99979 15.5041C5.73349 15.5041 5.47809 15.3984 5.28979 15.21C5.10149 15.0217 4.9957 14.7664 4.9957 14.5001C4.9957 14.3682 5.02167 14.2376 5.07213 14.1158C5.12259 13.994 5.19655 13.8833 5.28979 13.7901L9.87979 9.21006C10.4497 8.6625 11.2094 8.35669 11.9998 8.35669C12.7901 8.35669 13.5498 8.6625 14.1198 9.21006L18.7098 13.7901C18.8035 13.883 18.8779 13.9936 18.9287 14.1155C18.9794 14.2373 19.0056 14.368 19.0056 14.5001C19.0056 14.6321 18.9794 14.7628 18.9287 14.8846C18.8779 15.0065 18.8035 15.1171 18.7098 15.21C18.6163 15.3027 18.5055 15.3761 18.3837 15.4258C18.2619 15.4756 18.1314 15.5008 17.9998 15.5Z" fill="#404040" />
-                                                                            </Svg>
-                                                                        ) : (
-                                                                            <Svg
-                                                                                xmlns="http://www.w3.org/2000/svg"
-                                                                                width={25}
-                                                                                height={25}
-                                                                                data-name="Layer 1"
-                                                                                viewBox="0 0 24 24"
-                                                                                fill="#3b82f6">
-                                                                                <Path d="M18.7099 8.2101C18.6169 8.11638 18.5063 8.04198 18.3845 7.99121C18.2626 7.94044 18.1319 7.91431 17.9999 7.91431C17.8679 7.91431 17.7372 7.94044 17.6153 7.99121C17.4934 8.04198 17.3828 8.11638 17.2899 8.2101L12.7099 12.7901C12.6169 12.8838 12.5063 12.9582 12.3845 13.009C12.2626 13.0598 12.1319 13.0859 11.9999 13.0859C11.8679 13.0859 11.7372 13.0598 11.6153 13.009C11.4934 12.9582 11.3828 12.8838 11.2899 12.7901L6.70988 8.2101C6.61691 8.11638 6.50631 8.04198 6.38445 7.99121C6.26259 7.94044 6.13189 7.91431 5.99988 7.91431C5.86787 7.91431 5.73716 7.94044 5.6153 7.99121C5.49344 8.04198 5.38284 8.11638 5.28988 8.2101C5.10363 8.39747 4.99908 8.65092 4.99908 8.9151C4.99908 9.17929 5.10363 9.43274 5.28988 9.6201L9.87988 14.2101C10.4424 14.7719 11.2049 15.0875 11.9999 15.0875C12.7949 15.0875 13.5574 14.7719 14.1199 14.2101L18.7099 9.6201C18.8961 9.43274 19.0007 9.17929 19.0007 8.9151C19.0007 8.65092 18.8961 8.39747 18.7099 8.2101Z" fill="#374957" />
-                                                                            </Svg>
-                                                                        )
-                                                                    }
-
-                                                                </View>
-
-                                                            </Pressable>
-
-                                                            {
-                                                                offerCom && (
-                                                                    <View className="relative">
-                                                                        <Slider
-                                                                            animateTransitions
-                                                                            renderAboveThumbComponent={renderAboveThumbComponent}
-                                                                            renderThumbComponent={CustomThumb}
-                                                                            maximumValue={12}
-                                                                            minimumValue={0}
-                                                                            value={6}
-                                                                            onValueChange={handleValueChange}
-                                                                            onSlidingComplete={handleSlidingComplete}
-                                                                            step={3} />
-
-
-
-
-                                                                        <View className="flex-row justify-between items-center w-full">
-
-
-                                                                            <View className="relative">
-                                                                                <View className="absolute -top-5 right-0 left-0 mx-auto flex-row justify-start">
-                                                                                    <Svg
-                                                                                        xmlns="http://www.w3.org/2000/svg"
-                                                                                        width={18}
-                                                                                        height={18}
-                                                                                        data-name="Layer 1"
-                                                                                        viewBox="0 0 24 24"
-                                                                                        fill="#22c55e"
-                                                                                    >
-                                                                                        <Path d="M17.9998 15.5C17.8682 15.5008 17.7377 15.4756 17.6159 15.4258C17.494 15.3761 17.3832 15.3027 17.2898 15.21L12.7098 10.6201C12.6168 10.5263 12.5062 10.4519 12.3844 10.4012C12.2625 10.3504 12.1318 10.3243 11.9998 10.3243C11.8678 10.3243 11.7371 10.3504 11.6152 10.4012C11.4934 10.4519 11.3828 10.5263 11.2898 10.6201L6.70979 15.21C6.52149 15.3984 6.26609 15.5041 5.99979 15.5041C5.73349 15.5041 5.47809 15.3984 5.28979 15.21C5.10149 15.0217 4.9957 14.7664 4.9957 14.5001C4.9957 14.3682 5.02167 14.2376 5.07213 14.1158C5.12259 13.994 5.19655 13.8833 5.28979 13.7901L9.87979 9.21006C10.4497 8.6625 11.2094 8.35669 11.9998 8.35669C12.7901 8.35669 13.5498 8.6625 14.1198 9.21006L18.7098 13.7901C18.8035 13.883 18.8779 13.9936 18.9287 14.1155C18.9794 14.2373 19.0056 14.368 19.0056 14.5001C19.0056 14.6321 18.9794 14.7628 18.9287 14.8846C18.8779 15.0065 18.8035 15.1171 18.7098 15.21C18.6163 15.3027 18.5055 15.3761 18.3837 15.4258C18.2619 15.4756 18.1314 15.5008 17.9998 15.5Z" fill="#22c55e" />
-                                                                                    </Svg>
-                                                                                </View>
-
-                                                                                <Text className="text-xs">Discounted</Text>
-                                                                            </View>
-
-
-
-
-                                                                            <View className="relative">
-                                                                                <View className="absolute -top-5 right-0 -left-4 mx-auto flex-row justify-center">
-                                                                                    <Svg
-                                                                                        xmlns="http://www.w3.org/2000/svg"
-                                                                                        width={18}
-                                                                                        height={18}
-                                                                                        data-name="Layer 1"
-                                                                                        viewBox="0 0 24 24"
-                                                                                        fill="#22c55e"
-                                                                                    >
-                                                                                        <Path d="M17.9998 15.5C17.8682 15.5008 17.7377 15.4756 17.6159 15.4258C17.494 15.3761 17.3832 15.3027 17.2898 15.21L12.7098 10.6201C12.6168 10.5263 12.5062 10.4519 12.3844 10.4012C12.2625 10.3504 12.1318 10.3243 11.9998 10.3243C11.8678 10.3243 11.7371 10.3504 11.6152 10.4012C11.4934 10.4519 11.3828 10.5263 11.2898 10.6201L6.70979 15.21C6.52149 15.3984 6.26609 15.5041 5.99979 15.5041C5.73349 15.5041 5.47809 15.3984 5.28979 15.21C5.10149 15.0217 4.9957 14.7664 4.9957 14.5001C4.9957 14.3682 5.02167 14.2376 5.07213 14.1158C5.12259 13.994 5.19655 13.8833 5.28979 13.7901L9.87979 9.21006C10.4497 8.6625 11.2094 8.35669 11.9998 8.35669C12.7901 8.35669 13.5498 8.6625 14.1198 9.21006L18.7098 13.7901C18.8035 13.883 18.8779 13.9936 18.9287 14.1155C18.9794 14.2373 19.0056 14.368 19.0056 14.5001C19.0056 14.6321 18.9794 14.7628 18.9287 14.8846C18.8779 15.0065 18.8035 15.1171 18.7098 15.21C18.6163 15.3027 18.5055 15.3761 18.3837 15.4258C18.2619 15.4756 18.1314 15.5008 17.9998 15.5Z" fill="#22c55e" />
-                                                                                    </Svg>
-                                                                                </View>
-
-                                                                                <Text className="text-xs">App Rate</Text>
-                                                                            </View>
-
-
-
-
-
-                                                                            <View className="relative">
-                                                                                <View className="absolute -top-5 right-0 left-6 mx-auto flex-row justify-center">
-                                                                                    <Svg
-                                                                                        xmlns="http://www.w3.org/2000/svg"
-                                                                                        width={18}
-                                                                                        height={18}
-                                                                                        data-name="Layer 1"
-                                                                                        viewBox="0 0 24 24"
-                                                                                        fill="#22c55e"
-                                                                                    >
-                                                                                        <Path d="M17.9998 15.5C17.8682 15.5008 17.7377 15.4756 17.6159 15.4258C17.494 15.3761 17.3832 15.3027 17.2898 15.21L12.7098 10.6201C12.6168 10.5263 12.5062 10.4519 12.3844 10.4012C12.2625 10.3504 12.1318 10.3243 11.9998 10.3243C11.8678 10.3243 11.7371 10.3504 11.6152 10.4012C11.4934 10.4519 11.3828 10.5263 11.2898 10.6201L6.70979 15.21C6.52149 15.3984 6.26609 15.5041 5.99979 15.5041C5.73349 15.5041 5.47809 15.3984 5.28979 15.21C5.10149 15.0217 4.9957 14.7664 4.9957 14.5001C4.9957 14.3682 5.02167 14.2376 5.07213 14.1158C5.12259 13.994 5.19655 13.8833 5.28979 13.7901L9.87979 9.21006C10.4497 8.6625 11.2094 8.35669 11.9998 8.35669C12.7901 8.35669 13.5498 8.6625 14.1198 9.21006L18.7098 13.7901C18.8035 13.883 18.8779 13.9936 18.9287 14.1155C18.9794 14.2373 19.0056 14.368 19.0056 14.5001C19.0056 14.6321 18.9794 14.7628 18.9287 14.8846C18.8779 15.0065 18.8035 15.1171 18.7098 15.21C18.6163 15.3027 18.5055 15.3761 18.3837 15.4258C18.2619 15.4756 18.1314 15.5008 17.9998 15.5Z" fill="#22c55e" />
-                                                                                    </Svg>
-                                                                                </View>
-
-                                                                                <Text className="text-xs">Give Tip</Text>
-                                                                            </View>
-
-                                                                        </View>
-
-
-                                                                    </View>
-
-                                                                )
-                                                            }
-
-
-                                                        </View>
-                                                    </View>
-
-
-
-
-
-
-                                                </View>
-                                            )
-                                        }
-
-
-
-
                                         {
                                             !viewRiderMap ? (
                                                 <Pressable onTouchStart={() => setMinizeView(false)} className=" rounded-t-3xl border-t border-x border-gray-200 h-full p-4 z-50 bg-white ">
+
+                                                    {/* Customer Info */}
+                                                    <View className="absolute top-[-100px] left-4 right-4 bg-white rounded-xl p-4 flex-row items-center justify-between">
+                                                        <View className="flex-row items-center">
+                                                            <TaraLogo size={50} />
+                                                            <View>
+                                                                <Text className="text-md font-bold text-gray-800">Customer Name</Text>
+                                                                <Text className="text-sm text-gray-600">John Doe</Text>
+                                                            </View>
+                                                        </View>
+                                                        {/* <View className="flex-row space-x-3">
+                                                            <Tara
+                                                            <Ionicons name="chatbubble-outline" size={24} color="#3B82F6" />
+                                                            <Ionicons name="call-outline" size={24} color="#22C55E" />
+                                                        </View> */}
+                                                    </View>
+
+
                                                     <View className="relative mt-2 flex-row justify-center items-center w-full">
 
                                                         <View className="w-32 bg-slate-300 p-1 flex-row justify-center items-center rounded-xl"></View >
@@ -1028,24 +826,54 @@ const BookingPage = ({ route, navigation }) => {
                                                     {/* Fare */}
                                                     <View className="bg-white rounded-xl p-4 mt-4 items-center">
                                                         <Text className="text-4xl font-bold text-gray-900">₱45.00</Text>
+                                                        <View className="w-full h-1 rounded-full bg-slate-200 mt-6" />
 
                                                         {/* Booking Details */}
                                                         <View className="bg-white items-center rounded-xl p-4 mt-4">
                                                             <Text className="text-3xl font-bold text-gray-900 mb-2">Booking Details</Text>
 
-                                                            <View className="flex-row items-center mb-2">
-                                                                <TaraNavigation size={28} color="#22c55e" />
-                                                                <Text numberOfLines={1} ellipsizeMode="tail" className="text-sm text-gray-700">
+                                                            <View className="flex-row items-center mb-2 gap-x-2">
+                                                                <TaraNavigation size={16} color="#22c55e" />
+                                                                <Text numberOfLines={2} ellipsizeMode="tail" className="text-sm text-gray-700 flex-1">
                                                                     Sta. Lourdes, Sonny Village and Condo, Puerto Princesa City
                                                                 </Text>
+                                                                <View className="p-1 bg-slate-200 rounded-lg" >
+                                                                     <TaraNavigation size={25} color="#3B82F6" />
+                                                                </View>
                                                             </View>
 
-                                                            <View className="flex-row items-center">
-
-                                                                <TaraMarker size={25} color="red" />
-                                                                <Text numberOfLines={1} ellipsizeMode="tail" className="text-sm text-gray-700">
+                                                            <View className="flex-row items-center gap-x-2">
+                                                                <TaraMarker size={16} color="red" />
+                                                                <Text numberOfLines={2} length={30} ellipsizeMode="tail" className="text-sm text-gray-700 flex-1">
                                                                     Wescom Road, Kalikasan Village, Puerto Princesa City
                                                                 </Text>
+                                                                {/* <View className="w-32 h-32 bg-slate-100" /> */}
+                                                                <View className="p-1 bg-slate-200 rounded-lg" >
+                                                                     <TaraNavigation size={25} color="#3B82F6" />
+                                                                </View>
+                                                               
+                                                            </View>
+
+                                                        </View>
+
+
+                                                        {/* Trip Info */}
+                                                        <View className="flex-row items-center justify-between mt-4 space-x-4">
+                                                            <View className="flex-row items-center space-x-2">
+                                                                <TaraSpeedClock size={15} color="#ddd" />
+                                                                <Text className="text-sm text-gray-600 ml-1 mr-3">10 min</Text>
+                                                            </View>
+
+                                                            <View className="flex-row items-center space-x-2">
+                                                                <TaraKilometer size={15} color="#ddd" />
+                                                                <Text className="text-sm text-gray-600 ml-1 mr-3">8.0KM</Text>
+                                                            </View>
+
+                                                            <Text className="text-sm text-gray-600 ml-1 mr-3">🚖 Regular</Text>
+
+                                                            <View className="flex-row items-center space-x-2">
+                                                                <TaraCash size={15} color="#ddd" />
+                                                                <Text className="text-sm text-gray-600 ml-1">Cash</Text>
                                                             </View>
                                                         </View>
 
@@ -1053,14 +881,14 @@ const BookingPage = ({ route, navigation }) => {
                                                         <View className="bg-yellow-100 p-3 rounded-md mt-4 w-full">
                                                             <Text className="text-yellow-700 text-sm">The pickup is 50 meters away from your location.</Text>
                                                         </View>
-                                                        <View className="bg-green-100 p-3 rounded-lg mt-2 w-full">
+                                                        <View className="bg-green-100 p-3 justify-center items-center rounded-lg mt-2 w-full">
                                                             <Text className="text-green-700 text-sm">₱5.00 tip is provided in this trip!</Text>
                                                         </View>
 
                                                         {/* Accept Button */}
-                                                        <TouchableOpacity className="bg-gray-900 p-4 rounded-xl items-center mt-4 w-full">
-                                                            <Text className="text-white text-lg font-bold">Accept Booking</Text>
-                                                        </TouchableOpacity>
+                                                        <Pressable className="bg-gray-900 p-4 rounded-3xl items-center mt-4 w-full">
+                                                            <Text className="text-white text-xl font-bold">Accept Booking</Text>
+                                                        </Pressable>
 
                                                     </View>
 
