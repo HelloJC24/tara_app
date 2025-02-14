@@ -43,6 +43,10 @@ import { DataContext } from "../context/dataContext";
 import appJson from "../app.json";
 import { formatMoney } from "../config/functions";
 import { BookingContext } from "../context/bookContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { signOut } from "firebase/auth";
+import { auth } from "../config/firebase-config";
+import * as Device from "expo-device";
 
 
 const HomeScreen = ({ navigation }) => {
@@ -61,12 +65,16 @@ const HomeScreen = ({ navigation }) => {
   const toast = useToast();
   const appVersion = appJson.expo.version;
   const { booking } = useContext(BookingContext);
+  const [cityba,setCityba] = useState(null)
+  const [registered_device,setDevice] = useState(true)
+  const [devdevice,setMyDeviceId] = useState(null)
 
   const taraBook = (vehicle) => {
     navigation.navigate("booking", {
       track: user?.userId,
       wheels: vehicle,
       start: location,
+      city: cityba
     });
   };
 
@@ -109,6 +117,33 @@ const HomeScreen = ({ navigation }) => {
     }));
   };
 
+
+  const LogoutMe = async () =>{
+    await signOut(auth);
+    await AsyncStorage.removeItem("register");
+    await AsyncStorage.removeItem("data");
+    await AsyncStorage.removeItem("uid");
+    await AsyncStorage.removeItem("accessToken");
+    await AsyncStorage.removeItem("idToken")
+    showToast("success","You have been log-out in this device.") 
+    setUser((prevState) => ({
+      ...prevState,
+      accessToken: '',
+    }));
+  }
+
+  const registerMe = async () =>{
+    setDevice(true);
+    const savingDevice = await updateUser(
+      user?.userId,
+      "Device",
+      devdevice ?? "expogo"
+    );
+
+    console.log(savingDevice)
+  }
+
+
   useEffect(() => {
     async function getCurrentLocation() {
       let { status } = await Location.requestForegroundPermissionsAsync();
@@ -142,10 +177,11 @@ const HomeScreen = ({ navigation }) => {
     }
 
     async function getControl() {
+  
       try {
         const response = await axios.get(GET_DATA_CONTROL_API, {
           params: {
-            origin: location,
+            origin: JSON.stringify(location),
           },
           headers: {
             Auth: `Bearer ${user?.accessToken}`,
@@ -157,6 +193,7 @@ const HomeScreen = ({ navigation }) => {
           setControlData(response.data.data);
           const supportedLocations = response.data.data.supported_location;
           setGate(response.data.data.gate);
+          setCityba(response.data.data.city)
           if (location.coords) {
             const { latitude, longitude } = location.coords;
             const isSupported = supportedLocations.some((location) => {
@@ -222,6 +259,7 @@ const HomeScreen = ({ navigation }) => {
         "Location",
         saveloc
       );
+      
       console.log("saving push:", savingPush);
     };
 
@@ -242,6 +280,14 @@ const HomeScreen = ({ navigation }) => {
             user: res.data,
           }));
 
+
+          //get device
+          console.log("my device:",devdevice," expecting ",res.data.Device)
+          if(res.data.Device != devdevice){
+            setDevice(false);
+          }
+          
+
           //console.log(res.data);
           //get if active booking
 
@@ -258,6 +304,12 @@ const HomeScreen = ({ navigation }) => {
     console.log(booking)
     getUser();
   }, [user?.userId]);
+
+  useEffect(() => {
+    const id = Device.deviceId;
+    setMyDeviceId(id); // This is the unique device ID
+  }, []);
+
 
   return (
     <View className="w-full h-full bg-white relative">
@@ -306,15 +358,10 @@ const HomeScreen = ({ navigation }) => {
         {controlData.length == 0 && user.userId != "visitor" ? (
           <View className="my-4 bg-gray-200 rounded-lg w-56 h-6"></View>
         ) : (
-          <ParagraphText
-            padding="py-4 pr-16"
-            fontSize="lg"
-            align="left"
-            textColor="text-neutral-700"
-          >
+          <Text className="my-5 px-2.5">
             {controlData.greetings ??
               "Hello there visitors! Mostly you see our weather forecast here.."}
-          </ParagraphText>
+          </Text>
         )}
 
         <View></View>
@@ -443,7 +490,7 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <BottomNavBar access={user} />
+        <BottomNavBar location={location} city={cityba} access={user} />
       </View>
       {activaeBooking && <ExistingBooking />}
 
@@ -468,7 +515,9 @@ const HomeScreen = ({ navigation }) => {
         </View>
       )}
 
-      {booking?.status == 'searching' && <SearchingBooking location={location} user={user} navigation={navigation} />}
+      {!registered_device && <DevicePolicy thisdevice={registerMe} fuckoff={LogoutMe} />}
+
+      {booking?.status == 'searching' && <SearchingBooking origin={cityba} location={location} user={user} navigation={navigation} />}
     </View>
   );
 };
@@ -525,13 +574,14 @@ const ExistingBooking = () => {
 
 
 
-const SearchingBooking = ({location,user,navigation}) => {
+const SearchingBooking = ({origin,location,user,navigation}) => {
 
   const taraBalik = () => {
     navigation.navigate("booking", {
       track: user?.userId,
       wheels: 2,
       start: location,
+      city: origin
     });
   };
 
@@ -726,6 +776,42 @@ const GatePrompt = () => {
     </View>
   );
 };
+
+const DevicePolicy = ({thisdevice,fuckoff}) => {
+  return (
+    <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
+      <View
+        className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
+      flex gap-y-4"
+      >
+
+
+        <Text className="text-center text-md font-normal">
+        Another device is currently logged in. Tara follows a one-device policy, allowing multiple bookings on a single device. There's no need to use another device. Would you like to continue on this device or log out from the other one?
+        </Text>
+
+        <Button
+            onPress={thisdevice}
+            bgColor="bg-blue-500"
+            textColor="text-white"
+          >
+            Continue with this device
+          </Button>
+
+          <Button
+            onPress={fuckoff}
+            bgColor="bg-slate-200"
+            textColor="text-neutral-700"
+          >
+            Log-out all devices
+          </Button>
+
+        
+      </View>
+    </View>
+  );
+};
+
 
 async function registerForPushNotificationsAsync() {
   let token;

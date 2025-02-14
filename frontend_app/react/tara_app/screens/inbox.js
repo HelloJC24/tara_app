@@ -157,7 +157,7 @@ const InboxScreen = ({ route, navigation }) => {
         </View>
 
         {isLoading ? (
-          <Text className="text-base text-center mt-24">loading...</Text>
+          <Text className="text-base text-center mt-24">Loading...</Text>
         ) : messages.length === 0 ? (
           <Text className="text-base text-center mt-24">
             No messages available

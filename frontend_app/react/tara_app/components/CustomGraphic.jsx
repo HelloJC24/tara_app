@@ -12,6 +12,7 @@ import AskGate from "../assets/graphic/sadsad.svg"
 import EmptyIcon from "../assets/graphic/empty.svg"
 import SearchBa from "../assets/graphic/search.svg"
 import MockMap from "../assets/graphic/device.svg"
+import LoudMic from "../assets/graphic/letgetloud.svg"
 
 export const InviteGraphic = (props) => {
     return (
@@ -99,3 +100,9 @@ export const TaraMock = (props) => {
     <MockMap width={props.size} height={props.size} fill={props.color} />
     );
     }
+
+export const TaraLoud = (props) => {
+return (
+<LoudMic width={props.size} height={props.size} fill={props.color} />
+);
+}

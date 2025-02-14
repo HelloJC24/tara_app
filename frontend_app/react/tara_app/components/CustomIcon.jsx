@@ -28,6 +28,7 @@ import MagicIcon from "../assets/custom-svg/magic.svg"
 import CubeIcon from "../assets/custom-svg/cube.svg"
 import CloudIcon from "../assets/custom-svg/cloud.svg"
 import UserIcon from "../assets/custom-svg/user.svg"
+import BoldMicIcon from "../assets/custom-svg/mic.svg"
 
 export const TaraWalletIcon = (props) => {
   return (
@@ -172,6 +173,13 @@ export const TaraMic = (props) => {
     <MicIcon width={props.size} height={props.size} fill={props.color} />
   );
 }
+
+export const TaraBoldMic = (props) => {
+  return (
+    <BoldMicIcon width={props.size} height={props.size} fill={props.color} />
+  );
+}
+
 
 export const TaraShield = (props) => {
   return (

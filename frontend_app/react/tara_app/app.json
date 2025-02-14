@@ -13,7 +13,17 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "NSAppTransportSecurity": {
+        "NSAllowsArbitraryLoads": false,
+        "NSExceptionDomains": {
+          "156.67.218.16": {
+            "NSIncludesSubdomains": true,
+            "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+            "NSAllowsArbitraryLoadsInWebContent": true
+          }
+        }
+      }
     },
     "android": {
       "googleServicesFile": "./google-services.json",
@@ -51,7 +61,7 @@
         {
           "icon": "./assets/favicon.png",
           "color": "#ffffff",
-          "sounds": [ "./petpew.mp3"],
+          "sounds": [ "petpew.mp3"],
           "enableBackgroundRemoteNotifications": true
         }
       ],

@@ -36,7 +36,14 @@ import {
   UPDATE_USER_API,
   UPLOAD_IMG_API,
   CREATE_BOOKING,
-  UPDATE_BOOKING
+  UPDATE_BOOKING,
+  AUDIO_TEXT,
+  WEATHER_API,
+  AI_SUGGESTIONS,
+  FETCH_HISTORY,
+  GET_BOOKING,
+  GET_RIDER,
+  GET_RIDER_STATE
 } from "./constants";
 import { auth, db } from "./firebase-config";
 import { validateInputType } from "./functions";
@@ -480,7 +487,7 @@ export const fetchHistory = async (userId, starting_date, end_date, user) => {
       await config(user)
     );
 
-    console.log("History: ", res.data);
+    // console.log("History: ", res.data);
 
     return {
       status: "success",
@@ -819,3 +826,79 @@ export const updateBooking = async (bookingID,target_column,value,user) =>{
    }
 }
 
+
+export const getWeather = async (city, user) => {
+  try {
+    const callcheck = await axios.get(
+      `${WEATHER_API}?search=${city}`,
+      await config(user)
+    );
+    return callcheck.data;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+export const getAISuggestions = async (userID, start, user) => {
+  try {
+    const callcheck = await axios.get(
+      `${AI_SUGGESTIONS}?user_id=${userID}&start=${start}`,
+      await config(user)
+    );
+    return callcheck.data;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+export const getBookingHistory = async (userID, start, user) => {
+  try {
+    const callcheck = await axios.get(
+      `${FETCH_HISTORY}?UserID=${userID}&starting_date=${start}`,
+      await config(user)
+    );
+    return callcheck.data;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+export const getBookingInfo = async (bookingid, user) => {
+  try {
+    const callcheck = await axios.get(
+      `${GET_BOOKING}?BookingID=${bookingid}`,
+      await config(user)
+    );
+    return callcheck.data;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+export const getRiderInfo = async (rid, user) => {
+  try {
+    const callcheck = await axios.get(
+      `${GET_RIDER}?TaraID=${rid}`,
+      await config(user)
+    );
+    return callcheck.data;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+
+
+export const checkRiderState = async (rid, user) => {
+  try {
+    const callcheck = await axios.get(
+      `${GET_RIDER_STATE}?rid=${rid}`,
+      {headers: {
+        Auth: await generatePublicToken(),
+      },}
+    );
+    return callcheck.data;
+  } catch (error) {
+    console.log(error);
+  }
+};

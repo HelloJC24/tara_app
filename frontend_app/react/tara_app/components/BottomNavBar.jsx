@@ -3,12 +3,21 @@ import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { useToast } from "../components/ToastNotify";
-const BottomNavBar = ({access}) => {
+const BottomNavBar = ({location,city,access}) => {
   const navigation = useNavigation();
 const toast = useToast();
 const openQR = () =>{
   navigation.navigate('qrcode', {
     mode: 'STBR',
+    mycity: city,
+    start: location
+    });
+}
+
+const openHistoryPage = () =>{
+  navigation.navigate('history', {
+    mycity: city,
+    start: location
     });
 }
 
@@ -22,7 +31,7 @@ toast("try_again","Create or login your account to unlock it.")
       className="w-full absolute bottom-8 left-6 border-t border-x border-slate-100 bg-white p-5 shadow-xl shadow-neutral-500 rounded-3xl
     flex flex-row items-center justify-between"
     >
-      <TouchableOpacity onPress={()=>navigation.navigate('history')} className="flex gap-y-1 justify-center items-center">
+      <TouchableOpacity onPress={()=>openHistoryPage()} className="flex gap-y-1 justify-center items-center">
         <Svg
           xmlns="http://www.w3.org/2000/svg"
           width={25}

@@ -1,4 +1,4 @@
-import { View, Text,TouchableOpacity, ScrollView, TextInput, Pressable, StyleSheet,Animated,Image,PanResponder,FlatList,Alert,I18nManager,Easing } from "react-native";
+import { View, Text,TouchableOpacity, ScrollView, TextInput, Pressable, StyleSheet,Animated,Image,PanResponder,FlatList,Alert,I18nManager,Easing, TouchableWithoutFeedback } from "react-native";
 import { WebView } from 'react-native-webview';
 import Svg, { Circle, Path,Rect,Defs, Filter, FeGaussianBlur } from "react-native-svg";
 import LottieView from 'lottie-react-native';
@@ -6,6 +6,7 @@ import BottomSheet from "@devvie/bottom-sheet";
 import { useRef,useEffect, useState, useContext } from "react";
 import Button from "../components/Button";
 import animationMarker from '../assets/animation/marker.json';
+import * as Speech from 'expo-speech';
 import { 
 TaraInvoice, 
 TaraCash, 
@@ -27,7 +28,8 @@ TaraMultiple,
 TaraMagic,
 TaraCube,
 TaraCloud,
-TaraUser
+TaraUser,
+TaraBoldMic
 } from "../components/CustomIcon";
 import { LocationCard, LocationCardDrag } from "../components/Cards";
 import {Slider} from '@miblanchard/react-native-slider';
@@ -36,21 +38,33 @@ import * as Location from 'expo-location';
 import { useToast } from "../components/ToastNotify";
 import QRCodeStyled from 'react-native-qrcode-styled';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserSettings,updateSettings,SecureData,createBooking,updateBooking } from "../config/hooks";
+import { getUserSettings,
+    updateSettings,
+    SecureData,
+    createBooking,
+    updateBooking,
+    getWeather,
+    getAISuggestions,
+    getBookingInfo,
+    getRiderInfo
+ } from "../config/hooks";
 import { AuthContext } from "../context/authContext";
 import { DataContext } from "../context/dataContext";
 import { BookingContext } from "../context/bookContext";
 import { hookConf } from "../config/hooks";
 import { HelloVisitor } from "../components/Cards";
 import { formatMoney } from "../config/functions";
-import { TaraSearch } from "../components/CustomGraphic";
+import { TaraLoud, TaraSearch } from "../components/CustomGraphic";
 import { BlurView } from 'expo-blur';
+import { Audio } from 'expo-av';
+import { AUDIO_TEXT } from "../config/constants";
 
 const BookingPage = ({route,navigation}) =>{
  const sheetRef = useRef(null);
  const sheetRef2 = useRef(null);
  const sheetRef3 = useRef(null);
  const sheetRef4 = useRef(null);
+ const sheetRef5 = useRef(null);
  const lottieRef = useRef(null);
  const [suggest,setSuggest] = useState(false) //AI Suggestions
  const [viewRiderMap,setViewRiders] = useState(false)
@@ -116,6 +130,27 @@ const [QrBook,setQRBook] = useState("");
 const [draggBlur,setdragBlur] = useState(true)
 const [QRloading,setQRLoading] = useState(false)
 const [startlocation,secureStartLocation] = useState("")
+const [maxwallet,setMaxWallet] = useState(0)
+const [readyLoad,setReadyness] = useState("")
+const [paymentwarning,setPaymentWarnig] = useState("Select Payment Method")
+const [useMic,setUseMic] = useState(false)
+const [speaking,setSpeaking] = useState(false)
+const [recording, setRecording] = useState(false);
+const [audioUri, setAudioUri] = useState('');
+const [locations, setLocations] = useState([]);
+const [errorAPI, setError] = useState('');
+const [audioAPILoading,setaudioAPILoading] = useState(false)
+const [myCity,setMyCity] = useState(null)
+const [loader,setLoader] = useState(false)
+const [weatherforecarst,setWeatherForecast] = useState([])
+const [weatherAnimation,setWeatherAnimation] = useState('sunny')
+const [isitRaining,setRaining] = useState(false)
+const [dropSuggest,setSuggestDropName] = useState(null)
+const [data_science,setDataScience] = useState([])
+const [rebook,setRebook] = useState(false)
+const [scanRiderBooking,setSRB]= useState(false)
+const [AssignRider,setRiderID] = useState(null)
+const [riderInformation,setRiderInfo] = useState([])
 
 
 const showToast = (type,msg) => {
@@ -124,6 +159,49 @@ toast(type, msg);
 
 
 useEffect(()=>{
+
+//getbooking details
+const getBookingData = async (bi) =>{
+    const reold = await getBookingInfo(bi,user);
+    setPickupCoordinates(reold.data.Pick_Coordinate)
+    setPickupName(reold.data.PickLocation)
+    setDropCoordinates(reold.data.Drop_Coordinate)
+    setDropName(reold.data.Drop_Location)
+    setRebook(true);
+    //console.log("YES,ITS A REBOOK")
+    setSuggest(false)
+}
+
+
+//getriderData
+const getRiderData = async (ri) =>{
+    const rideba = await getRiderInfo(ri,user);
+    setRiderInfo(rideba.data)
+    //set vehicle
+    if(rideba.data.Server == 'TARAVAN'){
+        selectVan(true)
+        selectActiveMotor(false)
+        selectActiveCar6(false)
+        selectActiveCard4(false)
+    }else if(rideba.data.Server == 'TARACAR6'){
+        selectCar6(true)
+        selectActiveMotor(false)
+        selectActiveCard4(false)
+        selectActiveVan(false)
+    }else if(rideba.data.Server == 'TARACAR'){
+        selectCard4(true)
+        selectActiveMotor(false)
+        selectActiveCar6(false)
+        selectActiveVan(false)
+    }else{
+        selectMotor(true)
+        selectActiveVan(false)
+        selectActiveCar6(false)
+        selectActiveCard4(false)
+        
+    }
+}
+
 //get tutorials
 const getData = async () => {
     try {
@@ -137,30 +215,55 @@ const getData = async () => {
     }
   };
   getData();
-const {wheels,start} = route.params;
+const {wheels,start,city,rule,bookingID} = route.params;
+console.log("rule:",rule)
 if(route.params){
 addVehicle(wheels)
+setMyCity(city == 'Unknown' ? 'Puerto Princesa City' : city);
 setMyLocation(`${start.coords.latitude}>>>${start.coords.longitude}`)
 secureStartLocation(`${start.coords.latitude}>>>${start.coords.longitude}`)
 //setVehicle(wheels)
 //disabling vehicles
+
+
+//check if rebook
+if(rule == 'rebook'){
+//toast('success','Rebooking..')
+//get booking API
+getBookingData(bookingID)
+setSuggest(false)
+}
+
+
+
+if (rule == 'assignee') {
+    setSRB(true)
+    setRiderID(bookingID)
+    getRiderData(bookingID)
+    toast('try_again','Fill up your pickup and drop destination')
+}
+
 switch (wheels) {
     case 2:
         return selectActiveVan(false)
     case 5:
         return selectActiveMotor(false)
 }
+
 }
 
 
 
 
-},[route,setSlideTutor])
+},[route,setSlideTutor,setRebook])
 
 //pull settings
 useEffect(()=>{
+const {wheels,start,city,rule,bookingID} = route.params;
+
+
 const pullSettings = async () =>{
-    console.log("pulling settings")
+    //console.log("pulling settings")
     const sets = await getUserSettings(data?.user?.UserID,user);
     if(sets.message == 'No settings found for the provided UserID or TaraID.'){
     //create
@@ -173,8 +276,21 @@ const pullSettings = async () =>{
         setModeofPayment(0)
     }
 
-    if(sets.data[0].AISuggestions == 1){
-        setSuggest(true)
+    if(sets.data[0].AISuggestions == 1 && !rule){
+        if(rebook){
+            const data_ai = await getAISuggestions(data?.user?.UserID,myLocation,user);
+            if(data_ai.status == 'ok'){
+                //console.log("Rebook:",rebook)
+                setSuggest(true)
+                //if theres data then display
+                setMinizeView(true)
+                setDataScience(data_ai)
+                setSuggestDropName(data_ai.drop_name)
+            }
+        }else{
+            setSuggest(false)
+        }
+        
     }
 
 
@@ -189,7 +305,9 @@ const pullSettings = async () =>{
 
     if(sets.data[0].weather == 1){
         setWeather(true)
+        checkWeather();
     }
+
 
     if(sets.data[0].audio == 1){
         setAudioBook(true)
@@ -200,6 +318,13 @@ const pullSettings = async () =>{
     }
 }
 
+const checkWeather = async () =>{
+    const weatherweather = await getWeather(myCity,user);
+    setWeatherForecast(weatherweather[0].weather[0])
+    const weathertitle = weatherweather[0].weather[0].weather_title
+    setWeatherAnimation(getWeatherAnimation(weathertitle))
+    console.log(getWeatherAnimation(weathertitle))
+}
 
 //token
 const readyToken = async () =>{
@@ -209,18 +334,23 @@ const readyToken = async () =>{
 
 
 if(booking?.length != 0){
+    //console.log(booking)
 setSearching(booking?.status == 'searching' ? true : false)
 setBookingID(booking?.bookingid);
 setPickupCoordinates(booking?.pickcoord)
 setPickupName(booking?.pickname)
 setDropCoordinates(booking?.dropcoord)
 setDropName(booking?.dropname)
-setFareRate(booking?.fare_value)
+setFareRate(booking?.fare_value ?? '0')
 setModeofPayment(booking?.payment)
 selectMotor(booking?.motor_selection)
 selectVan(booking?.van_selection)
 selectCar6(booking?.car6_selection)
 selectCard4(booking?.car4_selection)
+if (booking && typeof booking.fare_value === 'string' && booking.fare_value.includes("-")) {
+    setMaxWallet(booking.fare_value.split("-")[1]);
+}
+
 }
 
 
@@ -228,7 +358,8 @@ selectCard4(booking?.car4_selection)
 setWalletBalance(data?.user?.Wallet)
 readyToken();
 pullSettings();
-},[data,user,setMultipleBook,set3dCamera,setWeather,setAudioBook])
+
+},[data,user,setMultipleBook,set3dCamera,setWeather,setAudioBook,myCity,rebook,route])
 
 const goLogin = (page) => {
     setUser((prevState) => ({
@@ -237,7 +368,15 @@ const goLogin = (page) => {
       accessToken: null,
       history: page,
     }));
-  };
+};
+
+const acceptAI = () =>{
+    setSuggest(false)
+    setDropCoordinates(data_science.coordinates)
+    setDropName(data_science.drop_name)
+    setInfoMode(1);
+    selectPinMap();
+}
 
 useEffect(()=>{
 const calculateMetric = async ()=>{
@@ -261,13 +400,19 @@ setFareAPIResponse(fareAPI.data.data)
 setCalculated(true)
 if(booking?.status != 'draft'){
 setFareRate(fareAPI.data.data.amount)
+setMaxWallet(fareAPI.data.data.amount)
 }else{
-setFareRate(booking?.fare_value)
-//faremetricUI();   
+setFareRate(booking?.fare_value ?? 0)
+if (booking && typeof booking.fare_value === 'string' && booking.fare_value.includes("-")) {
+    setMaxWallet(booking.fare_value.split("-")[1]);
+}
+  
 }
 setCar4Fare(fareAPI.data.data.car4)
 setCar5Fare(fareAPI.data.data.car6)
 setCar6Fare(fareAPI.data.data.car7)
+setReadyness('ready')
+
 }
 }
 setMinizeView(false)
@@ -275,11 +420,13 @@ setMinizeView(false)
 if(user?.userId == 'visitor' ){
     toast("error","Your in visitor mode. Create or login your account first.")
 }else{
-    calculateMetric();
+    if(dropCoordinates && pickupCoordinates){
+        calculateMetric();
+    }
 }
 
 
-},[dropCoordinates])
+},[dropCoordinates,pickupCoordinates])
 
 const myPinLocation = async () =>{
         const location = await Location.getCurrentPositionAsync({
@@ -314,6 +461,11 @@ const selectLocation = (selectMode) =>{
 }
 
 const addVehicle = (vh) =>{
+
+    if(scanRiderBooking){
+        toast('try_again',"We've assigned a vehicle for your driver.")
+        return;
+    }
    
     switch(vh) {
         case 4:
@@ -330,7 +482,10 @@ const addVehicle = (vh) =>{
 
 useEffect(()=>{
     
-        faremetricUI();  
+       if(readyLoad == 'ready'){
+        faremetricUI();
+       }
+       
     
 },[pickVan,pickcard6,pickcar4,pickmotor])
 
@@ -345,34 +500,42 @@ const faremetricUI = () =>{
      fareOG = `${fareAPIResponse.amount}-${fareAPIResponse.car6}`
      base = `${fareAPIResponse.base_fare}-${fareAPIResponse.base_fare_car6}`;
      rate = `${fareAPIResponse.per_km}-${fareAPIResponse.per_km_car6}`;
+     setMaxWallet(fareAPIResponse.car6)
  }else if(pickmotor && pickcar4){
      fareOG = `${fareAPIResponse.amount}-${fareAPIResponse.car4}`
      base = `${fareAPIResponse.base_fare}-${fareAPIResponse.base_fare_car4}`;
      rate = `${fareAPIResponse.per_km}-${fareAPIResponse.per_km_car4}`;
+     setMaxWallet(fareAPIResponse.car4)
  }else if(pickmotor && pickcard6){
      fareOG = `${fareAPIResponse.amount}-${fareAPIResponse.car6}`
      base = `${fareAPIResponse.base_fare}-${fareAPIResponse.base_fare_car6}`;
      rate = `${fareAPIResponse.per_km}-${fareAPIResponse.per_km_car6}`;
+     setMaxWallet(fareAPIResponse.car6)
  }else if(pickcar4 && pickcard6){
      fareOG = `${fareAPIResponse.car4}-${fareAPIResponse.car6}`
      base = `${fareAPIResponse.base_fare_car4}-${fareAPIResponse.base_fare_car6}`;
      rate = `${fareAPIResponse.per_km_car4}-${fareAPIResponse.per_km_car6}`;
+     setMaxWallet(fareAPIResponse.car6)
  }else if(pickmotor){
      fareOG = fareAPIResponse.amount
      base = fareAPIResponse.base_fare;
      rate = fareAPIResponse.per_km;
+     setMaxWallet(fareAPIResponse.amount)
  }else if(pickcar4){
      fareOG = fareAPIResponse.car4
      base = fareAPIResponse.base_fare_car4;
      rate = fareAPIResponse.per_km_car4;
+     setMaxWallet(fareAPIResponse.car4)
  }else if(pickcard6){
      fareOG = fareAPIResponse.car6
      base = fareAPIResponse.base_fare_car6;
      rate = fareAPIResponse.per_km_car6;
+     setMaxWallet(fareAPIResponse.car6)
  }else if(pickVan){
      fareOG = fareAPIResponse.can
      base = fareAPIResponse.base_fare_van;
      rate = fareAPIResponse.per_km_van;
+     setMaxWallet(fareAPIResponse.car7)
  }
 
 
@@ -381,6 +544,8 @@ const faremetricUI = () =>{
  setBaseRate(base)
 
 }
+
+
 
 
 const RequestVehicle = () =>{
@@ -405,6 +570,15 @@ sheetRef3.current.close();
 }
 
 const goSearchRider = async () =>{
+
+
+//if assignee mode redirect
+if(scanRiderBooking){
+setRider(true)
+setBookState(1)
+return
+}
+
 
 //
 if(!pickupCoordinates && !dropCoordinates && !fareRate){
@@ -469,12 +643,16 @@ const confirmCancel = async () =>{
 }
 
 const selectCurrentLocation = async () =>{
+    setLoader(true)
     sheetRef.current?.close();
     setSuggest(false);
     const myCULocation = await myPinLocation();
     //run location permission
     setPickupCoordinates(myCULocation)
     setPickupName('Current Location')
+    if(myCULocation){
+        setLoader(false)
+    }
 }
 
 const selectPinMap = () =>{
@@ -556,7 +734,12 @@ const closeMap = () =>{
         //save?
         if(calculated && !searching){
             saveSessionBooking('draft');
-            navigation.goBack()
+            if(rebook){
+                navigation.navigate("home")
+            }else{
+                navigation.goBack()
+            }
+           
             // Alert.alert(
             //     "Are you planning to come back?",
             //     "Would you like Tara to save your booking for future use?",
@@ -584,7 +767,12 @@ const closeMap = () =>{
             //     );
            
         }else{
-            navigation.goBack()
+            if(rebook){
+                navigation.navigate("home")
+            }else{
+                navigation.goBack()
+            }
+            
         }
         
     }
@@ -612,6 +800,10 @@ const saveSessionBooking = async (msg) =>{
       
 }
 
+const changePaymentMethod = () =>{
+    setPaymentWarnig("You don't have enough balance.")
+    sheetRef3.current.open()
+}
 
 
 //SCREEN NAVIGATION
@@ -681,6 +873,7 @@ const draggingStop = async () =>{
     );
  
     if (response.data) {
+        //console.log(response.data)
         setdragLocName(response.data.name);
     } else {
         setdragLocName('Unknown location');
@@ -864,28 +1057,144 @@ const styles = StyleSheet.create({
 
 
 
+  const Tiara = (mode) => {
+    let discount = 0;
+    let tip = 0;
+    let discount2 = 0;
+    let tip2 = 0;
+    let offer = 0;
 
-  
+    // Check combinations in a sequence, starting with motor and ending with van
+    if (pickmotor && pickcar4 && pickcard6 && pickVan) {
+        // All vehicles selected (Motor -> Car4 -> Car6 -> Van)
+        discount = `${fareAPIResponse.discount1}-${fareAPIResponse.discount1_van}`;
+        tip = `${fareAPIResponse.tip1}-${fareAPIResponse.tip1_van}`;
+        discount2 = `${fareAPIResponse.discount2}-${fareAPIResponse.discount2_van}`;
+        tip2 = `${fareAPIResponse.tip2}-${fareAPIResponse.tip2_van}`;
+        offer = `${fareAPIResponse.amount}-${fareAPIResponse.van}`
+    } else if (pickmotor && pickcar4 && pickcard6) {
+        // Motor -> Car4 -> Car6 selected
+        discount = `${fareAPIResponse.discount1}-${fareAPIResponse.discount1_car6}`;
+        tip = `${fareAPIResponse.tip1}-${fareAPIResponse.tip1_car6}`;
+        discount2 = `${fareAPIResponse.discount2}-${fareAPIResponse.discount2_car6}`;
+        tip2 = `${fareAPIResponse.tip2}-${fareAPIResponse.tip2_car6}`;
+        offer = `${fareAPIResponse.amount}-${fareAPIResponse.car6}`
+    } else if (pickmotor && pickcar4 && pickVan) {
+        // Motor -> Car4 -> Van selected
+        discount = `${fareAPIResponse.discount1}-${fareAPIResponse.discount1_van}`;
+        tip = `${fareAPIResponse.tip1}-${fareAPIResponse.tip1_van}`;
+        discount2 = `${fareAPIResponse.discount2}-${fareAPIResponse.discount2_van}`;
+        tip2 = `${fareAPIResponse.tip2}-${fareAPIResponse.tip2_van}`;
+        offer = `${fareAPIResponse.amount}-${fareAPIResponse.van}`
+    } else if (pickmotor && pickcar4) {
+        // Motor -> Car4 selected
+        discount = `${fareAPIResponse.discount1}-${fareAPIResponse.discount1_car4}`;
+        tip = `${fareAPIResponse.tip1}-${fareAPIResponse.tip1_car4}`;
+        discount2 = `${fareAPIResponse.discount2}-${fareAPIResponse.discount2_car4}`;
+        tip2 = `${fareAPIResponse.tip2}-${fareAPIResponse.tip2_car4}`;
+        offer = `${fareAPIResponse.amount}-${fareAPIResponse.car4}`
+    } else if (pickmotor && pickcard6) {
+        // Motor -> Car6 selected
+        discount = `${fareAPIResponse.discount1}-${fareAPIResponse.discount1_car6}`;
+        tip = `${fareAPIResponse.tip1}-${fareAPIResponse.tip1_car6}`;
+        discount2 = `${fareAPIResponse.discount2}-${fareAPIResponse.discount2_car6}`;
+        tip2 = `${fareAPIResponse.tip2}-${fareAPIResponse.tip2_car6}`;
+        offer = `${fareAPIResponse.amount}-${fareAPIResponse.car6}`
+    } else if (pickmotor && pickVan) {
+        // Motor -> Van selected
+        discount = `${fareAPIResponse.discount1}-${fareAPIResponse.discount1_van}`;
+        tip = `${fareAPIResponse.tip1}-${fareAPIResponse.tip1_van}`;
+        discount2 = `${fareAPIResponse.discount2}-${fareAPIResponse.discount2_van}`;
+        tip2 = `${fareAPIResponse.tip2}-${fareAPIResponse.tip2_van}`;
+        offer = `${fareAPIResponse.amount}-${fareAPIResponse.van}`
+    } else if (pickcar4 && pickcard6) {
+        // Car4 -> Car6 selected
+        discount = `${fareAPIResponse.discount1_car4}-${fareAPIResponse.discount1_car6}`;
+        tip = `${fareAPIResponse.tip1_car4}-${fareAPIResponse.tip1_car6}`;
+        discount2 = `${fareAPIResponse.discount2_car4}-${fareAPIResponse.discount2_car6}`;
+        tip2 = `${fareAPIResponse.tip2_car4}-${fareAPIResponse.tip2_car6}`;
+        offer = `${fareAPIResponse.car4}-${fareAPIResponse.car6}`
+    } else if (pickcar4 && pickVan) {
+        // Car4 -> Van selected
+        discount = `${fareAPIResponse.discount1_car4}-${fareAPIResponse.discount1_van}`;
+        tip = `${fareAPIResponse.tip1_car4}-${fareAPIResponse.tip1_van}`;
+        discount2 = `${fareAPIResponse.discount2_car4}-${fareAPIResponse.discount2_van}`;
+        tip2 = `${fareAPIResponse.tip2_car4}-${fareAPIResponse.tip2_van}`;
+        offer = `${fareAPIResponse.car4}-${fareAPIResponse.van}`
+    } else if (pickcard6 && pickVan) {
+        // Car6 -> Van selected
+        discount = `${fareAPIResponse.discount1_car6}-${fareAPIResponse.discount1_van}`;
+        tip = `${fareAPIResponse.tip1_car6}-${fareAPIResponse.tip1_van}`;
+        discount2 = `${fareAPIResponse.discount2_car6}-${fareAPIResponse.discount2_van}`;
+        tip2 = `${fareAPIResponse.tip2_car6}-${fareAPIResponse.tip2_van}`;
+        offer = `${fareAPIResponse.car6}-${fareAPIResponse.van}`
+    } else if (pickmotor) {
+        // Only Motor selected
+        discount = fareAPIResponse.discount1;
+        tip = fareAPIResponse.tip1;
+        discount2 = fareAPIResponse.discount2;
+        tip2 = fareAPIResponse.tip2;
+        offer = fareAPIResponse.amount
+    } else if (pickcar4) {
+        // Only Car4 selected
+        discount = fareAPIResponse.discount1_car4;
+        tip = fareAPIResponse.tip1_car4;
+        discount2 = fareAPIResponse.discount2_car4;
+        tip2 = fareAPIResponse.tip2_car4;
+        offer = fareAPIResponse.car4
+    } else if (pickcard6) {
+        // Only Car6 selected
+        discount = fareAPIResponse.discount1_car6;
+        tip = fareAPIResponse.tip1_car6;
+        discount2 = fareAPIResponse.discount2_car6;
+        tip2 = fareAPIResponse.tip2_car6;
+        offer = fareAPIResponse.car6
+    } else if (pickVan) {
+        // Only Van selected
+        discount = fareAPIResponse.discount1_van;
+        tip = fareAPIResponse.tip1_van;
+        discount2 = fareAPIResponse.discount2_van;
+        tip2 = fareAPIResponse.tip2_van;
+        offer = fareAPIResponse.van
+    }
 
-  const handleValueChange = (value) => {
+    // Return the final discount and tip values based on mode
+    if (mode === 'discount1') {
+        return discount;
+    } else if (mode === 'tip1') {
+        return tip;
+    } else if (mode === 'discount2') {
+        return discount2;
+    } else if (mode === 'tip2') {
+        return tip2;
+    } else if (mode === 'offer') {
+        return offer;
+    } else {
+        return 22;
+    }
+};
+
+
+const handleValueChange = (value) => {
     fadeIn();
-    setCustomSlide(value)
+    setCustomSlide(value);
     scaleAnim.setValue(1); // Reset scale when sliding
-    setCSlideEffect('green')
+    setCSlideEffect('green');
     switch (value[0]) {
         case 0:
-          return setFareRate(fareAPIResponse.discount2);
+            return setFareRate(Tiara('discount2'));
         case 3:
-          return setFareRate(fareAPIResponse.discount1);
+            return setFareRate(Tiara('discount1'));
         case 9:
-          return  setFareRate(fareAPIResponse.tip1)
+            return setFareRate(Tiara('tip1'));
         case 12:
-          return  setFareRate(fareAPIResponse.tip2)
+            return setFareRate(Tiara('tip2'));
         default:
-          return setFareRate(fareAPIResponse.amount);
-      }
-    
-  };
+            return setFareRate(Tiara('offer'));
+    }
+};
+
+
 
   const handleSlidingComplete = () => {
     fadeOutAndZoom();
@@ -894,7 +1203,7 @@ const styles = StyleSheet.create({
   const renderAboveThumbComponent = () => {
     return (
       <Animated.View
-      className={`${cSlide > 5 ? 'right-[80px]' : 'left-4'} p-2  rounded-xl shadow-2xl bg-green-500`}
+      className={`${cSlide > 5 ? 'right-[100px]' : 'left-4'} p-2  rounded-xl shadow-2xl bg-green-500`}
         style={[
           {
             opacity: fadeAnim, // Bind opacity to fadeAnim
@@ -915,40 +1224,205 @@ const CustomThumb = () => (
 );
 
 
+const searchLocations = async (place) => {
+try {
+    const response = await axios.get(
+    `https://onthewaypo.com/OTW/api/locations/google.php`,
+    {
+        params: {
+        search: infoInput,
+        start:myLocation
+        },
+    }
+    );
 
-  const [locations, setLocations] = useState([]);
-  const [errorAPI, setError] = useState('');
+    if (response.data && response.data.length > 0) {
+    setLocations(response.data);
+    setError('');
+    } else {
+    setLocations([]);
+    setError('No locations found');
+    }
+} catch (error) {
+    setError('An error occurred while fetching data');
+    console.error(error);
+}
+};
 
-  const searchLocations = async (place) => {
+  //Audio
+const startspeak = () => {
+const thingToSay = 'Try to speak the location now';
+Speech.speak(thingToSay);
+setSpeaking(true)
+};
+
+const openVehiclePrompt = () =>{
+readVehicleProm(true)
+const thingToSay = 'You can select multiple vehicle types, and the system will prioritize whichever is available first. This allows you to search once while maximizing your chances of finding a ride quickly.';
+Speech.speak(thingToSay);
+}
+
+
+const startRecording = async () => {
+    setSpeaking(true);
+    let silenceCounter = 0; // Move this inside the function
+  
     try {
-      const response = await axios.get(
-        `https://onthewaypo.com/OTW/api/locations/google.php`,
-        {
-          params: {
-            search: infoInput,
-            start:myLocation
-          },
-        }
-      );
-
-      if (response.data && response.data.length > 0) {
-        setLocations(response.data);
-        setError('');
-      } else {
-        setLocations([]);
-        setError('No locations found');
+      const permission = await Audio.requestPermissionsAsync();
+      if (!permission.granted) {
+        console.log("Permission to record audio denied");
+        return;
       }
+  
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+  
+      const newRecording = new Audio.Recording();
+      await newRecording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await newRecording.startAsync();
+  
+      setRecording(newRecording);
+      console.log("Recording started...");
+  
+      // Check for silence every 500ms
+      const noiseInterval = setInterval(async () => {
+        const status = await newRecording.getStatusAsync();
+        if (status?.metering !== undefined) {
+          console.log("Noise Level (dB):", status.metering);
+  
+          if (status.metering < -40) { // Silence threshold
+            silenceCounter += 1;
+          } else {
+            silenceCounter = 0; // Reset if speech is detected
+          }
+  
+          if (silenceCounter >= 6) { // 3 seconds of silence (6 * 500ms)
+            console.log("No speech detected. Stopping recording...");
+            clearInterval(noiseInterval);
+            setSpeaking(false);
+            setRecording(null);
+            if(newRecording){
+                await newRecording.stopAndUnloadAsync();
+            }
+            toast("error", "No speech detected.");
+          }
+        }
+      }, 500);
+  
+      // Stop recording after 5 seconds if speech is detected
+      setTimeout(async () => {
+        clearInterval(noiseInterval);
+        if (silenceCounter < 6) { // Only proceed if speech was detected
+          console.log("Speech detected, stopping normally...");
+          //await stopRecording();
+        } else {
+          console.log("Silence detected, stopping recording...");
+          setSpeaking(false);
+          if (newRecording) {
+            await newRecording.stopAndUnloadAsync();
+          }
+        }
+      }, 10000);
+  
     } catch (error) {
-      setError('An error occurred while fetching data');
-      console.error(error);
+      console.error("Failed to start recording", error);
     }
   };
+  
 
+const stopRecording = async () => {
+setSpeaking(false)
+if (!recording) return;
 
+try {
+await recording.stopAndUnloadAsync();
+const uri = recording.getURI();
+setAudioUri(uri);
+console.log('Audio recorded at: ', uri);
+
+// If no speech was detected, don't upload
+if (!speaking) {
+console.log("Skipping API call due to silence.");
+return;
+}
+setaudioAPILoading(true)
+// Upload the audio file to the backend
+const formData = new FormData();
+formData.append('audio', {
+uri,
+name: 'audio.m4a',
+type: 'audio/m4a',
+});
+
+const response = await fetch(`${AUDIO_TEXT}?city=${myCity}`, {
+method: 'POST',
+body: formData,
+headers: {
+'Content-Type': 'multipart/form-data',
+'Auth' : authToken
+}
+});
+
+const result = await response.json();
+console.log('Transcription:', result);
+if(result.text != 'nothing'){
+setUseMic(false)
+if(infoMode == 1){
+//pickup
+setPickupName(result.text);
+setPickupCoordinates(`${result.lat},${result.lng}`)
+}else{
+//drop
+setDropName(result.text);
+setDropCoordinates(`${result.lat},${result.lng}`)
+}
+sheetRef.current?.close()
+}else{
+    toast('error','Seems we detected nothing..')
+    // const errorToSay = result.t2c;
+    // Speech.speak(errorToSay);
+}
+setaudioAPILoading(false)
+} catch (error) {
+console.error('Failed to stop recording', error);
+}
+};
+
+const enoughRecord = async () =>{
+    setUseMic(false)
+    if(recording){
+        await recording.stopAndUnloadAsync();
+    }
+    
+}
+
+//weather
+const getWeatherAnimation = (weatherTitle) => {
+    const title = weatherTitle.toLowerCase(); // Convert to lowercase for easier comparison
+
+    if (title.includes("thunderstorm") || title.includes("storm") || title.includes("rainshowers")) {
+        setRaining(true)
+        sheetRef5.current.open()
+        return "storm";
+    } else if (title.includes("rain")) {
+        setRaining(true)
+        sheetRef5.current.open()
+        return "heavy";
+    } else if (title.includes("partly cloudy") || title.includes("cloudy")) {
+        return "cloudy";
+    } else if (title.includes("sunny") || title.includes("clear")) {
+        return "sunny";
+    } else {
+        return "cloudy"; // Default fallback
+    }
+};
+  
 
 return (
     <>
-    <ScrollView keyboardShouldPersistTaps="handled" >
+<ScrollView nestedScrollEnabled={false} scrollEnabled={false} keyboardShouldPersistTaps="handled" >
 <View className="bg-slate-100 h-screen w-screen">
 <View  className="relative h-full w-full">
 
@@ -992,27 +1466,27 @@ return (
                       />
             <Text className="text-lg font-medium">AI Suggestions</Text>
         </View>
-        <View className="px-2">
-        <Text className="text-gray-600 text-base">Are you going to <Text className="text-blue-500 font-medium">SM Puerto?</Text> and drop your location to <Text className="text-blue-500 font-medium">New Buncag?</Text></Text>
+        <View className="px-2 mt-2">
+        <Text className="text-gray-600 text-lg">Are you heading to <Text className="text-blue-500 font-medium">{dropSuggest}?</Text></Text>
         </View>
-        <View className="p-2 gap-x-2 flex-row justify-between items-center">
+        <View className="p-2.5 py-4 flex-row justify-between items-center">
         <Button
 onPress={() => setSuggest(false)}
 bgColor="bg-slate-200"
 textColor="text-gray-500"
 fontSize="md"
-bwidth="w-48"
+bwidth="w-44"
 >
 No
 </Button>
 <Button
-onPress={() => sheetRef.current?.close()}
+onPress={() => acceptAI()}
 bgColor="bg-blue-500"
 textColor="text-white"
 fontSize="md"
-bwidth="w-48"
+bwidth="w-44"
 >
-Quick Book
+Yes
 </Button>
         </View>
     </View>
@@ -1061,14 +1535,14 @@ height={200}
 
 <WebView
 ref={webViewRef}
-source={{ uri: `https://onthewaypo.com/OTW/api/playground/map/` }}
+source={{ uri: `https://onthewaypo.com/OTW/api/playground/map/?rain=${weatherba ? isitRaining : false}` }}
 javaScriptEnabled={true}
 onMessage={handleWebViewMessage}
 className="bg-white"
 onLoad={()=>setWebLoad(true)}
 onTouchStart={()=>draggingMap()}
 onTouchEnd={()=>draggingStop()}
-cacheEnabled={true}
+cacheEnabled={false}
 
 />
 
@@ -1124,7 +1598,61 @@ className="z-50"
 
 {
     !viewRiderMap && searching == false && (
-<View className="flex-row justify-end items-center mx-2.5">
+<View className="flex-row justify-end items-center mx-2.5 gap-x-2.5">
+
+{
+    weatherba && (
+<TouchableOpacity onPress={()=>sheetRef5.current.open()} className="bg-white rounded-xl w-16 h-16 flex-row justify-center items-center mb-2 shadow-xl">
+{
+    weatherAnimation == 'storm' ? (
+        <LottieView
+        source={require('../assets/animation/storm.json')}
+        autoPlay
+        loop
+        width={40}
+        height={40}
+        />
+    ): weatherAnimation == 'heavy' ? (
+        <LottieView
+        source={require('../assets/animation/heavy-rain.json')}
+        autoPlay
+        loop
+        width={40}
+        height={40}
+        />
+    ): weatherAnimation == 'light' ? (
+        <LottieView
+        source={require('../assets/animation/ligh-rain.json')}
+        autoPlay
+        loop
+        width={40}
+        height={40}
+        />
+    ): weatherAnimation == 'cloudy' ? (
+        <LottieView
+        source={require('../assets/animation/clouds.json')}
+        autoPlay
+        loop
+        width={40}
+        height={40}
+        />
+    ):(
+        <LottieView
+        source={require('../assets/animation/sunny.json')}
+        autoPlay
+        loop
+        width={40}
+        height={40}
+        />
+    )
+}
+</TouchableOpacity>
+    )
+}
+
+
+
+
    {
      rider ? (
         <TouchableOpacity onPress={()=>openChat()} className="bg-white border border-gray-200 rounded-xl w-16 h-16 flex-row justify-center items-center mb-2 shadow-xl">   
@@ -1136,7 +1664,7 @@ className="z-50"
 </View>
         </TouchableOpacity>
     
-     ): calculated ? (
+     ): calculated && !scanRiderBooking ? (
         QRloading ? (
             <View className="bg-white rounded-xl w-16 h-16 flex-row justify-center items-center mb-2 shadow-xl">
                    <LottieView
@@ -1153,7 +1681,15 @@ className="z-50"
          </Pressable>
         )
      ):(
-        <Pressable onPress={()=>viewRiders()} className="bg-blue-500 rounded-xl w-16 h-16 flex-row justify-center items-center mb-2 shadow-xl">
+        scanRiderBooking ? (
+<Pressable onPress={()=>viewRiders()} className="bg-blue-500 rounded-xl w-16 h-16 flex-row justify-center items-center mb-2 shadow-xl">
+<Image source={{ uri: riderInformation?.Photo }} alt={AssignRider} className="rounded-xl w-full h-full object-cover" />
+<View className="absolute -left-20 -top-7 bg-green-500 px-2.5 py-1.5 rounded-xl shadow-lg">
+    <Text className="text-md text-white">Assign driver</Text>
+</View>
+</Pressable>
+        ):(
+<Pressable onPress={()=>viewRiders()} className="bg-blue-500 rounded-xl w-16 h-16 flex-row justify-center items-center mb-2 shadow-xl">
         <LottieView
                               source={require('../assets/animation/magic-wand.json')}
                               autoPlay
@@ -1162,6 +1698,8 @@ className="z-50"
                               height={40}
                           />
         </Pressable>
+        )
+        
      )
    }
 </View>
@@ -1248,19 +1786,19 @@ className="z-50"
 
             <View className="flex-row">
            <View className="h-16 w-16 rounded-full rounded-full border-2 border-gray-300">
-           <Image source={{uri: "https://fruitask.com/about-us/funny/team/CTO.jpg"}} alt="" className="rounded-full w-full h-full object-cover" />
+           <Image source={{uri: riderInformation?.Photo}} alt="" className="rounded-full w-full h-full object-cover" />
            </View>
 
-           <View className="h-20 w-20 rounded-full rounded-full -left-8">
-           <Image source={{uri: "https://pixcap.com/cdn/library/template/1721240480050/thumbnail/Car_3D_Vehicle_Icon_Model_transparent_emp_800.webp"}} alt="" className="rounded-full w-full h-full object-center" />
+           <View className=" h-16 w-16 rounded-full rounded-full -left-4 top-4">
+           <Image source={{uri: "https://fruitask.com/assets/file_upload/q5xuGH12Ps/Wk5wQmlzTmNHcGlETmFoNnBBPT0.png"}} alt="" className="rounded-full w-full h-full object-center" />
            </View>
            </View>
 
 
 
             <View className="px-4">
-            <Text className="text-left text-2xl font-semibold text-gray-800">NZA450601</Text>
-            <Text className="text-left text-gray-600 text-xs">Copper Blue V3 2018</Text>
+            <Text className="text-left text-2xl font-semibold text-gray-800">{riderInformation?.Plate_Number}</Text>
+            <Text className="text-left text-gray-600 text-xs">{riderInformation?.Vehicle_Type}-{riderInformation?.Color}</Text>
             </View>
 
             </View>
@@ -1271,7 +1809,7 @@ className="z-50"
                 <TaraLogo size={35} />
                 <View>
                 <Text className="text-left text-gray-600 text-xs">Tara Driver Name</Text>
-                <Text numberOfLines={2} ellipsizeMode="tail" className="text-left text-gray-800 text-base">John Charlie U Saclet</Text>
+                <Text numberOfLines={2} ellipsizeMode="tail" className="text-left text-gray-800 text-base">{riderInformation?.Legal_Name}</Text>
                 </View>
                 </View>
 
@@ -1280,7 +1818,7 @@ className="z-50"
                 <Svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <Path d="M1.32677 12.4004L4.88677 15.0004L3.53477 19.1874C3.31628 19.8368 3.31351 20.5394 3.52688 21.1905C3.74024 21.8416 4.15831 22.4063 4.71877 22.8004C5.26962 23.2072 5.93716 23.4251 6.62192 23.4217C7.30668 23.4183 7.97201 23.1937 8.51877 22.7814L11.9998 20.2194L15.4818 22.7784C16.0316 23.1829 16.6956 23.4026 17.3781 23.4059C18.0607 23.4092 18.7268 23.196 19.2805 22.797C19.8343 22.3979 20.2473 21.8335 20.4601 21.1849C20.6728 20.5363 20.6745 19.837 20.4648 19.1874L19.1128 15.0004L22.6728 12.4004C23.2219 11.999 23.6301 11.4342 23.8391 10.7868C24.0481 10.1395 24.0472 9.44263 23.8364 8.79583C23.6257 8.14903 23.216 7.58537 22.6658 7.18535C22.1156 6.78533 21.453 6.56941 20.7728 6.56844H16.3998L15.0728 2.43244C14.8641 1.7814 14.454 1.21346 13.9017 0.810508C13.3494 0.407559 12.6834 0.19043 11.9998 0.19043C11.3161 0.19043 10.6501 0.407559 10.0978 0.810508C9.5455 1.21346 9.13544 1.7814 8.92677 2.43244L7.59977 6.56844H3.23077C2.55051 6.56941 1.88796 6.78533 1.33775 7.18535C0.787534 7.58537 0.377806 8.14903 0.167087 8.79583C-0.0436323 9.44263 -0.044565 10.1395 0.164422 10.7868C0.37341 11.4342 0.781627 11.999 1.33077 12.4004H1.32677Z" fill="#FBBF24"/>
                 </Svg>
-                <Text className="text-gray-600">4.5</Text>
+                <Text className="text-gray-600">{riderInformation?.Ratings}</Text>
                 </View>
 </View>
             </View>
@@ -1380,7 +1918,7 @@ className="z-50"
 {
     searching || rider ? (
 <View className="w-80">
-    <Text numberOfLines={1} ellipsizeMode="tail" className="font-semibold text-red-800 text-lg">{pickupName}</Text>
+    <Text numberOfLines={1} ellipsizeMode="tail" className="font-semibold text-lg">{pickupName}</Text>
 </View>
 
     ): pickupName ? (
@@ -1452,7 +1990,7 @@ className="z-50"
     <View className="bg-white rounded-xl p-2 border border-gray-200 shadow-lg">
         <View className="flex-row justify-between items-center px-2 py-1.5">
         <Text className="font-medium text-lg ">Additional vehicle types?</Text>
-        <TouchableOpacity onPress={()=>readVehicleProm(true)}>
+        <TouchableOpacity onPress={()=>openVehiclePrompt()}>
         <TaraNotice size={20} color="#d1d5db" />
         </TouchableOpacity>
             </View>
@@ -1911,7 +2449,17 @@ Cancel Book
 
 
 ) : calculated && pickmotor || pickcar4 || pickcard6 || pickVan ? (
+maxwallet < walletBalance && modeofpayment == 1 ? (
 <Button
+onPress={() => changePaymentMethod()}
+bgColor="bg-blue-500"
+textColor="text-white"
+fontSize="lg"
+>
+Book
+</Button>
+):(
+    <Button
 onPress={() => goSearchRider()}
 bgColor="bg-blue-500"
 textColor="text-white"
@@ -1919,6 +2467,7 @@ fontSize="lg"
 >
 Book
 </Button>
+)
 
         ):(
 <Button
@@ -2082,7 +2631,9 @@ Select this location
     </Pressable>
     </View>
 
-<View className="mt-6 border border-gray-300 rounded-xl p-2 flex-row justify-start items-center gap-x-2 overflow-hidden">
+ <View className="mt-6 border border-gray-300 rounded-xl p-2 flex-row justify-between items-center overflow-hidden">   
+
+<View className="flex-row justify-start items-center gap-x-2 overflow-hidden">
 {
     infoMode == 1 ? (
         <TaraNavigation size={28} color="#22c55e" />
@@ -2090,7 +2641,13 @@ Select this location
         <TaraMarker size={28} color="#ef4444" />
     )
 }
-<TextInput onChangeText={(e)=>InputLocation(e)}  value={infoInput} className="font-medium text-lg text-blue-500 w-full" placeholder={infoMode == 1 ? 'Where is your pickup location?' : 'Where is your drop destination?'} />
+<TextInput onChangeText={(e)=>InputLocation(e)}  value={infoInput} className="font-medium text-lg text-blue-500 w-auto" placeholder={infoMode == 1 ? 'Where is your pickup location?' : 'Where is your drop destination?'} />
+</View>
+
+<TouchableOpacity onPress={()=>setUseMic(true)} className="px-2.5">
+<TaraBoldMic size={25} color="#475569" />
+</TouchableOpacity>
+
 </View>
 
 <View className="mb-2.5 p-2 gap-x-2 flex-row justify-between items-center">
@@ -2254,6 +2811,7 @@ ref={sheetRef3}
 containerHeight={900}
 hideDragHandle={true}
 height={280}
+onClose={()=>setPaymentWarnig("Select Payment Method")}
 style={{ backgroundColor: "#fff",zIndex:999 }}
     >
 <View className="p-4">
@@ -2261,7 +2819,7 @@ style={{ backgroundColor: "#fff",zIndex:999 }}
 <View className="w-32 bg-slate-300 p-1 flex-row justify-center items-center rounded-xl"></View >
 </View >
             <View className="p-4">
-            <Text className="font-medium text-xl">Select Payment Method</Text>
+            <Text className="font-medium text-xl">{paymentwarning}</Text>
 
 
 
@@ -2290,7 +2848,7 @@ style={{ backgroundColor: "#fff",zIndex:999 }}
 </TouchableOpacity>
 
 {
-    walletBalance == '0.00' || fareRate > walletBalance ? (
+    walletBalance == '0.00' || maxwallet > walletBalance ? (
 <View>
 <View className="flex-row justify-between items-center gap-x-2 py-4">
 
@@ -2391,13 +2949,98 @@ Yes, Cancel my booking
 </View>
 </View>
 
-    </BottomSheet>
+</BottomSheet>
 
+
+<BottomSheet
+      animationType="false"
+      ref={sheetRef5}
+      containerHeight={900}
+      hideDragHandle={true}
+      style={{ backgroundColor: "#fff",zIndex:999 }}
+    >
+        <View className="p-4">
+        <View   className="relative mt-2 flex-row justify-center items-center w-full">
+<View className="w-32 bg-slate-300 p-1 flex-row justify-center items-center rounded-xl"></View >
+</View >
+            <View className="p-4">
+         <View className="flex-row justify-center items-center">
+            {
+    weatherAnimation == 'storm' ? (
+        <LottieView
+        source={require('../assets/animation/storm.json')}
+        autoPlay
+        loop
+        width={150}
+        height={150}
+        />
+    ): weatherAnimation == 'heavy' ? (
+        <LottieView
+        source={require('../assets/animation/heavy-rain.json')}
+        autoPlay
+        loop
+        width={150}
+        height={150}
+        />
+    ): weatherAnimation == 'light' ? (
+        <LottieView
+        source={require('../assets/animation/ligh-rain.json')}
+        autoPlay
+        loop
+        width={150}
+        height={150}
+        />
+    ): weatherAnimation == 'cloudy' ? (
+        <LottieView
+        source={require('../assets/animation/clouds.json')}
+        autoPlay
+        loop
+        width={150}
+        height={150}
+        />
+    ):(
+        <LottieView
+        source={require('../assets/animation/sunny.json')}
+        autoPlay
+        loop
+        width={150}
+        height={150}
+        />
+    )
+}
+        
+        </View>
+           <View className="mt-4 gap-y-2.5">
+
+       
+<Text className="text-gray-800 font-medium text-center">{myCity}</Text>
+<Text className="text-gray-600 font-medium text-center">{weatherforecarst.chance_of_rain}</Text>
+
+<View className="my-2">
+    <Text className="text-sm text-slate-600 text-center">*{weatherforecarst.weather_title}, keep your weather clothes ready.</Text>
+</View>
+
+<Button
+onPress={() => sheetRef5.current?.close()}
+bgColor="bg-slate-100"
+textColor="text-slate-800"
+fontSize="md"
+bwidth="w-full mt-2"
+>
+Got it!
+</Button>
+
+           </View>
+            </View>
+        </View>
+</BottomSheet>
+
+{loader && <LoaderBa />}
 {generateQR && <GenerateQRBooking QR={QrBook} close={setGenerateQR} />}
 {vehiclePrompt  && <VehicleNotice close={readVehicleProm} />}
 {slideTut && <OffeSlideNotice click={okImfine} mode={slidedontshow} close={setSlideTutor} />}
-{showSettings && <SettingsMode navigation={navigation} mic={audioBook} weather={weatherba} view={theredview} multiple={multipleBook} ai={suggest}  close={setSettings} />}
-
+{showSettings && <SettingsMode wrealtime={setWeather} navigation={navigation} mic={audioBook} weather={weatherba} view={theredview} multiple={multipleBook} ai={suggest}  close={setSettings} />}
+{useMic && <SpeakLocation what={audioAPILoading} speak={speaking} go={startRecording} wait={stopRecording} close={enoughRecord} startSpeak={startspeak} />}
 </>
 
 
@@ -2467,6 +3110,7 @@ const GenerateQRBooking = ({QR, close }) => {
   };
 
 const VehicleNotice = ({close}) =>{
+
     return (
       
               <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
@@ -2531,7 +3175,122 @@ const OffeSlideNotice = ({click,mode,close}) =>{
 }
 
 
-const ToggleCom = ({state,set}) =>{
+const SpeakLocation = ({close,speak,startSpeak,wait,go,what}) =>{
+    return (
+      
+              <View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
+
+                {
+                  what ? (
+                    <View className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
+                flex gap-y-4">
+<View className="flex-row justify-center items-center py-12">
+<LottieView
+                        source={require("../assets/animation/circle.json")}
+                        autoPlay
+                        loop
+                        width={50}
+                        height={50}
+                      />
+    </View>
+    </View>
+                  ):(
+<View
+                  className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
+                flex gap-y-4"
+                >
+                  {
+                    speak ? (
+                        <View>
+                             <Text className="text-center text-2xl font-bold">
+                  Listening..
+                  </Text>
+                  <View className="flex-row justify-center items-center">
+                            <LottieView
+                        source={require("../assets/animation/audio.json")}
+                        autoPlay
+                        loop
+                        width={200}
+                        height={100}
+                      />
+                      </View>
+                            </View>
+                    ):(
+                        <View>
+                            <Text className="text-center text-2xl font-bold">
+                  Sing the location
+                  </Text>
+                  <View className="flex-row justify-center items-center">
+                  <TaraLoud size={200}/>
+                  </View>
+                  </View>
+                    )
+                  }
+
+                  <View className="w-full flex gap-y-4">
+            {
+                speak ? (
+                    <Button
+            onPress={()=>wait()}
+              bgColor="bg-red-500"
+              textColor="text-white"
+            >
+               Stop Speaking
+            </Button>
+                ):(
+                    <Button
+            onPress={()=>go()}
+              bgColor="bg-blue-500"
+              textColor="text-white"
+              hasIcon={true}
+            >
+                <TaraBoldMic size={23} color="#fff" />
+              <Text className="text-white font-medium">Start Speaking</Text>
+            </Button>
+                )
+            }
+
+            <Button
+            onPress={()=>close()}
+              bgColor="bg-slate-200"
+              textColor="text-neutral-700"
+            >
+             Close
+            </Button>
+          </View>
+                  </View>
+                  )  
+                }
+
+                
+                  </View>
+    )
+}
+
+const LoaderBa = () =>{
+        return (
+
+<View className="w-full h-full p-4 absolute bottom-0 bg-black/30 z-[100] ">
+
+<View className="w-full px-6 py-8 absolute bottom-10 left-4 rounded-3xl shadow-xl shadow-black  bg-white
+flex gap-y-4">
+<View className="flex-row justify-center items-center py-12">
+<LottieView
+source={require("../assets/animation/circle.json")}
+autoPlay
+loop
+width={50}
+height={50}
+/>
+</View>
+</View>
+
+
+</View>
+        )
+}
+
+const ToggleCom = ({state,set,real}) =>{
 const [isChecked, setIsChecked] = useState(state);
 const toast = useToast();
 const { data } = useContext(DataContext);
@@ -2542,12 +3301,13 @@ setIsChecked(!isChecked)
 if(isChecked){
  //off 
 await updateSettings(data?.user?.UserID,set,"0",user)
-     
+real(false)  
 }else{
 //on
 await updateSettings(data?.user?.UserID,set,"1",user)
+real(true)
 }
-toast("success", "Settings updated."); 
+toast("success", "Settings updated. It will take effect in a minute."); 
 }
    
 
@@ -2576,7 +3336,7 @@ toast("success", "Settings updated.");
 }
 
 
-const SettingsMode = ({navigation,mic,view,multiple, weather, ai,close}) =>{
+const SettingsMode = ({navigation,mic,view,multiple, weather, ai,close,wrealtime}) =>{
 
     const openTaraSafe = () =>{
         navigation.navigate('account', {
@@ -2607,7 +3367,7 @@ const SettingsMode = ({navigation,mic,view,multiple, weather, ai,close}) =>{
                     <Text className="text-sm font-normal text-gray-500">Our AI predicts your booking every time you're about to book.</Text>
                     </View>
                     
-                    <ToggleCom set="AISuggestions" state={ai} />
+                    <ToggleCom set="AISuggestions" real={null} state={ai} />
                     </View>
 
                     <View className="flex-row justify-between items-center w-full">
@@ -2618,7 +3378,7 @@ const SettingsMode = ({navigation,mic,view,multiple, weather, ai,close}) =>{
                         </View>
                     <Text className="text-sm font-normal text-gray-500">You can book for yourself and a friend using a single device.</Text>
                     </View>
-                    <ToggleCom set="multiplebook" state={multiple} />
+                    <ToggleCom set="multiplebook" real={null} state={multiple} />
                     </View>
 
                     <View className="flex-row justify-between items-center w-full">
@@ -2630,7 +3390,7 @@ const SettingsMode = ({navigation,mic,view,multiple, weather, ai,close}) =>{
                     
                     <Text className="text-sm font-normal text-gray-500">When the rider is on the way, see their live movement in 3D like an aerial camera.</Text>
                     </View>
-                    <ToggleCom set="dview" state={view} />
+                    <ToggleCom set="dview" real={null} state={view} />
                     </View>
 
 
@@ -2643,7 +3403,7 @@ const SettingsMode = ({navigation,mic,view,multiple, weather, ai,close}) =>{
                         </View>
                     <Text className="text-sm font-normal text-gray-500">View real-time weather conditions directly on the map.</Text>
                     </View>
-                    <ToggleCom set="weather" state={weather} />
+                    <ToggleCom set="weather" real={wrealtime} state={weather} />
                     </View>
 
 
@@ -2656,7 +3416,7 @@ const SettingsMode = ({navigation,mic,view,multiple, weather, ai,close}) =>{
                     
                     <Text className="text-sm font-normal text-gray-500">Activate audio recording in the rider app for added security.</Text>
                     </View>
-                    <ToggleCom set="weather" state={mic} />
+                    <ToggleCom set="weather" real={null} state={mic} />
                     </View>
 
 

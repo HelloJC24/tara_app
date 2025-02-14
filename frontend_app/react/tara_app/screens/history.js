@@ -1,6 +1,6 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { StatusBar } from "expo-status-bar";
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState,useCallback } from "react";
 import {
   Alert,
   FlatList,
@@ -10,6 +10,9 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ScrollView,
+  Linking,
+  RefreshControl
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import Button from "../components/Button";
@@ -21,16 +24,23 @@ import {
   TaraMarker,
   TaraNavigation,
   TaraSpeedClock,
+  TaraCar,
+  TaraMotor,
+  TaraVan,
 } from "../components/CustomIcon";
-import { fetchHistory } from "../config/hooks";
+import { fetchHistory,getBookingInfo,getRiderInfo,updateBooking } from "../config/hooks";
 import { DataContext } from "../context/dataContext";
-import { TaraEmpty } from "../components/CustomGraphic";
+import { TaraEmpty,TaraMock } from "../components/CustomGraphic";
+import { AuthContext } from "../context/authContext";
+import LottieView from "lottie-react-native";
+
+
 
 const styles = StyleSheet.create({
   mapKO: {
     backgroundColor: "#f1f1f1",
-    height: "90",
-    width: "90",
+    height: "80",
+    width: "80",
     borderRadius: 10,
   },
 });
@@ -47,61 +57,78 @@ const StaticMapImage = ({ latitude, longitude }) => {
   );
 };
 
-const HistoryPage = ({ navigation }) => {
-  const OpenReceipt = (bi) => {
-    navigation.navigate("webview", {
-      track: "",
-      url: `https://taranapo.com/receipt/?bookingid=${bi}`,
-    });
+
+//screen
+const HistoryPage = ({route, navigation }) => {
+  const [refreshing, setRefreshing] = useState(false);
+const [historyList, setHistoryList] = useState([])
+const { user } = useContext(AuthContext);
+const [date, setDate] = useState(new Date());
+const [show, setShow] = useState(false);
+const [isLoading, setIsLoading] = useState(false);
+const { data } = useContext(DataContext);
+const today = new Date().toISOString().split("T")[0]; // the need to use date once screen initialize
+const [selectfilter,setFilter] = useState(false)
+const [openPageBa,setPage] = useState(false)
+const [dynmicData,setDynamic] = useState([])
+const [rating, setRating] = useState(0);
+
+const handleRating = async (value) => {
+  setRating(value);
+  const rateres = await updateBooking(dynmicData.BookingID,"Tip",value,user)
+  console.log(rateres)
+};
+
+
+const seeInvoice = (bi) =>{
+  navigation.navigate("webview", {
+    track: "",
+    url: `https://taranapo.com/receipt/?bookingid=${bi}`,
+  });
+}
+
+  const OpenReceipt = (bi,status,dym) => {
+    setDynamic(dym)
+    if(status == 'Pending'){
+      navigation.goBack();
+      return;
+    }
+
+
+    setPage(true)
+  
   };
 
-  const ConfirmReBook = (bi, pickup, drop) => {
-    Alert.alert("Confirmation", `Do you want to rebook ${pickup} to ${drop}?`, [
+
+ const rebookPlace = (bid) =>{
+  const {mycity,start} = route.params;
+  navigation.navigate("booking", {
+    track: user?.userId,
+    rule: 'rebook',
+    wheels: dynmicData.Multiple,
+    start: start,
+    city: mycity,
+    bookingID: bid,
+  });
+ }
+
+
+
+
+
+  const ConfirmReBook = (bi) => {
+    Alert.alert("Confirmation", "Would you like to rebook using the same pickup and drop-off locations?", [
       {
         text: "Close",
         type: "cancel",
       },
       {
-        text: "Yes, Rebook",
-        onPress: async () => {},
+        text: "Yes",
+        onPress: async () => rebookPlace(bi),
       },
     ]);
   };
 
-  const [historyList, setHistoryList] = useState([])
-  //   {
-  //     id: "1",
-  //     bookingID: "TRA-521212021",
-  //     start_coordinates: "14.593021375747188, 121.03227310082738",
-  //     end_coordinates: "14.604909740365962, 121.07717689987197",
-  //     pickup: "New Buncag, Bgy. Mandaragat",
-  //     drop: "San Jose, Puerto Princesa City",
-  //     amount: 99,
-  //     distance: "5.2km",
-  //     duration: "10mins",
-  //     payment_type: "Cash",
-  //     status: "Completed",
-  //     rider: 5165554,
-  //     when: "Yesterday",
-  //     rated: true,
-  //   },
-  //   {
-  //     id: "2",
-  //     bookingID: "TRA-521212021",
-  //     start_coordinates: "14.593021375747188, 121.03227310082738",
-  //     end_coordinates: "14.604909740365962, 121.07717689987197",
-  //     pickup: "New Buncag, Bgy. Mandaragat, Puerto Princesa City",
-  //     drop: "San Jose, Puerto Princesa City, Palawan 5300",
-  //     amount: 99,
-  //     distance: "5.2km",
-  //     duration: "10mins",
-  //     payment_type: "Wallet",
-  //     status: "Completed",
-  //     rider: 5165554,
-  //     when: "Yesterday",
-  //     rated: true,
-  //   },
-  // ]);
 
   const HistoryCard = ({
     start_coordinates,
@@ -117,27 +144,46 @@ const HistoryPage = ({ navigation }) => {
     pickup,
     drop,
     bookingID,
+    data
   }) => {
     return (
       <TouchableOpacity
-        onPress={() => OpenReceipt(bookingID)}
-        className="shadow-md bg-white border border-gray-200 rounded-xl p-2 my-2"
+        onPress={() => OpenReceipt(bookingID,status,data)}
+        className={`shadow-md bg-white border border-gray-200 rounded-xl p-2 my-2`}
       >
         <View className="w-full px-1.5 flex-row justify-start gap-x-1">
           <View className="mt-2">
-            <StaticMapImage
+            {
+              status == 'Pending' ? (
+                 <View className="relative bg-gray-500 rounded-xl overflow-hidden w-24 h-24">
+                          <TaraMock size={100} />
+                        <View className="absolute top-0 bottom-0 left-0 right-0 mx-auto inset-1">
+                        <LottieView
+                            source={require("../assets/animation/tara_search.json")}
+                            autoPlay
+                            loop
+                            width={80}
+                            height={80}
+                          />
+                        </View>
+                        </View>
+              ):(
+                <StaticMapImage
               latitude={end_coordinates.split(",")[0].trim()}
               longitude={end_coordinates.split(",")[1].trim()}
             />
+              )
+            }
+            
           </View>
 
           <View className="flex-1 relative h-26">
-            <View className="p-2 flex-row gap-x-2 justify-start items-center w-72">
+            <View className="p-2 flex-row gap-x-2 justify-start items-center w-[240px]">
               <TaraNavigation size={22} color="#22c55e" />
               <Text
                 numberOfLines={2}
                 ellipsizeMode="tail"
-                className="font-medium text-md"
+                className={`font-medium  text-md w-54`}
               >
                 {pickup}
               </Text>
@@ -152,12 +198,13 @@ const HistoryPage = ({ navigation }) => {
               <View className="h-1.5 w-1.5 bg-gray-300 rounded-full"></View>
             </View>
 
-            <View className="mt-1.5 p-2 flex-row gap-x-2 justify-start items-center w-72">
+            <View className="mt-1.5 p-2 flex-row gap-x-2 justify-start items-center w-[240px]">
               <TaraMarker size={22} color="#ef4444" />
               <Text
                 numberOfLines={2}
                 ellipsizeMode="tail"
-                className="font-medium text-md"
+                className={`font-medium  text-md w-52`}
+
               >
                 {drop}
               </Text>
@@ -165,7 +212,60 @@ const HistoryPage = ({ navigation }) => {
           </View>
         </View>
         <View className="my-1.5 bg-gray-200 h-px w-full"></View>
-        <View className="py-2 px-2 flex-row justify-between items-center w-full">
+        {
+          status == 'Cancelled' ? (
+        <View className="py-1.5 px-2 flex-row justify-between items-center w-full">
+          <View className="bg-red-500 px-2 py-1.5 rounded-xl">
+            <Text className="text-white font-medium text-sm">Cancel Booking</Text>
+          </View>
+          <View>
+            <Svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width={28}
+                          height={28}
+                          viewBox="0 0 24 24"
+                          fill="#3b82f6"
+                        >
+            <Path d="M15.4,9.88,10.81,5.29a1,1,0,0,0-1.41,0,1,1,0,0,0,0,1.42L14,11.29a1,1,0,0,1,0,1.42L9.4,17.29a1,1,0,0,0,1.41,1.42l4.59-4.59A3,3,0,0,0,15.4,9.88Z"/>
+            </Svg>
+          </View>
+        </View>
+          ): status == 'Pending' ? (
+            <View className="py-1.5 px-2 flex-row justify-between items-center w-full">
+            <View className="bg-slate-100 px-2 py-1.5 rounded-xl">
+              <Text className="text-slate-600 font-medium text-sm">Searching for drivers..</Text>
+            </View>
+            <View>
+              <Svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width={28}
+                            height={28}
+                            viewBox="0 0 24 24"
+                            fill="#3b82f6"
+                          >
+              <Path d="M15.4,9.88,10.81,5.29a1,1,0,0,0-1.41,0,1,1,0,0,0,0,1.42L14,11.29a1,1,0,0,1,0,1.42L9.4,17.29a1,1,0,0,0,1.41,1.42l4.59-4.59A3,3,0,0,0,15.4,9.88Z"/>
+              </Svg>
+            </View>
+          </View>
+          ): status == 'Accepted' ? (
+            <View className="py-1.5 px-2 flex-row justify-between items-center w-full">
+            <View className="bg-green-100 px-2 py-1.5 rounded-xl">
+              <Text className="text-green-600 font-medium text-sm">Heading to your location..</Text>
+            </View>
+            <View>
+              <Svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width={28}
+                            height={28}
+                            viewBox="0 0 24 24"
+                            fill="#3b82f6"
+                          >
+              <Path d="M15.4,9.88,10.81,5.29a1,1,0,0,0-1.41,0,1,1,0,0,0,0,1.42L14,11.29a1,1,0,0,1,0,1.42L9.4,17.29a1,1,0,0,0,1.41,1.42l4.59-4.59A3,3,0,0,0,15.4,9.88Z"/>
+              </Svg>
+            </View>
+          </View>
+          ):(
+            <View className="py-2 px-2 flex-row justify-between items-center w-full">
           <View className="flex-row justify-center items-center gap-x-1.5">
             <TaraInvoice size={15} />
             <Text className="font-medium text-md">&#8369;{amount}</Text>
@@ -178,88 +278,95 @@ const HistoryPage = ({ navigation }) => {
 
           <View className="flex-row justify-center items-center gap-x-1.5">
             <TaraKilometer size={15} />
-            <Text className="font-medium text-md">{distance}</Text>
+            <Text className="font-medium text-md">{distance}km</Text>
           </View>
 
           <View className="flex-row justify-center items-center gap-x-1.5">
-            {payment_type == "Cash" ? (
+            {payment_type == "0" ? (
               <TaraCash size={22} />
             ) : (
               <TaraLogo size={22} />
             )}
-            <Text className="font-medium text-md">{payment_type}</Text>
+            <Text className="font-medium text-md">{payment_type == 1 ? "Wallet" : "Cash"}</Text>
           </View>
         </View>
-        <View className="py-1.5 flex-row justify-between items-center gap-x-2">
-          <View className="flex-1">
-            <Button onPress={() => ConfirmReBook(bookingID, pickup, drop)}>
-              Re-book
-            </Button>
-          </View>
-          <View className="flex-1">
-            <Button
-              hasIcon={true}
-              bgColor="bg-slate-200"
-              textColor="text-neutral-700"
-            >
-              <View className="flex-row justify-center items-center gap-x-2">
-                <View className="bg-yellow-100 flex-row justify-center items-center rounded-xl p-1">
-                  <Svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <Path
-                      d="M1.32677 12.4004L4.88677 15.0004L3.53477 19.1874C3.31628 19.8368 3.31351 20.5394 3.52688 21.1905C3.74024 21.8416 4.15831 22.4063 4.71877 22.8004C5.26962 23.2072 5.93716 23.4251 6.62192 23.4217C7.30668 23.4183 7.97201 23.1937 8.51877 22.7814L11.9998 20.2194L15.4818 22.7784C16.0316 23.1829 16.6956 23.4026 17.3781 23.4059C18.0607 23.4092 18.7268 23.196 19.2805 22.797C19.8343 22.3979 20.2473 21.8335 20.4601 21.1849C20.6728 20.5363 20.6745 19.837 20.4648 19.1874L19.1128 15.0004L22.6728 12.4004C23.2219 11.999 23.6301 11.4342 23.8391 10.7868C24.0481 10.1395 24.0472 9.44263 23.8364 8.79583C23.6257 8.14903 23.216 7.58537 22.6658 7.18535C22.1156 6.78533 21.453 6.56941 20.7728 6.56844H16.3998L15.0728 2.43244C14.8641 1.7814 14.454 1.21346 13.9017 0.810508C13.3494 0.407559 12.6834 0.19043 11.9998 0.19043C11.3161 0.19043 10.6501 0.407559 10.0978 0.810508C9.5455 1.21346 9.13544 1.7814 8.92677 2.43244L7.59977 6.56844H3.23077C2.55051 6.56941 1.88796 6.78533 1.33775 7.18535C0.787534 7.58537 0.377806 8.14903 0.167087 8.79583C-0.0436323 9.44263 -0.044565 10.1395 0.164422 10.7868C0.37341 11.4342 0.781627 11.999 1.33077 12.4004H1.32677Z"
-                      fill="#FBBF24"
-                    />
-                  </Svg>
-                </View>
-                <Text className="font-medium text-gray-800">Rate</Text>
-              </View>
-            </Button>
-          </View>
-        </View>
+            
+          )
+        }
+        
       </TouchableOpacity>
     );
   };
 
-  const [date, setDate] = useState(new Date());
-  const [show, setShow] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
-  const { data } = useContext(DataContext);
 
   const onChange = (event, selectedDate) => {
     const currentDate = selectedDate || date;
     setShow(false);
     setDate(currentDate);
-    //run API
+    setFilter(true)
+    setRefreshing(true)
   };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => {  
+      setRefreshing(false);
+    }, 2000);
+  }, []);
+
+
+  const [bookingDetails, setBookingDetails] = useState([]);
 
   useEffect(() => {
     const getHistory = async () => {
+      if(selectfilter){
+        const dateString = date;
+        var formattedDate = new Date(dateString).toISOString().split("T")[0]; //date selected in the calendar component
+      }else{
+        var formattedDate = today;
+      }
+
       try {
         setIsLoading(true);
-        const res = await fetchHistory(data?.user?.UserID, date);
-
+        const res = await fetchHistory(data?.user?.UserID,formattedDate,user );
         if (res.status === "success") {
-          console.log(res.data);
-          // setHistoryList(res.data);
+          //console.log(res.data);
+          setFilter(false);
+          setHistoryList(res.data);
           setIsLoading(false);
+         
+
+          const bookings = res.data;
+          if(!bookings){
+            setBookingDetails([])
+            return
+          }
+
+          // Fetch details for each booking using the BookingID
+          const detailsPromises = bookings.map(async (booking) => {
+            const details = await getBookingInfo(booking.BookingID,user);
+            return { ...booking, ...details.data }; // Merge history with details
+          });
+
+          const allDetails = await Promise.all(detailsPromises);
+          setBookingDetails(allDetails.reverse()); // Store detailed booking data
+          setRefreshing(false)
         }
+
+
+        
       } catch (error) {
         console.log(error);
       }
     };
 
+    
     getHistory();
-  }, [data?.user?.UserID, date]);
+  }, [data?.user?.UserID,date]);
 
   return (
-    <View className="w-full h-full bg-white relative ">
+    <View className="w-full h-full bg-gray-50 relative ">
       <StatusBar style="dark" />
       <View className="h-full px-6 py-10">
         <View className="w-full flex flex-row items-center justify-between py-2">
@@ -317,7 +424,7 @@ const HistoryPage = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 {
-  historyList.length == 0 ? (
+  bookingDetails.length == 0 ? (
     <View className="h-full flex-row justify-center items-start">
       <View className="mt-20">
       <TaraEmpty size={250} />
@@ -326,32 +433,290 @@ const HistoryPage = ({ navigation }) => {
       </View>
   ):(
 <FlatList
-          data={historyList}
+          data={bookingDetails}
           renderItem={({ item, index }) => (
             <HistoryCard
-              start_coordinates={item.start_coordinates}
-              end_coordinates={item.end_coordinates}
-              amount={item.amount}
-              duration={item.duration}
-              distance={item.distance}
-              payment_type={item.payment_type}
-              rider={item.rider}
-              when={item.when}
-              rated={item.rated}
-              pickup={item.pickup}
-              drop={item.drop}
-              bookingID={item.id}
+              start_coordinates={item.Pick_Coordinate}
+              end_coordinates={item.Drop_Coordinate}
+              amount={item.Amount}
+              duration={item.Time}
+              distance={item.Distance}
+              payment_type={item.Payment_Type}
+              rider={item.RiderID}
+              when={item.Created}
+              status={item.Status}
+              rated={3}
+              pickup={item.PickLocation}
+              drop={item.Drop_Location}
+              bookingID={item.BookingID}
+              data={item}
             />
           )}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.BookingID}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         />
   )
 }
         
       </View>
+      
+      {openPageBa && <ExtraPage star={setRating} invoice={seeInvoice} rebook={ConfirmReBook} handleRating={handleRating} rating={rating} data={dynmicData} close={setPage} />}
+      
     </View>
   );
 };
+
+
+const ExtraPage = ({star,invoice,data,close,rating,handleRating,rebook}) =>{
+
+  const { user } = useContext(AuthContext);
+  const vehicleitems = data ? data.Multiple.split(",") : [];
+  const [riderData,setRideData] = useState([])
+
+  useEffect(()=>{
+    const getRider = async () =>{
+      const riderInfo = await getRiderInfo(data.RiderID,user);
+      setRideData(riderInfo.data)
+    }
+
+    if(data.Status == 'Completed' || data.Status == 'Accepted'){
+      getRider()
+      star(data.Tip)
+    }
+  },[data,user])
+
+  return (
+    <View className="w-full h-full bg-white absolute inset-0 z-50">
+          <StatusBar style="dark" />
+          <ScrollView>
+          <View className="h-full  flex justify-between items-center px-6 py-10">
+          <View className="w-full flex flex-row gap-x-3 items-center justify-between pt-2">
+                      <Pressable onPress={()=>close(false)}>
+                        <Svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width={30}
+                          height={30}
+                          viewBox="0 0 24 24"
+                          fill="#374957"
+                        >
+                          <Path d="M19 11H9l3.29-3.29a1 1 0 0 0 0-1.42 1 1 0 0 0-1.41 0l-4.29 4.3A2 2 0 0 0 6 12a2 2 0 0 0 .59 1.4l4.29 4.3a1 1 0 1 0 1.41-1.42L9 13h10a1 1 0 0 0 0-2Z" />
+                        </Svg>
+                      </Pressable>
+                    </View>
+
+
+        <View>
+          <Text className="text-xl font-medium text-gray-800">Booking Details</Text>
+        </View>
+
+
+<View className="my-4 w-full border rounded-xl border-gray-300">
+  <View className="p-4">
+<View className="py-2 flex-row justify-start items-center w-full">
+<TaraNavigation size={22} color="#22c55e" />
+<View className="w-[295px]">
+<Text className="ml-2.5 font-normal text-md w-full">
+{data.PickLocation}
+</Text>
+</View>
+</View>
+
+
+
+<View className="pt-4 border-t border-gray-300 mt-1.5 flex-row justify-start items-center w-full">
+<TaraMarker size={22} color="#ef4444" />
+<View className="w-[295px]">
+<Text className="ml-2.5 font-normal text-md w-full ">
+{data.Drop_Location}
+</Text>
+</View>
+</View>
+
+
+</View>
+</View>
+
+{
+  data.Status != 'Cancelled' && (
+    <>
+    <View className="w-full my-2 flex-row justify-between items-center">
+<Text className="font-medium text-left text-lg">Driver Information</Text>
+<TouchableOpacity  onPress={() => Linking.openURL("https://taranapo.com/report/")}>
+  <Text className="text-blue-500 font-medium">File a report?</Text>
+</TouchableOpacity>
+</View>
+
+<View className="border border-gray-300 rounded-xl py-4  w-full">
+<View className="px-4 pb-2">
+<View className="py-2 flex-row justify-start items-center gap-x-4">
+  {
+    riderData ? (
+  <View className="h-20 w-20 bg-gray-300 rounded-full">
+      <Image source={{ uri: riderData.Photo }} alt={riderData.Legal_Name} className="rounded-full w-full h-full object-cover" />
+    </View>
+    ):(
+      <View className="h-20 w-20 bg-gray-300 rounded-full">
+  </View>
+    )
+  }
+  <View>
+
+    {
+      riderData.length != 0 ? (
+        <Text className="font-medium text-lg">{riderData.Legal_Name}</Text>
+      ):(
+        <View className="bg-gray-200 rounded-lg w-56 h-7"></View>
+      )
+    }
+    <Text>Driver Name</Text>
+    
+    {
+      riderData.length != 0 ? (
+        <Text className="text-sm text-gray-700">Plate: {riderData.Vehicle_Plate}</Text>
+      ):(
+        <View className="bg-gray-200 rounded-lg w-56 h-5"></View>
+      )
+    }
+    
+  </View>
+</View>
+</View>
+
+<View className="px-4 border-t border-gray-300 pt-4 flex-row justify-between items-center items-center">
+  <Text className="text-lg">How's my driving?</Text>
+  <View style={{ flexDirection: 'row', gap:1 }}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <TouchableOpacity key={star} onPress={() => handleRating(star)}>
+          <Svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill={star <= rating ? "#eab308" : "#d1d5db"}
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <Path
+                      d="M1.32677 12.4004L4.88677 15.0004L3.53477 19.1874C3.31628 19.8368 3.31351 20.5394 3.52688 21.1905C3.74024 21.8416 4.15831 22.4063 4.71877 22.8004C5.26962 23.2072 5.93716 23.4251 6.62192 23.4217C7.30668 23.4183 7.97201 23.1937 8.51877 22.7814L11.9998 20.2194L15.4818 22.7784C16.0316 23.1829 16.6956 23.4026 17.3781 23.4059C18.0607 23.4092 18.7268 23.196 19.2805 22.797C19.8343 22.3979 20.2473 21.8335 20.4601 21.1849C20.6728 20.5363 20.6745 19.837 20.4648 19.1874L19.1128 15.0004L22.6728 12.4004C23.2219 11.999 23.6301 11.4342 23.8391 10.7868C24.0481 10.1395 24.0472 9.44263 23.8364 8.79583C23.6257 8.14903 23.216 7.58537 22.6658 7.18535C22.1156 6.78533 21.453 6.56941 20.7728 6.56844H16.3998L15.0728 2.43244C14.8641 1.7814 14.454 1.21346 13.9017 0.810508C13.3494 0.407559 12.6834 0.19043 11.9998 0.19043C11.3161 0.19043 10.6501 0.407559 10.0978 0.810508C9.5455 1.21346 9.13544 1.7814 8.92677 2.43244L7.59977 6.56844H3.23077C2.55051 6.56941 1.88796 6.78533 1.33775 7.18535C0.787534 7.58537 0.377806 8.14903 0.167087 8.79583C-0.0436323 9.44263 -0.044565 10.1395 0.164422 10.7868C0.37341 11.4342 0.781627 11.999 1.33077 12.4004H1.32677Z"
+                    />
+                  </Svg>
+        </TouchableOpacity>
+      ))}
+      </View>
+</View>
+</View>
+    </>
+  )
+}
+
+
+<View className="my-4 border border-gray-300 rounded-xl p-4 gap-y-4">
+  <View className="flex-row justify-between items-center w-full">
+  <Text className="font-medium">Amount</Text>
+  <Text>&#8369;{data.Amount}.00</Text>
+  </View>
+
+  <View className="flex-row justify-between items-center w-full">
+  <Text className="font-medium">Status</Text>
+ {
+  data.Status == 'Cancelled' ? (
+    <View className="bg-red-500 rounded-xl px-2.5 py-0.5">
+    <Text className="text-white text-sm">{data.Status}</Text>
+    </View>
+  ):(
+    <View className="bg-green-500 rounded-xl px-2.5 py-0.5">
+    <Text className="text-white text-sm">{data.Status}</Text>
+    </View>
+  )
+ }
+  </View>
+
+  <View className="flex-row justify-between items-center w-full">
+  <Text className="font-medium">Mode of Payment</Text>
+  <View className="flex-row justify-center items-center gap-x-1.5">
+            {data.Payment_Type == "0" ? (
+              <TaraCash size={22} />
+            ) : (
+              <TaraLogo size={22} />
+            )}
+            <Text className="font-medium text-md">{data.Payment_Type == 1 ? "Wallet" : "Cash"}</Text>
+          </View>
+  </View>
+
+
+  <View className="flex-row justify-between items-center w-full">
+  <Text className="font-medium">Transact Date</Text>
+  <Text className="text-gray-600">{data.Created}</Text>
+  </View>
+
+  <View className="flex-row justify-between items-center w-full">
+  <Text className="font-medium">Last Wallet Balance</Text>
+  <Text>&#8369;{data.LastWallet}.00</Text>
+  </View>
+
+
+
+
+  <View className="flex-row justify-between items-center w-full">
+  <Text className="font-medium">Vehicle</Text>
+  <View className="flex-row justify-center items-center">
+  {vehicleitems.length > 0 ? (
+       vehicleitems.map((item, index) => (
+          <View key={index}>
+            {item.trim() == '2' ? <TaraMotor size={25} /> :item.trim() == '5' ? <TaraVan size={25} /> : <TaraCar size={25} />}
+          </View>
+        ))
+      ) : (
+        <Text>N/A</Text>
+      )}
+      </View>
+  </View>
+
+
+
+
+</View>
+
+<View className="w-full gap-y-2.5">
+{
+  data.Status == 'Completed' && (
+    <Button
+  onPress={()=>invoice(data.BookingID)}
+bgColor="bg-slate-200"
+textColor="text-neutral-700"
+bwidth="w-full"
+hasIcon={true}
+>
+<TaraInvoice size={19} />
+<Text className="text-lg font-medium">See Invoice</Text>
+</Button>
+  )
+}
+
+{
+  data.Status != 'Accepted' && (
+<Button
+onPress={()=>rebook(data.BookingID)}
+bgColor="bg-blue-500"
+textColor="text-white"
+bwidth="w-full"
+>
+Rebook
+</Button>
+  )
+}
+
+
+
+
+</View>
+
+
+
+            </View>
+            </ScrollView>
+            </View>
+  )
+}
+
 
 export default HistoryPage;

@@ -11,6 +11,7 @@ import { referAFriend } from "../config/hooks"
 import { AuthContext } from "../context/authContext";
 import { DataContext } from "../context/dataContext";
 import { useToast } from "../components/ToastNotify";
+import { getRiderInfo,checkRiderState } from "../config/hooks";
 
 const QrCodeScannerScreen = ({navigation,route}) => {
   const [permission, requestPermission] = useCameraPermissions();
@@ -28,6 +29,8 @@ const QrCodeScannerScreen = ({navigation,route}) => {
   const toast = useToast();
    const { user,setUser } = useContext(AuthContext);
    const { data,setData } = useContext(DataContext);
+   const [cityko,setCity] = useState(null)
+   const [point,setPoint] = useState(null)
   
 
   //STF - referral scan
@@ -37,8 +40,10 @@ const QrCodeScannerScreen = ({navigation,route}) => {
 
   useEffect(()=>{
     if(route.params){
-    const {mode,bookingID} = route.params;
+    const {mode,bookingID,mycity,start} = route.params;
       setScanMode(mode)
+      setCity(mycity)
+      setPoint(start)
     }
 
     if (!permission?.granted) {
@@ -127,14 +132,48 @@ const QrCodeScannerScreen = ({navigation,route}) => {
         }));
         navigation.goBack();
       }else if(scanMode == 'STBR'){
+        
         if (!data.startsWith("TARA")) {
           setScanStatus("Not rider QR");
           setTimeout(() => setScanStatus("Looking for Rider QR"), 2000);
           setHasScanned(false); 
           return;
         }
-
         setScanStatus("Found a rider!");
+         //navigate
+         setIsLoading(true);
+         const parts = data.split(">");
+         //check if rider exist and online
+         const seerider = await getRiderInfo(parts[1],user);
+         if(seerider.status == 0){
+          toast('error','The rider is not a Tara member.')
+          setTimeout(() => setScanStatus("Looking for Rider QR"), 2000);
+          setHasScanned(false); 
+          setIsLoading(false);
+          return;
+
+         }
+
+         //detect if online
+         const fire = await checkRiderState(parts[1],user)
+         console.log(fire)
+         if(fire.status == 'offline'){
+          setHasScanned(false);
+          setIsLoading(false);
+           toast('error','The rider is offline, ask the rider to online first.')
+           return
+         }
+        
+         //navigate
+         navigation.navigate("booking", {
+           track: user?.userId,
+           rule: 'assignee',
+           wheels: 2, //get driver vehicle
+           start: point,
+           city: cityko,
+           bookingID: parts[1],
+         });
+        
       
       }else{
 
