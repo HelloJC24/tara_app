@@ -29,6 +29,8 @@ import CubeIcon from "../assets/custom-svg/cube.svg"
 import CloudIcon from "../assets/custom-svg/cloud.svg"
 import UserIcon from "../assets/custom-svg/user.svg"
 import BoldMicIcon from "../assets/custom-svg/mic.svg"
+import PlayIcon from "../assets/custom-svg/play.svg"
+import HoldIcon from "../assets/custom-svg/hold.svg"
 
 export const TaraWalletIcon = (props) => {
   return (
@@ -218,6 +220,21 @@ export const TaraUser = (props) => {
     <UserIcon width={props.size} height={props.size} fill={props.color} />
   );
 }
+
+export const TaraPlay = (props) => {
+  return (
+    <PlayIcon width={props.size} height={props.size} fill={props.color} />
+  );
+}
+
+export const TaraHold = (props) => {
+  return (
+    <HoldIcon width={props.size} height={props.size} fill={props.color} />
+  );
+}
+
+
+
 
 
 

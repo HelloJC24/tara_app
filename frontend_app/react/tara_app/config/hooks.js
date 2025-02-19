@@ -43,7 +43,10 @@ import {
   FETCH_HISTORY,
   GET_BOOKING,
   GET_RIDER,
-  GET_RIDER_STATE
+  GET_RIDER_STATE,
+  REPORT_API,
+  AUTO_CHAT_API,
+  AUDIO_RECODING 
 } from "./constants";
 import { auth, db } from "./firebase-config";
 import { validateInputType } from "./functions";
@@ -413,7 +416,7 @@ export const fetchConversations = async (conversationId, cb) => {
         id: doc.id,
       }));
 
-      console.log("chats: ", convo);
+      //console.log("chats: ", convo);
 
       cb({
         status: "success",
@@ -748,12 +751,12 @@ export const sendTransfer2Friend = async (userID, friend, amount, user) => {
 };
 
 
-export const createBooking = async (userID, amount, payment, pickcoord,dropcoord, pickname,dropname,dist,discount,coupon,wallet,tip,start, user) => {
+export const createBooking = async (vehc,riderID,bookingstatus,userID, amount, payment, pickcoord,dropcoord, pickname,dropname,dist,discount,coupon,wallet,tip,start, user) => {
   try {
     const user_booking = {
         UserID: userID,
-        RiderID: "N/A",
-        Status: "Pending",
+        RiderID: riderID,
+        Status: bookingstatus,
         Amount: amount,
         Payment_Type: payment,
         Booking_Type: "Ride",
@@ -765,7 +768,7 @@ export const createBooking = async (userID, amount, payment, pickcoord,dropcoord
         Distance: dist,
         Discount: discount,
         Coupon: coupon,
-        Multiple: "N/A",
+        Multiple: vehc,
         ChatRoomID: "N/A",
         LastWallet: wallet,
         Tip: tip,
@@ -900,5 +903,80 @@ export const checkRiderState = async (rid, user) => {
     return callcheck.data;
   } catch (error) {
     console.log(error);
+  }
+};
+
+export const sendReport = async (email,message) =>{
+  try {
+      const report = {
+        from: email,
+        msg: message,
+      };
+  
+      // Send user data to external API
+      const res = await axios.post(REPORT_API, report, {
+        headers: {
+          Auth: await generatePublicToken(),
+        },
+      });
+
+      return res.data;
+  } catch (error) {
+    console.log(error)
+  }
+}
+
+export const getAutoChat = async (user)=>{
+  try {
+    const callcheck = await axios.get(
+      AUTO_CHAT_API,
+      await config(user)
+    );
+    return callcheck.data;
+  } catch (error) {
+    console.log(error);
+  } 
+}
+
+export const uploadAudio = async (fileUri,authToken) => {
+  if (!fileUri) {
+    console.warn("No audio URI to upload.");
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('audio', {
+      uri: fileUri,
+      name: 'recording.m4a',
+      type: 'audio/m4a',
+    });
+
+    const backendEndpoint = AUDIO_RECODING;
+
+    const response = await fetch(backendEndpoint, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Content-Type': 'multipart/form-data', 
+        'Auth' : authToken
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const responseData = await response.json();
+    console.log('Audio uploaded successfully:', responseData);
+    if (responseData.audioUrl) {
+      
+      return responseData.audioUrl;
+    } else {
+      console.warn("Backend did not return audio URL.");
+    }
+
+  } catch (error) {
+    console.error('Error uploading audio', error);
   }
 };

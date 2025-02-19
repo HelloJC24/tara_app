@@ -13,6 +13,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  FlatList
 } from "react-native";
 import QRCodeStyled from "react-native-qrcode-styled";
 import Svg, { Path } from "react-native-svg";
@@ -37,7 +38,7 @@ import ParagraphText from "../components/ParagraphText";
 import RateUsApp from "../components/RateUsApp";
 import { useToast } from "../components/ToastNotify";
 import { GET_DATA_CONTROL_API } from "../config/constants";
-import { fetchUser, updateUser } from "../config/hooks";
+import { fetchUser, updateUser,getBookingInfo } from "../config/hooks";
 import { AuthContext } from "../context/authContext";
 import { DataContext } from "../context/dataContext";
 import appJson from "../app.json";
@@ -47,268 +48,249 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { signOut } from "firebase/auth";
 import { auth } from "../config/firebase-config";
 import * as Device from "expo-device";
+import * as Application from "expo-application";
+
+
 
 
 const HomeScreen = ({ navigation }) => {
   const [activeScanFriend, setActiveScanFriend] = useState(false);
-  const [rewardsAvailable, SetRewards] = useState(true);
+  const [rewardsAvailable, setRewards] = useState(true);
   const [activeRateUs, setActiveRateUs] = useState(false);
   const [locationPermission, setPermissionAsk] = useState(false);
   const [location, setLocation] = useState([]);
   const [controlData, setControlData] = useState([]);
   const [gate, setGate] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [pushToken, setPushToken] = useState(null);
+  const [cityba, setCityba] = useState(null);
+  const [registeredDevice, setDevice] = useState(true);
+  const [deviceId, setDeviceId] = useState(null);
+  const [activeBooking, setActiveBooking] = useState([]);
   const { setUser, user } = useContext(AuthContext);
   const { data, setData } = useContext(DataContext);
-  const [activaeBooking, setActiveBooking] = useState(false);
-  const [pushToken, setPushToken] = useState(null);
+  const { booking } = useContext(BookingContext);
   const toast = useToast();
   const appVersion = appJson.expo.version;
-  const { booking } = useContext(BookingContext);
-  const [cityba,setCityba] = useState(null)
-  const [registered_device,setDevice] = useState(true)
-  const [devdevice,setMyDeviceId] = useState(null)
-
+  
+  
+  //**Helper Functions**
   const taraBook = (vehicle) => {
     navigation.navigate("booking", {
       track: user?.userId,
       wheels: vehicle,
       start: location,
-      city: cityba
+      city: cityba,
     });
   };
-
+  
   const OpenRewards = () => {
     navigation.navigate("webview", {
       track: user?.userId,
       url: `https://taranapo.com/rewards/?taraid=${user?.userId}`,
     });
   };
-
+  
   const openQR = () => {
-    navigation.navigate("qrcode", {
-      mode: "STF",
-    });
+    navigation.navigate("qrcode", { mode: "STF" });
   };
-
-  const newUpdateAvailable = (v) => {
+  
+  const newUpdateAvailable = (version) => {
     Alert.alert(
       "Update Available",
-      `You're using old ${v} version. We have our latest ${appVersion} version. Explore new improved update.`,
+      `You're using old ${version} version. We have our latest ${appVersion} version. Explore new improved update.`,
       [
+        { text: "Later", type: "cancel" },
+        { text: "Update", onPress: () => Linking.openURL("https://taranapo.com/download/") },
+      ]
+    );
+  };
+  
+  const goLogin = (page) => {
+    setUser((prev) => ({ ...prev, userId: null, accessToken: null, history: page }));
+  };
+  
+  const LogoutMe = async () => {
+    Alert.alert(
+      "Friendly Reminder",
+      "Logging out from all devices will also log you out of this one. Ensure your email or phone number are linked first.",
+      [
+        { text: "Cancel", type: "cancel" },
         {
-          text: "Later",
-          type: "cancel",
-        },
-        {
-          text: "Update",
-          onPress: () => Linking.openURL("https://taranapo.com/download/"),
+          text: "Logout",
+          onPress: async () => {
+            try {
+              await signOut(auth);
+              await AsyncStorage.multiRemove(["register", "data", "uid", "accessToken", "idToken"]);
+              showToast("success", "You have been logged out of this device.");
+              setUser((prev) => ({ ...prev, accessToken: "" }));
+            } catch (error) {
+              console.error("Error logging out:", error);
+            }
+          },
         },
       ]
     );
   };
-
-  const goLogin = (page) => {
-    setUser((prevState) => ({
-      ...prevState,
-      userId: null,
-      accessToken: null,
-      history: page,
-    }));
-  };
-
-
-  const LogoutMe = async () =>{
-    await signOut(auth);
-    await AsyncStorage.removeItem("register");
-    await AsyncStorage.removeItem("data");
-    await AsyncStorage.removeItem("uid");
-    await AsyncStorage.removeItem("accessToken");
-    await AsyncStorage.removeItem("idToken")
-    showToast("success","You have been log-out in this device.") 
-    setUser((prevState) => ({
-      ...prevState,
-      accessToken: '',
-    }));
-  }
-
-  const registerMe = async () =>{
+  
+  const registerMe = async () => {
     setDevice(true);
-    const savingDevice = await updateUser(
-      user?.userId,
-      "Device",
-      devdevice ?? "expogo"
-    );
-
-    console.log(savingDevice)
-  }
-
-
+    const response = await updateUser(user?.userId, "Device", deviceId ?? "expogo");
+    response.status == 'success' && toast("success","Device registered")
+  };
+  
+  //**Effect for Fetching Current Location & Control Data**
   useEffect(() => {
-    async function getCurrentLocation() {
+    const fetchLocationAndControl = async () => {
+
+      // Get cached data first
+      const cachedData = await AsyncStorage.getItem(`v_${appVersion}`);
+      if (cachedData) {
+      setControlData(JSON.parse(cachedData)); // Show cached data immediately
+      }else{
+       toast('success','Optimizing app speed to 20x perfomance for the next open.')
+      }
+
+  
+
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         setPermissionAsk(true);
         Alert.alert(
           "Permission Denied",
           "We cannot proceed performing our services without location access.",
-          [
-            {
-              text: "Close",
-              type: "cancel",
-            },
-          ]
+          [{ text: "Close", type: "cancel" }]
         );
         return;
-      } else {
-        setPermissionAsk(false);
       }
+  
+      setPermissionAsk(false);
+      const currentLocation = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      setLocation(currentLocation);
 
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-
-      if (location.mocked) {
-        setPermissionAsk(false);
-      } else {
-        setLocation(location);
-        getControl();
-      }
-    }
-
-    async function getControl() {
+       
   
       try {
         const response = await axios.get(GET_DATA_CONTROL_API, {
-          params: {
-            origin: JSON.stringify(location),
-          },
-          headers: {
-            Auth: `Bearer ${user?.accessToken}`,
-            "Content-Type": "application/json",
-          },
+          params: { origin: JSON.stringify(currentLocation) },
+          headers: { Auth: `Bearer ${user?.accessToken}`, "Content-Type": "application/json" },
         });
-
+  
         if (response.data) {
           setControlData(response.data.data);
-          const supportedLocations = response.data.data.supported_location;
+          await AsyncStorage.setItem(`v_${appVersion}`, JSON.stringify(response.data.data)); // Cache it
           setGate(response.data.data.gate);
-          setCityba(response.data.data.city)
-          if (location.coords) {
-            const { latitude, longitude } = location.coords;
-            const isSupported = supportedLocations.some((location) => {
-              return (
-                latitude >= location.minLat &&
-                latitude <= location.maxLat &&
-                longitude >= location.minLng &&
-                longitude <= location.maxLng
-              );
-            });
-
-            if (!isSupported) {
-              //not supported
-              setGate(true);
-            }
-          }
-
-          if (Platform.OS == "android") {
-            if (response.data.data.version_app_android != appVersion) {
-              newUpdateAvailable(response.data.data.version_app_android);
-            }
-          }
-
-          if (Platform.OS == "ios") {
-            if (response.data.data.version_app_ios != appVersion) {
-              newUpdateAvailable(response.data.data.version_app_ios);
-            }
-          }
-        } else {
+          setCityba(response.data.data.city);
+  
+          const supportedLocations = response.data.data.supported_location;
+          const { latitude, longitude } = currentLocation.coords;
+          const isSupported = supportedLocations.some(
+            (loc) => latitude >= loc.minLat && latitude <= loc.maxLat && longitude >= loc.minLng && longitude <= loc.maxLng
+          );
+  
+          if (!isSupported) setGate(true);
+  
+          const platformVersion = Platform.OS === "android" ? response.data.data.version_app_android : response.data.data.version_app_ios;
+          if (platformVersion !== appVersion) newUpdateAvailable(platformVersion);
         }
       } catch (error) {
         console.error(error);
       }
-    }
-
-    //setup for push notifications
-    setTimeout(async () => {
-      registerForPushNotificationsAsync().then((token) => savePushToken(token));
-
-      const notificationListener =
-        Notifications.addNotificationReceivedListener((notification) => {
-          console.log("Notification received:", notification);
-        });
-
-      const responseListener =
-        Notifications.addNotificationResponseReceivedListener((response) => {
-          console.log("Notification interacted with:", response);
-        });
-
+    };
+  
+    fetchLocationAndControl();
+  }, [locationPermission, user?.accessToken]);
+  
+  //**Effect for Push Notifications**
+  useEffect(() => {
+    const setupPushNotifications = async () => {
+      const token = await registerForPushNotificationsAsync();
+      if (token) {
+        const pushba = await updateUser(user?.userId, "OSID", token.data);
+        //setPushToken(pushba.status == 'success');
+      }
+  
+      const notificationListener = Notifications.addNotificationReceivedListener((notification) =>
+        console.log("Notification received:", notification)
+      );
+  
+      const responseListener = Notifications.addNotificationResponseReceivedListener((response) =>
+        console.log("Notification interacted with:", response)
+      );
+  
       return () => {
         Notifications.removeNotificationSubscription(notificationListener);
         Notifications.removeNotificationSubscription(responseListener);
       };
-    }, 2000);
-
-    const savePushToken = async (pt) => {
-      //toast("success", pt.data,user);
-      const savingPush = await updateUser(user?.userId, "OSID", pt.data, user);
-      const saveloc = `${location.coords.latitude},${coords.longitude}`;
-      console.log("location:", saveloc);
-      const savingLocation = await updateUser(
-        user?.userId,
-        "Location",
-        saveloc
-      );
-      
-      console.log("saving push:", savingPush);
     };
-
-    getCurrentLocation();
-  }, [locationPermission, setGate, setLocation, user?.accessToken]);
-
+  
+    setTimeout(setupPushNotifications, 2000);
+  }, []);
+  
+  //**Effect for Fetching User Data**
   useEffect(() => {
-    // fetching user data
-    const getUser = async () => {
+
+    const fetchUserData = async () => {
+
+        // Get cached userdata first
+        const cachedUser = await AsyncStorage.getItem(`user_${appVersion}`);
+        if (cachedUser) {
+        //setControlData(JSON.parse(cachedUser)); // Show cached data immediately
+        setData((prev) => ({ ...prev, user: JSON.parse(cachedUser) }));
+        }else{
+        toast('success','Optimizing app speed to 20x perfomance for the next open.')
+        }
+
       try {
         setIsLoading(true);
         const res = await fetchUser(user?.userId, user);
-        ///console.log(res)
         if (res.status === "success") {
-          //console.log(res.data)
-          setData((prevData) => ({
-            ...prevData,
-            user: res.data,
-          }));
-
-
-          //get device
-          console.log("my device:",devdevice," expecting ",res.data.Device)
-          if(res.data.Device != devdevice){
-            setDevice(false);
-          }
+          setData((prev) => ({ ...prev, user: res.data }));
           
 
-          //console.log(res.data);
-          //get if active booking
 
-          setActiveBooking(res.data.ActiveBooking == "N/A" ? false : true);
-          setActiveRateUs(res.data.ReviewUs == "N/A" ? false : true);
-          //if active fetch rides details
-          setGate(res.data.Status == "Active" ? false : true);
-          setIsLoading(false);
+          //device check
+          let id = null;
+          if (Platform.OS === "android") {
+            id = Application.getAndroidId();
+          } else if (Platform.OS === "ios" && Application.getIosIdForVendorAsync) {
+            id = await Application.getIosIdForVendorAsync();
+          }
+          setDeviceId(id)
+          //console.log(res.data.Device,id)
+          if (res.data.Device != id) setDevice(false);
+          setActiveRateUs(res.data.ReviewUs !== "N/A");
+          setGate(res.data.Status !== "Active");
+          await AsyncStorage.setItem(`user_${appVersion}`, JSON.stringify(res.data)); // Cache it
         }
+        setIsLoading(false);
       } catch (error) {
-        console.log(error);
+        console.error(error);
       }
     };
-    console.log(booking)
-    getUser();
+  
+    fetchUserData();
   }, [user?.userId]);
-
+  
+  //**Effect for Fetching Active Bookings**
   useEffect(() => {
-    const id = Device.deviceId;
-    setMyDeviceId(id); // This is the unique device ID
-  }, []);
+    const fetchActiveBookings = async () => {
+      const res = await fetchUser(user?.userId, user);
+      if (res.data?.ActiveBooking && res.data.ActiveBooking !== "N/A") {
+        const bookingIds = res.data.ActiveBooking.split(",").filter((id) => id !== "N/A");
+  
+        if (bookingIds.length > 0) {
+          const bookings = await Promise.all(bookingIds.map(async (id) => (id !== "N/A" ? getBookingInfo(id, user) : null)));
+          setActiveBooking(bookings.map((res) => res?.data).filter(Boolean));
+        }
+      } else {
+        setActiveBooking([]);
+      }
+    };
+  
+    fetchActiveBookings();
+  }, [data]);
+  
 
 
   return (
@@ -492,7 +474,7 @@ const HomeScreen = ({ navigation }) => {
 
         <BottomNavBar location={location} city={cityba} access={user} />
       </View>
-      {activaeBooking && <ExistingBooking />}
+      {activeBooking.length !=0 && <ExistingBooking origin={cityba} location={location} user={user} navigation={navigation}  bookingDetails={activeBooking} />}
 
       {activeScanFriend && (
         <FriendsWithBenefits
@@ -515,73 +497,158 @@ const HomeScreen = ({ navigation }) => {
         </View>
       )}
 
-      {!registered_device && <DevicePolicy thisdevice={registerMe} fuckoff={LogoutMe} />}
+      
 
-      {booking?.status == 'searching' && <SearchingBooking origin={cityba} location={location} user={user} navigation={navigation} />}
+      {!registeredDevice && <DevicePolicy thisdevice={registerMe} fuckoff={LogoutMe} />}
+
+      {/* {booking?.status == 'searching' ||  activaeBooking && <SearchingBooking origin={cityba} location={location} user={user} navigation={navigation} />} */}
     </View>
   );
 };
 
-const ExistingBooking = () => {
+const ExistingBooking = ({bookingDetails,origin,location,user,navigation}) => {
+
+
+  const taraBalik = (bid,mode) => {
+    navigation.navigate("booking", {
+      track: user?.userId,
+      wheels: 2,
+      start: location,
+      city: origin,
+      rule: mode,
+      bookingID: bid
+    });
+  };
+
+
   return (
     <View
-      className=" absolute bottom-36 left-6 right-6 p-4 shadow-md shadow-neutral-500 bg-blue-500 rounded-2xl 
-        flex flex-row items-center justify-between"
+      className="absolute bottom-36 left-6 right-6"
     >
-      <View className="flex flex-row gap-x-4 items-center ">
-        <View className="bg-white rounded-xl p-2.5">
+
+    <FlatList
+              data={bookingDetails}
+              renderItem={({ item, index }) => (
+                <View>
+          {
+          item.Status == 'Pending' ? (
+            <SearchingBooking id={item.BookingID} drop={item.Drop_Location} origin={origin} location={location} user={user} navigation={navigation} />
+          ): item.Status == 'Assignee' || item.Status == 'Pickup' ? (
+          <Pressable key={index} onPress={()=>taraBalik(item.BookingID,"Assignee")} className="mb-2 flex-row justify-between items-center  items-center bg-gray-100 border border-gray-200 p-2.5 rounded-2xl shadow-lg">
+              <View className="items-center flex-row gap-x-4">
+        <View className="border border-gray-200 bg-white rounded-xl p-2.5">
           <LottieView
             source={require("../assets/animation/tara.json")}
             autoPlay
             loop
-            width={40}
-            height={40}
+            width={25}
+            height={25}
           />
         </View>
 
         <View>
-          <Text className="text-lg font-semibold text-white">
-            Get ready to ride in!
+          <Text className="text-lg font-semibold text-gray-800">
+            {item.Status == 'Pickup' ? 'Have a safe and enjoy the ride!' : 'Waiting for the driver..'}
           </Text>
 
           <View className="flex flex-row gap-x-1 items-center">
             <LottieView
-              source={require("../assets/animation/clock.json")}
+              source={require("../assets/animation/tarawait.json")}
               autoPlay
               loop
               width={20}
               height={20}
             />
-            <Text className="text-base text-slate-200">3mins</Text>
+            <Text className="text-base font-mediym text-slate-500">{item.Drop_Location}</Text>
           </View>
         </View>
-      </View>
 
+       
+      </View>
       <View>
         <Svg
           xmlns="http://www.w3.org/2000/svg"
-          width={30}
-          height={30}
+          width={22}
+          height={22}
           viewBox="0 0 24 24"
-          fill="#fff"
+          fill="#404040"
         >
           <Path d="m15.75 9.525-4.586-4.586a1.5 1.5 0 0 0-2.121 2.122l4.586 4.585a.5.5 0 0 1 0 .708l-4.586 4.585a1.5 1.5 0 0 0 2.121 2.122l4.586-4.586a3.505 3.505 0 0 0 0-4.95Z" />
         </Svg>
       </View>
+            </Pressable> 
+          
+          ):(       
+            <Pressable key={index} onPress={()=>taraBalik(item.BookingID,"checking")} className="mb-2 flex-row justify-between items-center  items-center bg-gray-100 border border-gray-200 p-2.5 rounded-2xl shadow-lg">
+              <View className="items-center flex-row gap-x-4">
+        <View className="border border-gray-200 bg-white rounded-xl p-2.5">
+          <LottieView
+            source={require("../assets/animation/tara.json")}
+            autoPlay
+            loop
+            width={25}
+            height={25}
+          />
+        </View>
+
+        <View>
+          <Text className="text-lg font-semibold text-gray-800">
+            Driver is on the way..
+          </Text>
+
+          <View className="flex flex-row gap-x-1 items-center">
+            <LottieView
+              source={require("../assets/animation/tarawait.json")}
+              autoPlay
+              loop
+              width={20}
+              height={20}
+            />
+            <Text className="text-base  text-slate-700">Arrival in <Text className="font-bold text-base text-slate-700">{item.Time}</Text></Text>
+          </View>
+        </View>
+
+       
+      </View>
+      <View>
+        <Svg
+          xmlns="http://www.w3.org/2000/svg"
+          width={22}
+          height={22}
+          viewBox="0 0 24 24"
+          fill="#404040"
+        >
+          <Path d="m15.75 9.525-4.586-4.586a1.5 1.5 0 0 0-2.121 2.122l4.586 4.585a.5.5 0 0 1 0 .708l-4.586 4.585a1.5 1.5 0 0 0 2.121 2.122l4.586-4.586a3.505 3.505 0 0 0 0-4.95Z" />
+        </Svg>
+      </View>
+            </Pressable> 
+          )
+        }
+     
+      </View>
+              )}
+              keyExtractor={(item) => item.BookingID}
+              showsVerticalScrollIndicator={false}
+            />
+
+
+   
     </View>
   );
 };
 
 
 
-const SearchingBooking = ({origin,location,user,navigation}) => {
+const SearchingBooking = ({id,drop,origin,location,user,navigation}) => {
 
   const taraBalik = () => {
     navigation.navigate("booking", {
       track: user?.userId,
       wheels: 2,
       start: location,
-      city: origin
+      city: origin,
+      rule: "checking",
+      bookingID: id
     });
   };
 
@@ -589,12 +656,13 @@ const SearchingBooking = ({origin,location,user,navigation}) => {
   
   return (
     <Pressable
+    key={id}
       onPress={()=>taraBalik()}
-      className=" absolute bottom-36 left-6 right-6 p-4 shadow-md shadow-neutral-500 bg-[#404040] rounded-2xl 
+      className="mb-2 p-2.5 shadow-md shadow-neutral-500 bg-gray-100 border border-gray-200 rounded-2xl 
         flex flex-row items-center justify-between"
     >
       <View className="flex flex-row gap-x-4 items-center ">
-        <View className="relative bg-gray-500 rounded-xl overflow-hidden w-16 h-16">
+        <View className="border border-gray-200 relative bg-gray-500 rounded-xl overflow-hidden w-12 h-12">
           <TaraMock size={100} />
         <View className="absolute top-0 bottom-0 left-0 right-0 mx-auto inset-1">
         <LottieView
@@ -608,19 +676,12 @@ const SearchingBooking = ({origin,location,user,navigation}) => {
         </View>
 
         <View>
-          <Text className="text-lg font-semibold text-white">
+          <Text className="text-gray-800 font-semibold">
             Searching for drivers..
           </Text>
 
-          <View className="flex flex-row gap-x-1 items-center">
-            <LottieView
-              source={require("../assets/animation/clock.json")}
-              autoPlay
-              loop
-              width={20}
-              height={20}
-            />
-            <Text className="text-base text-slate-200">Still waiting</Text>
+          <View className="w-72 flex flex-row gap-x-1 items-center">
+            <Text numberOfLines={1} ellipsizeMode="tail" className="text-sm text-slate-500">Going to {drop}</Text>
           </View>
         </View>
       </View>
@@ -628,10 +689,10 @@ const SearchingBooking = ({origin,location,user,navigation}) => {
       <View>
         <Svg
           xmlns="http://www.w3.org/2000/svg"
-          width={30}
-          height={30}
+          width={22}
+          height={22}
           viewBox="0 0 24 24"
-          fill="#fff"
+          fill="#404040"
         >
           <Path d="m15.75 9.525-4.586-4.586a1.5 1.5 0 0 0-2.121 2.122l4.586 4.585a.5.5 0 0 1 0 .708l-4.586 4.585a1.5 1.5 0 0 0 2.121 2.122l4.586-4.586a3.505 3.505 0 0 0 0-4.95Z" />
         </Svg>

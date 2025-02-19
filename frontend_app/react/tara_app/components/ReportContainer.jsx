@@ -1,17 +1,41 @@
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Pressable, Text, TextInput, View,Keyboard } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { TaraLogo } from "../components/CustomIcon";
 import ParagraphText from "../components/ParagraphText";
 import Button from "./Button";
 import { Bigbox3 } from "./CustomTextbox";
+import { sendReport } from "../config/hooks";
+import { useToast } from "../components/ToastNotify";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import appJson from "../app.json";
+
 
 const ReportProblemScreen = ({ navigation, ...props }) => {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
-  const [agent, setAgent] = useState(1);
+  const [agent, setAgent] = useState(false);
+  const [sending,setSending] = useState(false)
+  const toast = useToast();
+  const appVersion = appJson.expo.version;
 
+useEffect(()=>{
+ const checkAgentAllow = async () =>{
+    // Get cached data first
+    const cachedData = await AsyncStorage.getItem(`v_${appVersion}`);
+    if (cachedData) {
+    if(JSON.parse(cachedData).agent == true){
+      setAgent(true)
+    }
+    }
+ }
+
+ checkAgentAllow();
+},[appVersion])
+
+
+  
   const agentButton = () => {
     navigation.navigate("webview", {
       track: "user",
@@ -23,6 +47,24 @@ const ReportProblemScreen = ({ navigation, ...props }) => {
   const checkDescrip = (text) => {
     setMessage(text);
   };
+
+  const sendMessage = async () =>{
+    Keyboard.dismiss()
+    if(!email || !message){
+      return
+    }
+    toast("try_again","Sending..")
+    setSending(true)
+    console.log(email,message)
+    const sendba = await sendReport(email,message)
+    console.log(sendba)
+    if(sendba.status == 'ok'){
+      //setSending(false)
+      toast("success","Report sent! Will response to your provided email.")
+    }
+  }
+
+
 
   return (
     <View className="w-full h-full bg-white absolute inset-0 z-50">
@@ -96,7 +138,11 @@ const ReportProblemScreen = ({ navigation, ...props }) => {
               Talk to agent
             </Button>
           )}
-          <Button>Send</Button>
+
+          {
+            !sending && <Button onPress={()=>sendMessage()}>Send</Button>
+          }
+          
         </View>
       </View>
     </View>

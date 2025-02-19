@@ -4,7 +4,7 @@ import { useEffect,useState,useRef } from "react";
 export const Bigbox3 = ({setInputValue,haba, ...props}) => {
     const [inputDes, setInputDes] = useState(null);
     const [desLength, setDesLength] = useState(0);
-    let maxIn2 = 500;
+    let maxIn2 = 300;
   const [height, setHeight] = useState(40); // Initial height
   const textInputRef = useRef(null);
   const onContentSizeChange = (event) => {

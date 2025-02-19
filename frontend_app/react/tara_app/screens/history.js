@@ -33,8 +33,8 @@ import { DataContext } from "../context/dataContext";
 import { TaraEmpty,TaraMock } from "../components/CustomGraphic";
 import { AuthContext } from "../context/authContext";
 import LottieView from "lottie-react-native";
-
-
+import { BookingContext } from "../context/bookContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const styles = StyleSheet.create({
   mapKO: {
@@ -60,18 +60,19 @@ const StaticMapImage = ({ latitude, longitude }) => {
 
 //screen
 const HistoryPage = ({route, navigation }) => {
-  const [refreshing, setRefreshing] = useState(false);
+const [refreshing, setRefreshing] = useState(false);
 const [historyList, setHistoryList] = useState([])
 const { user } = useContext(AuthContext);
 const [date, setDate] = useState(new Date());
 const [show, setShow] = useState(false);
-const [isLoading, setIsLoading] = useState(false);
+const [isLoading, setIsLoading] = useState(true);
 const { data } = useContext(DataContext);
 const today = new Date().toISOString().split("T")[0]; // the need to use date once screen initialize
 const [selectfilter,setFilter] = useState(false)
 const [openPageBa,setPage] = useState(false)
 const [dynmicData,setDynamic] = useState([])
 const [rating, setRating] = useState(0);
+const { booking,setBooking } = useContext(BookingContext);
 
 const handleRating = async (value) => {
   setRating(value);
@@ -101,6 +102,15 @@ const seeInvoice = (bi) =>{
 
 
  const rebookPlace = (bid) =>{
+  setBooking(null) //reset
+  setBooking((prevState) => ({
+    ...prevState,
+    status: 'draft',
+    pickcoord: dynmicData.Pick_Coordinate,
+    pickname: dynmicData.PickLocation,
+    dropcoord: dynmicData.Drop_Coordinate,
+    dropname: dynmicData.Drop_Location,
+  }));
   const {mycity,start} = route.params;
   navigation.navigate("booking", {
     track: user?.userId,
@@ -178,7 +188,7 @@ const seeInvoice = (bi) =>{
           </View>
 
           <View className="flex-1 relative h-26">
-            <View className="p-2 flex-row gap-x-2 justify-start items-center w-[240px]">
+            <View className="p-2 flex-row gap-x-2 justify-start items-center w-[230px]">
               <TaraNavigation size={22} color="#22c55e" />
               <Text
                 numberOfLines={2}
@@ -198,7 +208,7 @@ const seeInvoice = (bi) =>{
               <View className="h-1.5 w-1.5 bg-gray-300 rounded-full"></View>
             </View>
 
-            <View className="mt-1.5 p-2 flex-row gap-x-2 justify-start items-center w-[240px]">
+            <View className="mt-1.5 p-2 flex-row gap-x-2 justify-start items-center w-[230px]">
               <TaraMarker size={22} color="#ef4444" />
               <Text
                 numberOfLines={2}
@@ -327,7 +337,14 @@ const seeInvoice = (bi) =>{
         var formattedDate = today;
       }
 
-      try {
+        // Get cached data first
+        const cachedData = await AsyncStorage.getItem(`history_${formattedDate}`);
+        if (cachedData) {
+          setBookingDetails(JSON.parse(cachedData).reverse()); // Show cached data immediately
+        }
+
+
+        try {
         setIsLoading(true);
         const res = await fetchHistory(data?.user?.UserID,formattedDate,user );
         if (res.status === "success") {
@@ -336,6 +353,7 @@ const seeInvoice = (bi) =>{
           setHistoryList(res.data);
           setIsLoading(false);
          
+          
 
           const bookings = res.data;
           if(!bookings){
@@ -350,6 +368,7 @@ const seeInvoice = (bi) =>{
           });
 
           const allDetails = await Promise.all(detailsPromises);
+          await AsyncStorage.setItem(`history_${formattedDate}`, JSON.stringify(allDetails)); // Cache it
           setBookingDetails(allDetails.reverse()); // Store detailed booking data
           setRefreshing(false)
         }
@@ -363,7 +382,7 @@ const seeInvoice = (bi) =>{
 
     
     getHistory();
-  }, [data?.user?.UserID,date]);
+  }, [date]);
 
   return (
     <View className="w-full h-full bg-gray-50 relative ">
@@ -452,6 +471,9 @@ const seeInvoice = (bi) =>{
               data={item}
             />
           )}
+          initialNumToRender={3} // Render only 10 items first
+          windowSize={5} // Reduce memory usage
+          maxToRenderPerBatch={5} // Render 10 at a time
           keyExtractor={(item) => item.BookingID}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
