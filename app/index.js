@@ -62,7 +62,7 @@ function index() {
 
     // Function to get address from coordinates using Google Maps Geocoding API
     const getAddressFromCoords = async (latitude, longitude) => {
-        const apiKey = "AIzaSyCKNWAZKYZ13fjuzbIvExzcqg42cg7SQFE"; // Replace with your actual Google Maps API key
+        const apiKey = ""; // Replace with your actual Google Maps API key
         const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`;
 
         try {
